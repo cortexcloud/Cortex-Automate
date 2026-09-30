@@ -18,7 +18,9 @@ description: สมุดกฎและคู่มือของโปรเ�
 3. รันกับ dev-x (`https://dev-x.cortexcloud.co`) เท่านั้น — ผู้ใช้ยืนยันว่าเป็น Dev/UAT ยังไม่มี Prod · ห้ามชี้ `BASE_URL` ไป production
 4. ความลับ (user/pass, session) ทำตาม §6 ทุกกรณี
 5. อ่านโค้ด/ไฟล์ของผู้ใช้ก่อนออกแบบ — เช่น `.env` ที่ผู้ใช้ตั้ง user แยก role เอง: **ปรับโค้ดให้ตามรูปแบบของผู้ใช้** ไม่ใช่ให้ผู้ใช้แก้ตามโค้ด
-6. ได้การ์ดใหม่ → ทำตาม**ขั้นตอน R16** (§7) ก่อนเขียนโค้ดเสมอ: เข้าใจการ์ด → ตรวจ TC ใน Sub-Issue ว่าครอบคลุมไหม → วางแผน
+6. ได้การ์ดใหม่/requirement ใหม่ → ต้องผ่าน skill **`qa-automate-readiness`** ก่อนเขียนโค้ด automate ทุกครั้ง (เดิมคือ R16 —
+   ย้ายไปเป็นสกิลแยกแล้ว 30 ก.ย. 2026 เพราะเป็นหลักการที่ QA ทั้งทีมต้องทำเหมือนกัน) เขียน Playwright ได้เฉพาะ TC ที่ยืนยัน
+   จากแอปจริงแล้วเท่านั้น
 
 ---
 
@@ -31,18 +33,23 @@ Cortex Automate/
 ├─ playwright.config.ts            ค่ากลาง + projects: setup → chrome
 ├─ tests/
 │  ├─ auth.setup.ts                เตรียม session ของ role ใน ROLES_IN_USE (ใช้ของเดิมถ้ายังไม่หมดอายุ) → .auth/<Role>.json
-│  ├─ smoke/app-launcher.spec.ts   เทสตัวอย่าง (Super_User): เปิด /cortex/apps หลังล็อกอิน
-│  └─ er/SBH-1013-open-visit-er.spec.ts   การ์ด SBH-1013: 2 เทสตาม flow (ผู้ป่วยใหม่ที่ไม่เคยมีในระบบ / ผู้ป่วยทีมที่มี HN อยู่แล้ว + ยกเลิก Visit หลังเทส) · step ตาม TC-001–006 ของชุด EXE SBH-1702
-│     er/SBH-1021-triage-form.spec.ts     การ์ด SBH-1021: 1 เทส ผู้ป่วย AUTO ใหม่ → กรอกฟอร์ม Triage จนบันทึก + โหลดหน้าใหม่เช็คค่าที่บันทึก · step ตาม TC-001–008 ของชุด EXE SBH-1739
-├─ helpers/er.ts                   ขั้นตอนหน้าจอ ER ที่ใช้ซ้ำ: เข้า Dashboard · หน้าคัดกรอง · ค้นผู้ป่วย (searchPatients) · สุ่มผู้ป่วยทีม (pickTeamPatient) ·
-│                                  ลงทะเบียนผู้ป่วยใหม่ · เลือกผู้ป่วยมี HN · จด Visit ที่เปิด (trackOpenedErVisits) · ยกเลิก Encounter (cancelErEncounter) ·
-│                                  modal เปิด Visit ER · แถบหัว Visit (expectVisitHeader) · หน้า Triage ของ Visit · การ์ดบนบอร์ด (showDashboardCard) ·
-│                                  กลับ Dashboard ผ่านเมนู · expectOk() (API error พร้อม body)
-├─ helpers/er-triage.ts            ฟอร์ม "คัดกรอง ER": triageForm · กรอก Vital Signs · Pain score · แถว MEWS · เลือก GCS (chooseGcs) · อุปกรณ์ช่วยเหลือ / ผู้ที่มาด้วย ·
-│                                  labelledBox() (กล่อง Total MEWS / Total GCS / ผล Triage)
-├─ helpers/evidence.ts             checkStep() — step ที่แนบภาพ "ผ่าน — …" / "Error — …" ลงรายงาน · markEvidence() — กรอบแดงในภาพ (R13) + ป้าย filled/clicked/alerted/expected (R23) · snapEvidence() — ภาพกลาง step เช่น "ก่อนกด"
-├─ helpers/fixtures.ts             test / expect ของโปรเจกต์ (เทสทุกไฟล์ import จากที่นี่) — อัดวิดีโอด้วย page.screencast เริ่มหลังหน้าแรกโหลดเสร็จ (R13)
-├─ helpers/test-data.ts            newTestPatient(label) — ชื่อ AUTO + นามสกุล label+เวลาไทย · randomThaiId()
+│  ├─ modules/er/                  เทสรายการ์ดของ module ER — รันแยกด้วย `npm run test:module:er` (§3, ตั้งแต่ 30 ก.ย. 2026)
+│  │  ├─ SBH-1013-open-visit-er.spec.ts   การ์ด SBH-1013: 2 เทสตาม flow (ผู้ป่วยใหม่ที่ไม่เคยมีในระบบ / ผู้ป่วยทีมที่มี HN อยู่แล้ว + ยกเลิก Visit หลังเทส) · step ตาม TC-001–006 ของชุด EXE SBH-1702
+│  │  └─ SBH-1021-triage-form.spec.ts     การ์ด SBH-1021: 1 เทส ผู้ป่วย AUTO ใหม่ → กรอกฟอร์ม Triage จนบันทึก + โหลดหน้าใหม่เช็คค่าที่บันทึก · step ตาม TC-001–008 ของชุด EXE SBH-1739
+│  └─ E2E/                         เทส flow เต็มที่ข้ามหลาย module (เช่น ลงทะเบียน ER → ส่งต่อ OPD → Discharge) — รันแยกด้วย `npm run test:e2e` ·
+│                                  โฟลเดอร์เตรียมไว้ตั้งแต่ 30 ก.ย. 2026 ยังไม่มีไฟล์เทสจริง (script จะรันแล้วเจอ "no tests found" จนกว่าจะมี flow แรก)
+├─ helpers/
+│  ├─ functions/                   **Layer 1: Page-level actions** (ใช้ซ้ำระดับ element/component เดียว) — ปรับครั้งแรก 30 ก.ย. 2026
+│  │  ├─ er.ts                     ขั้นตอนหน้าจอ ER ที่ใช้ซ้ำ: เข้า Dashboard · หน้าคัดกรอง · ค้นผู้ป่วย (searchPatients) · สุ่มผู้ป่วยทีม (pickTeamPatient) ·
+│  │  │                            ลงทะเบียนผู้ป่วยใหม่ · เลือกผู้ป่วยมี HN · จด Visit (trackOpenedErVisits) · ยกเลิก Encounter (cancelErEncounter) ·
+│  │  │                            modal เปิด Visit ER · แถบหัว Visit (expectVisitHeader) · หน้า Triage · การ์ดบนบอร์ด · expectOk()
+│  │  ├─ er-triage.ts              ฟอร์ม "คัดกรอง ER": triageForm · Vital Signs · Pain score · MEWS · GCS (chooseGcs) · อุปกรณ์ช่วยเหลือ / ผู้ที่มาด้วย · labelledBox()
+│  │  ├─ evidence.ts               checkStep() · markEvidence() (กรอบแดง R13/R23) · snapEvidence()
+│  │  ├─ fixtures.ts               test / expect ของโปรเจกต์ (import จากที่นี่ทุกไฟล์) — อัดวิดีโอด้วย page.screencast เริ่มหลังหน้าแรกโหลดเสร็จ
+│  │  └─ test-data.ts              newTestPatient(label) · randomThaiId()
+│  ├─ flows/                       **Layer 2: Business-level sequences** (ใช้ซ้ำข้าม spec ได้ — เรียก functions หลายอัน)
+│  │  └─ er.flows.ts               prepareNewPatientErVisit(page, label) — Dashboard → Triage page → ลงทะเบียน AUTO → ยืนยัน Visit → รอฟอร์ม Triage → ปิด toast
+│  └─ steps/                       **Layer 3: Reusable test step groups** (placeholder — เพิ่มเมื่อมี step group ที่ซ้ำข้าม spec)
 ├─ utils/env.ts                    DEFAULT_ROLE · ROLES_IN_USE · authFile(role) · getCredentials(role) · listRoles()
 ├─ utils/session.ts                isSessionAlive() — ถาม Keycloak ว่า session เดิมยังใช้ได้ไหม
 ├─ .env (.env.example)             BASE_URL + CORTEX_USERNAME_<Role> / CORTEX_PASSWORD_<Role>
@@ -66,8 +73,10 @@ Cortex Automate/
 | ทำอะไร | คำสั่ง |
 |--------|--------|
 | รันทั้งหมด (ไม่เปิดจอ) | `npm test` |
-| รันบางไฟล์ / บางชื่อ | `npx playwright test tests/smoke` · `npx playwright test -g "ชื่อเทส"` |
+| รันบางไฟล์ / บางชื่อ | `npx playwright test tests/modules/er` · `npx playwright test -g "ชื่อเทส"` |
 | รันเฉพาะการ์ด / TC (tag) | `npx playwright test --grep @SBH-1013` · `--grep @SBH-1709` (เลข TC รันทั้งเทสที่มี step นั้น) |
+| รันเฉพาะ module | `npm run test:module:er` (`tests/modules/er`) — module ใหม่เพิ่ม script คู่กันเอง เช่น `test:module:opd` (R28, ตั้งแต่ 30 ก.ย. 2026) |
+| รันเฉพาะ flow e2e (ข้ามหลาย module) | `npm run test:e2e` (`tests/E2E`) — ยังไม่มีไฟล์เทสจริง (R28) |
 | เปิดจอดูตอนรัน | `npm run test:headed` · เฉพาะการ์ด `npm run test:headed -- --grep @SBH-1013` (PowerShell 5.1 ส่ง `--` และ `@SBH-...` ต่อได้ปกติ — ตรวจแล้ว) |
 | โหมด UI (เลือกเทส ดูทีละ step) | `npx playwright test --project=setup` ก่อน แล้ว `npx playwright test --ui --project=chrome` = **`npm run test:ui`** (แก้ script แล้ว 26 ก.ย. 2026 หลังผู้ใช้เจอว่า `npx playwright test --ui` ไม่เห็น SBH-1013) · เห็น Chrome จริงด้วย: `npm run test:ui -- --headed` · **อย่าใช้ `npx playwright test --ui` เฉยๆ** เหตุผลด้านล่าง |
 | debug ทีละบรรทัด | `npm run test:debug` |
@@ -112,7 +121,7 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/SuchatChancherngsila/O
 
 ## 5) เรื่องที่ยังไม่ได้ตกลง — ถามผู้ใช้ก่อนทำ
 
-- **ขั้นตอนการทำงานช่วงท้าย** (รัน → รายงานผล) — ผู้ใช้บอกว่าจะอธิบายเอง · ช่วงต้น (เข้าใจการ์ด → ตรวจ TC → วางแผน) ผู้ใช้กำหนดแล้วใน R16
+- **ขั้นตอนการทำงานช่วงท้าย** (รัน → รายงานผล) — ผู้ใช้บอกว่าจะอธิบายเอง · ช่วงต้น (เข้าใจการ์ด → ตรวจ TC → วางแผน) ผู้ใช้กำหนดแล้วที่ skill `qa-automate-readiness` (เดิมคือ R16)
 - เทสที่ **แก้/ส่งต่อ** ข้อมูลบน dev-x (เช่น ส่งต่อคลินิก, ยกเลิก Visit ที่เทสไม่ได้เปิดเอง, บันทึก Triage ให้ผู้ป่วยทีม) รันได้เลยไหม —
   ที่ตกลงแล้ว: สร้างผู้ป่วยใหม่ + เปิด Visit (R10, R11) · เปิด Visit ให้ผู้ป่วยทีมแล้ว**ยกเลิก Encounter ที่เทสเปิดเอง** (R15) · บันทึก Triage ให้ผู้ป่วย AUTO (R17)
 - รายงานผลให้ใคร รูปแบบไหน (HTML report / Excel / Linear) · เจอบั๊กจาก automate รายงานแบบไหน
@@ -163,7 +172,7 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/SuchatChancherngsila/O
 | R13 | "ทุกครั้งที่รันเทสมีเก็บผลเป็นรูปแบบ Video และใน Report อยากให้มีการแสดงรูปภาพในจุดที่ Expect ไว้ด้วย หากพบว่ามี Error ก็อยากให้เป็นผลที่ Error ไว้ด้วย" →<br>**วิดีโอทุกเทสทุกรอบ** 1920×1080 — เทส: fixture ใน `helpers/fixtures.ts` (เริ่มอัดหลังหน้าแรกโหลดเสร็จ) · setup: `video: on` ของ config (R14) · **step ของ TC ต้องใช้ `checkStep()`** (`helpers/evidence.ts`) ซึ่งแนบภาพ `ผ่าน — <step>` ตอนเช็ค Expected ครบ / `Error — <step>` ตอนพัง ไว้ใต้ step ในรายงาน · `screenshot: only-on-failure` คงไว้เป็นภาพท้ายเทสกันพังนอก step ·<br>ผู้ใช้ติ (26 ก.ย. 2026) "ภาพไม่ตรงกับ Expect" + "Video ยังมีหน้าขาวในช่วงแรก" → **ภาพต้องเห็นสิ่งที่ Expected พูดถึง**: ปิด step ด้วย `markEvidence(<สิ่งที่เช็ค>)` · TC ที่เช็คหลายสถานะ (เลือก → ยกเลิก, ค่าเปลี่ยนตาม) แยก `checkStep` ย่อยทีละสถานะ · ปิด toast ที่บังแถบหัว (`dismissToast`) · Expected ที่ไม่มีบนจอ (เช่น EN บนบอร์ด) แนบข้อมูล API เป็น JSON ใต้ step · **วิดีโอไม่มีช่วงจอขาวตอนโหลดแอป** | 26 ก.ย. 2026 |
 | R14 | "ฉันอนุญาติไม่ต้องมีการปกปิดตอน Login ให้บันทึกได้ปกติ" (ตอบหลัง Claude แจ้งว่าขั้นล็อกอินไม่อัดวิดีโอเพราะมีการกรอกรหัสผ่าน) →<br>project `setup` ใช้ค่าบันทึกเดียวกับเทสอื่น (วิดีโอ · trace / ภาพตอน fail) ไม่ override แล้ว · ข้อห้ามใน §6 ที่มีไว้กันรหัสผ่านเข้าผลเทสยกเลิก (ยังไม่พิมพ์รหัสลงแชท / ไฟล์ที่ Claude เขียน) | 26 ก.ย. 2026 |
 | R15 | "ขอแยกเป็นแบบนี้ในกรณีที่สร้างผู้ป่วยใหม่ --> ต้องไม่เคยมีคนไข้อยู่ในระบบมาก่อน แต่ถ้า เลือกผู้ป่วยที่มี HN --> ให้ใช้คนไข้ที่มีอยู่ในระบบแล้ว" + เลือกตัวเลือก **"สุ่มคนไข้ทดสอบของทีม"** (ชื่อขึ้นต้น "คนไข้" ที่ไม่อยู่บน ER Dashboard แบบเทสมือ และยกเลิก Visit ท้ายเทส) →<br>**ผู้ป่วยใหม่**: ก่อนลงทะเบียนค้นชื่อเต็มในช่องค้นหา ต้องไม่พบ (TC-003 ขั้น 3) · **ผู้ป่วยมี HN**: `pickTeamPatient()` สุ่มผู้ป่วยทีมที่ไม่มี Encounter / Admission ค้าง (Claude ทำเข้มกว่า "ไม่อยู่บนบอร์ด" เพราะเจอคนที่ Admit อยู่ → เปิด Visit ได้ 400 และ Visit ER ค้างข้ามวันที่บอร์ดไม่แสดง — แจ้งผู้ใช้แล้ว) ·<br>Visit ที่เปิดให้ผู้ป่วยทีมต้อง**ยกเลิก Encounter** เป็นขั้นสุดท้ายของเทส และ `afterEach` ยกเลิกให้ถ้าเทสพังกลางทาง (เช็ค EN ใน modal ก่อนกดยืนยันทุกครั้ง) | 26 ก.ย. 2026 |
-| R16 | "ครั้งหน้าก่อนอยากให้เริ่มทำความเข้าใจกับการ์ดก่อนและจึงจะตรวจสอบ Test Case ที่อยู่ใน Sub-Issue แล้วลองพิจราณาว่า Test Case ครอบคุมไหม ถ้าไม่ครอบคุมคิดว่าต้องเพิ่มอะไรบ้างลองเสนอ Test Case ให้ User ได้แต่ถ้าครอบคลุมแล้วข้ามผ่านขั้นนี้ได้เลย ก่อนจะเขียน Code ให้วางแผนก่อนว่าจะเขียนยังไงให้ครอบคลุมเพื่อลดความผิดพลาด แต่ถ้าจุดไหนที่คิดว่าไม่มีประสิทธิภาพในการทำงานสามารถเสนอให้ User พิจราณาปรับเปลี่ยนแผนได้เสมอ" → ขั้นตอนด้านล่าง | 26 ก.ย. 2026 |
+| R16 | "ครั้งหน้าก่อนอยากให้เริ่มทำความเข้าใจกับการ์ดก่อนและจึงจะตรวจสอบ Test Case ที่อยู่ใน Sub-Issue แล้วลองพิจราณาว่า Test Case ครอบคุมไหม ถ้าไม่ครอบคุมคิดว่าต้องเพิ่มอะไรบ้างลองเสนอ Test Case ให้ User ได้แต่ถ้าครอบคลุมแล้วข้ามผ่านขั้นนี้ได้เลย ก่อนจะเขียน Code ให้วางแผนก่อนว่าจะเขียนยังไงให้ครอบคลุมเพื่อลดความผิดพลาด แต่ถ้าจุดไหนที่คิดว่าไม่มีประสิทธิภาพในการทำงานสามารถเสนอให้ User พิจราณาปรับเปลี่ยนแผนได้เสมอ" → **ย้ายไปเป็น skill แยก `qa-automate-readiness` แล้ว (30 ก.ย. 2026)** เพราะเป็นหลักการที่ QA ทั้งทีมต้องทำเหมือนกัน ไม่ใช่แค่เรื่อง automate — ดูขั้นตอนเต็มที่สกิลนั้น | 26 ก.ย. 2026 |
 | R17 | ตอบเรื่อง SBH-1021 ข้อ 2 "อนุญาติให้บันทึกได้" (Claude ถามว่าบันทึก Triage กับผู้ป่วย AUTO ได้ไหม และทิ้งไว้ได้ไหมหลังการ์ดย้ายไปโซนเหลือง — แนะนำให้ทิ้งไว้แบบ R11) →<br>เทส**บันทึก Triage ให้ผู้ป่วย AUTO ที่เทสสร้างเองได้** และไม่ต้องล้าง (ผู้ป่วยย้ายจากคอลัมน์คัดกรองไปโซนตาม ESI) · ผู้ป่วยทีม (R15) ยังไม่ได้ขอ — ถามก่อน | 26 ก.ย. 2026 |
 
 | R18 | ตอบหลังเล่น UAT-ER-02: "เมื่อกดปุ่มปริ้นป้ายปลายเตียงจะมี Network ที่ชื่อ PDF ขึ้นมาให้ Copy response ไปเปิดแท๊บใหม่จะแสดงเอกสารป้ายปลายเตียงขึ้นมา" →<br>**เช็คเอกสารพิมพ์ด้วย response PDF** ไม่ใช่ตัวพิมพ์จริง: ดัก `POST …/bedside-name-badge/pdf` (200 `application/pdf`) แล้วเปิด body ในแท็บใหม่ (`route().fulfill`) เช็คเนื้อหา · toast "ไม่สามารถพิมพ์ป้ายผู้ป่วยได้" (ไม่มี print agent `localhost:8081`) **ไม่ถือว่า fail** · วิธีเต็ม [er-flow.md](references/er-flow.md) §3.3 | 28 ก.ย. 2026 |
@@ -176,22 +185,14 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/SuchatChancherngsila/O
 | R25 | "สั่งได้จริงแต่ให้ใช้ยา med0000005 med0000006 med0000007 med0000008" → สั่งยา / สั่ง Lab บน dev-x ได้ · **ยาใช้เฉพาะรหัส med0000005–med0000008** | 29 ก.ย. 2026 |
 | R26 | หมายเหตุชีต UAT-ER-01 "ต้องกด จ่ายบางส่วน" (กรณี 1.3, 1.4) → **ข้ามไปก่อน** ลงหมายเหตุไว้ | 29 ก.ย. 2026 |
 | R27 | UAT ที่มีหลายผู้ป่วยทำขั้นร่วมซ้ำ → ผู้ใช้เลือก **"เต็มแค่รายที่ 1"**: รายที่ 1 ถ่ายทุกขั้น (R23) · รายถัดไปทำขั้นร่วมครบแต่ถ่ายเฉพาะผลสำคัญ + ถ่ายเต็มที่ขั้นเฉพาะของกรณีตัวเอง · คลิปแยกรายละคลิป | 29 ก.ย. 2026 |
+| R28 | "อยากให้แยกการ run ต่อ module และ ต่อ flow e2e ได้" → ยืนยัน: "flow e2e" = สายงานเต็มข้ามหลาย module (เช่น ลงทะเบียน ER → ส่งต่อ OPD → Discharge) ต่างจากเทสรายการ์ดใน `tests/modules/<module>/` · รูปแบบคำสั่งที่เลือก = **npm script คงที่ต่อรายชื่อ** (ไม่ใช่ script รับ parameter) → เพิ่ม `test:module:er` (`tests/modules/er`) + `test:e2e` (`tests/E2E`) ใน `package.json` · module ใหม่ / flow e2e ไฟล์แรก ต้องกลับมาเพิ่ม script ใหม่ตาม pattern นี้ทุกครั้ง | 30 ก.ย. 2026 |
 
-### ขั้นตอนเมื่อได้การ์ดใหม่ (R16)
+### ขั้นตอนเมื่อได้การ์ดใหม่
 
-1. **ทำความเข้าใจการ์ด** — description · AC · scope · ภาพประกอบ · คอมเมนต์ · การ์ด/บั๊กที่ลิงก์ไว้ ให้รู้ว่าฟีเจอร์ต้องทำอะไรและอะไรอยู่นอก scope
-2. **ตรวจ Test Case ใน Sub-Issue** — โครงสร้างที่เจอใน SBH-1013: การ์ด → `EXE - CT - <โมดูล> / VERSION x` (มี Pre-condition + Scope หมายเหตุ เช่น เคสที่ย้ายไปทดสอบในการ์ดอื่น)
-   → `SC-00x` (Scenario) → `TC-00x` (Test Step + Expected Result + ผลเทสมือพร้อมวิดีโอ/ภาพ)
-3. **ครอบคลุมไหม** — จับคู่ AC / scope ของการ์ดกับ TC ทีละข้อ
-   - ไม่ครอบคลุม → เสนอ TC ที่ควรเพิ่มให้ผู้ใช้ พร้อมบอกว่าเติมช่องว่างข้อไหนของการ์ด (เสนอในแชท — จะเพิ่มลง Linear ไหม ผู้ใช้ตัดสิน)
-   - ครอบคลุมแล้ว → ข้ามขั้นนี้
-4. **วางแผนก่อนเขียนโค้ด** ให้ครอบคลุมเพื่อลดความผิดพลาด — flow ต่อเทส (R9) · ข้อมูลทดสอบ (R10, R15) · จุดที่เช็คของแต่ละ TC + ภาพหลักฐาน (R13) · การล้างข้อมูล · เรื่องที่ต้องถาม (R1)
-5. เห็นจุดไหนไม่มีประสิทธิภาพ (ในแผน หรือในขั้นตอนนี้เอง) → เสนอผู้ใช้ปรับแผนได้เสมอ
-
-วิธีส่งงานของ Claude: ส่งสรุปการ์ด + ผลตรวจ TC (+ TC ที่เสนอ) + แผน ในข้อความเดียวก่อนเขียนโค้ด · ถ้ามี TC ที่เสนอหรือเรื่องให้เลือก → รอคำตอบก่อนลงมือ
-(ใช้กับ SBH-1021 แล้ว — ตั้งคำถามเป็นข้อมีเลข ผู้ใช้ตอบกลับเป็นข้อๆ ได้สะดวก)
-- TC ที่ขาดอาจ**อยู่ในการ์ดอื่นแล้ว** (SBH-1021: ผู้ใช้ตอบว่า TC ที่เสนอ "อยู่ในการ์ดอื่นไม่ต้องเพิ่ม") → ก่อนเสนอ ลองค้น TC ชื่อใกล้เคียงใน EXE อื่นของโปรเจกต์ ER ก่อน
-- ผลเทสมือใน Sub-Issue ขัดกันเอง หรือ AC ขัดกับบั๊กที่แก้แล้ว → ถามผู้ใช้ว่ายึดอันไหน (SBH-1021: AC "ต้องระบุ Vital Signs" vs บั๊ก SBH-1773 → ผู้ใช้ตอบ "Vital Sign ไม่บังคับให้กรอกแล้ว")
+ย้ายไปเป็น skill แยก **`qa-automate-readiness`** แล้ว (30 ก.ย. 2026) — เนื้อหาเดิม (เข้าใจการ์ด → ตรวจ TC ใน Sub-Issue →
+เสนอ TC ที่ขาด → วางแผนก่อนเขียนโค้ด) ยังอยู่ครบที่นั่น พร้อมขยายเพิ่ม 2 gate (QA review draft + ยืนยันผลจากแอปจริงด้วย
+วิดีโอ ก่อนเขียน automate) เพราะเป็นหลักการที่ QA ทั้งทีมต้องทำเหมือนกัน ไม่ใช่แค่เรื่อง automate โดยเฉพาะ
+ตัวอย่างที่เคยทำตามขั้นตอนนี้ (SBH-1013, SBH-1021) ยังเก็บ log ไว้ที่ §10 ด้านล่างเหมือนเดิม
 
 _(กฎและขั้นตอนถัดไปผู้ใช้จะสอนเพิ่ม — ลงตารางนี้ตาม §8)_
 
@@ -363,3 +364,11 @@ _(กฎและขั้นตอนถัดไปผู้ใช้จะส
 - 2026-09-28 — ผู้ใช้ขอเปิด Cortex → เมนูผู้ป่วยนอก ผ่าน Playwright MCP → ล็อกอิน Super_User แล้วถึงหน้า "เลือกหน่วยบริการ" → ผู้ใช้เลือกคลินิกอายุรกรรม(MED) → หน้ารายการผู้ป่วยนอก · เพิ่มความรู้โมดูล OPD ใน §9
 - 2026-09-29 — ผู้ใช้ขอเปิด Visit ผู้ป่วยมี HN + Triage ครบทุก ESI / ทุกโซน → สเปกชั่วคราว (ลบแล้ว) ใช้ผู้ป่วยทีมนอกหน้าแรกของผลค้นหา 5 คน · ผ่าน 5/5 (4.4 นาที) ทิ้งไว้บนบอร์ด · จด er-flow.md §6
 - 2026-09-29 — ผู้ใช้ให้เล่น UAT-ER-01 ผ่าน MCP → ผู้ใช้ตอบ R24–R27 (AUTO ที่มี HN ก่อน · ยา med0000005–8 · ข้ามจ่ายบางส่วน · หลักฐานเต็มรายที่ 1) · เล่นครบ 5 กรณี (HN 6931538–6931541) คลิป 4 ไฟล์ + ภาพ ~100 ใน `.playwright-mcp/UAT-ER-01/` · สำรวจสั่งยา/Lab/พิมพ์ใบสั่งยา/AMA/Escape/Reopen → er-flow.md §3.4
+- 2026-09-30 — ผู้ใช้ขอแยก script รันต่อ module และต่อ flow e2e → R28: ยืนยัน E2E = ข้ามหลาย module, รูปแบบ = script คงที่ต่อรายชื่อ · เพิ่ม `test:module:er` + `test:e2e` ใน `package.json`, อัปเดตตารางคำสั่ง README + §3, แก้ผังโครงสร้าง §2 ให้ตรงของจริง (path เดิมเป็น `tests/er/` + `tests/smoke/` ที่ไม่มีอยู่จริงในเครื่องนี้แล้ว → เป็น `tests/modules/er/` + `tests/E2E/`)
+- 2026-09-30 — ผู้ใช้ขอแยก "หลักการที่ QA ทั้งทีมต้องทำเหมือนกัน" ออกจากสกิลนี้ (ไม่ให้ปนกับเรื่อง automate โดยเฉพาะ) →
+  ย้าย R16 + หัวข้อ "ขั้นตอนเมื่อได้การ์ดใหม่" ออกไปเป็นสกิลแยก `qa-automate-readiness` (git-tracked, `.claude/skills/qa-automate-readiness/SKILL.md`)
+  พร้อมขยาย workflow เดิมให้มี 2 gate ชัดเจน (เก็บ draft TC เป็น .md ให้ QA review ก่อน → สำรวจแอปจริงยืนยันด้วยวิดีโอก่อนจะ automate)
+  แก้ §1 ข้อ 6 และแถว R16 ใน §7 ให้ชี้ไปสกิลใหม่แทนของเดิม · ระหว่างทำพบว่าสกิล `linear-testcase-writer` (global) กับ
+  `linear-execution-test` (synced จาก claude.ai) มี rule ขัดกันจริง (tag Required/Optional, Test Level, Priority scale, ชื่อ label)
+  → รวมเป็น ruleset เดียวแล้วเขียนเป็นไฟล์โปรเจกต์ (git-tracked) `.claude/skills/linear-testcase-writer/SKILL.md` +
+  sync กับ global copy ให้เหมือนกัน (รายละเอียดเต็มอยู่ใน TODO.md และ log ของสกิลนั้นเอง)
