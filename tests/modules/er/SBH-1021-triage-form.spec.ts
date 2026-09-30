@@ -1,15 +1,5 @@
 import { type Page } from '@playwright/test';
-import {
-  confirmOpenErVisit,
-  dismissToast,
-  expectOk,
-  expectTriageFormOpen,
-  gotoErDashboard,
-  openTriagePage,
-  registerNewPatient,
-  waitForApi,
-  type ErVisit,
-} from '../../../helpers/er';
+import { expectOk, waitForApi, type ErVisit } from '../../../helpers/functions/er';
 import {
   chooseGcs,
   fillVitalSigns,
@@ -20,10 +10,10 @@ import {
   selectArrivalDetail,
   triageForm,
   type VitalSigns,
-} from '../../../helpers/er-triage';
-import { checkStep, markEvidence } from '../../../helpers/evidence';
-import { expect, test } from '../../../helpers/fixtures';
-import { newTestPatient } from '../../../helpers/test-data';
+} from '../../../helpers/functions/er-triage';
+import { checkStep, markEvidence } from '../../../helpers/functions/evidence';
+import { expect, test } from '../../../helpers/functions/fixtures';
+import { prepareNewPatientErVisit } from '../../../helpers/flows/er.flows';
 
 // SBH-1021 [ER][Triage] Triage Form
 // แปลงจากชุด Manual: EXE SBH-1739 → TC-001–008 (SBH-1746–SBH-1753) · 1 เทส = 1 flow กรอกฟอร์มจนบันทึก (R9)
@@ -120,15 +110,8 @@ test.describe('SBH-1021 ฟอร์ม Triage (คัดกรอง ER)', () =
       const form = triageForm(page);
       const contributions = trackContributions(page);
 
-      const visit = await test.step('เตรียมข้อมูล: ผู้ป่วยใหม่ AUTO + เปิด Visit ER → หน้า Triage', async () => {
-        await gotoErDashboard(page);
-        await openTriagePage(page);
-        const { dialog } = await registerNewPatient(page, newTestPatient('Triage'));
-        const visit = await confirmOpenErVisit(page, dialog);
-        await expectTriageFormOpen(page, visit);
-        await dismissToast(page, 'สร้าง Visit สำเร็จ');
-        return visit;
-      });
+      const visit = await test.step('เตรียมข้อมูล: ผู้ป่วยใหม่ AUTO + เปิด Visit ER → หน้า Triage', async () =>
+        prepareNewPatientErVisit(page, 'Triage'));
       recordVisit(visit);
 
       await checkStep(page, 'TC-002 / TC-003 ขั้น 2 ก่อนกรอก Vital Signs: MEWS ยังว่าง และ AVPU ยังไม่ถูกเลือก', async () => {
