@@ -8,6 +8,8 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --project=setup && playwright test --ui --project=chrome",
     "test:debug": "playwright test --debug",
+    "test:module:er": "playwright test tests/modules/er",
+    "test:e2e": "playwright test tests/E2E",
     "report": "playwright show-report",
     "codegen": "playwright codegen --channel=chrome --viewport-size=1920,1080 --load-storage=.auth/Super_User.json https://dev-x.cortexcloud.co/cortex/apps",
     "typecheck": "tsc --noEmit"
