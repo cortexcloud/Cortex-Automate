@@ -16,6 +16,8 @@ QA Automation สำหรับ Cortex Cloud HIS (dev-x) ด้วย Playwrigh
 |--------|--------|
 | `npm test` | รันทั้งหมด (ไม่เปิดจอ) |
 | `npx playwright test --grep @SBH-1013` | รันเฉพาะการ์ด (ใส่เลข TC ก็ได้ เช่น `@SBH-1709`) |
+| `npm run test:module:er` | รันเฉพาะเทสของ module ER (`tests/modules/er`) — module ใหม่เพิ่ม script คู่กันตาม pattern นี้ |
+| `npm run test:e2e` | รันเทส flow e2e ที่ข้ามหลาย module ทั้งหมด (`tests/E2E`) |
 | `npm run test:headed` | รันแบบเปิดจอให้เห็น |
 | `npm run test:ui` | โหมด UI เลือกเทสและดูทีละ step (เตรียม session ให้ก่อน) — อย่าใช้ `npx playwright test --ui` เฉยๆ จะเห็นแค่ขั้นล็อกอิน |
 | `npm run report` | เปิดรายงานผลล่าสุด |
@@ -45,3 +47,4 @@ test.use({ storageState: authFile('Doctor') });
 ```
 
 กฎและขั้นตอนการทำงานของโปรเจกต์อยู่ที่ `.claude/skills/cortex-automate/SKILL.md`
+ขั้นตอนก่อนจะเขียน automate (ร่าง TC → QA review → ยืนยันกับแอปจริง) เป็นมาตรฐานทีม QA แยกไว้ที่ `.claude/skills/qa-automate-readiness/SKILL.md`
