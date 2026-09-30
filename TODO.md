@@ -142,3 +142,13 @@ Sign-off: ผู้ใช้อนุมัติแผนแล้ว 30 ก.�
       ไม่มีจุดไหนยังชี้ผู้ใช้ไปทำตาม R16 แบบเดิม · เจอ 1 จุดตกหล่นเพิ่มที่ §5 (บรรทัด "ช่วงต้นผู้ใช้กำหนดแล้วใน R16") แก้ให้ชี้ไปสกิลใหม่ด้วย ·
       `diff` ไฟล์โปรเจกต์กับ global ของ linear-testcase-writer = IDENTICAL · เรียก Skill tool ทดสอบทั้ง `qa-automate-readiness` และ
       `linear-testcase-writer` โหลดได้ปกติทั้งคู่ ไม่มี syntax พัง
+- [x] **P5 — แก้ gap: input ที่ไม่มีการ์ด Linear รองรับ (เช่นทีม Support ส่งมาเป็นไฟล์ Excel)**
+      ผู้ใช้ถามว่า structure รองรับเคสที่ Support ส่ง usecase/step/flow มาให้ QA โดยตรงไหม (ไม่ใช่แค่การ์ด Linear) —
+      ตรวจพบว่า step 1 ของ `qa-automate-readiness` เขียนรับ input กว้างไว้ แต่ step 2 (เรียก `linear-testcase-writer`)
+      สกิลนั้นบังคับต้องมี Linear issue ให้อ่านเสมอ ("อ่าน requirement issue ก่อนเสมอ") — ถ้าไม่มีการ์ด Linear จะสะดุด
+      ผู้ใช้ยืนยัน: input จริงมาจาก **Linear หรือ Excel** เป็นหลัก และถ้ายังไม่มีการ์ด Linear รองรับ ให้ **QA/Claude สร้างการ์ด
+      Linear ก่อนเสมอ** ก่อนร่าง TC
+      ทำแล้ว (30 ก.ย. 2026): แก้ `.claude/skills/qa-automate-readiness/SKILL.md` — frontmatter description เพิ่ม "ไฟล์ Excel"
+      เป็น input ที่รองรับ, step 1 ระบุ 2 รูปแบบ input หลัก (การ์ด Linear / ไฟล์ Excel), เพิ่ม step ใหม่ "เช็คว่ามีการ์ด Linear
+      รองรับหรือยัง — ถ้ายังไม่มีต้องสร้างก่อนเสมอ" เลื่อนหมายเลข step เดิมลง 1 (รวมเป็น 8 step, GATE 1 = step 5, GATE 2 = step 8)
+      แก้ตารางความสัมพันธ์กับสกิลอื่นให้เลขตรงกับของใหม่ + เพิ่ม Skill update log entry · เรียก Skill tool ทดสอบโหลดผ่านปกติ

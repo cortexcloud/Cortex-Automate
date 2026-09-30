@@ -1,11 +1,12 @@
 ---
 name: qa-automate-readiness
 description: >
-  Workflow gate ที่ QA ทุกคนต้องทำเหมือนกันก่อนแปลงการ์ด Linear / requirement / use case / test step / workflow ให้เป็น
-  automate test — วิเคราะห์และร่างเทสเคสก่อนเสมอ (ผ่าน skill linear-testcase-writer) → เก็บเป็น .md ให้ QA review และ
-  approve → ขอยืนยันไปสำรวจแอปจริงตาม requirement พร้อมหลักฐานวิดีโอ/ภาพ → ยืนยันว่าผลตรงกับที่ร่างไว้แล้วเท่านั้นถึงส่งต่อ
-  ไปเขียน automate จริงได้. ใช้ทุกครั้งที่ได้รับการ์ด/requirement มาแล้วจะทำ automate ไม่ว่าจะพูดตรง ("ทำ automate ให้
-  การ์ดนี้") หรืออ้อม ("แปลง test case เป็น automate", "เตรียมเทสก่อนจะ automate")
+  Workflow gate ที่ QA ทุกคนต้องทำเหมือนกันก่อนแปลงการ์ด Linear / ไฟล์ Excel / use case / test step / workflow ที่ทีม
+  Support ส่งมาให้เป็น automate test — ถ้ายังไม่มีการ์ด Linear รองรับต้องสร้างก่อนเสมอ → วิเคราะห์และร่างเทสเคส (ผ่าน
+  skill linear-testcase-writer) → เก็บเป็น .md ให้ QA review และ approve → ขอยืนยันไปสำรวจแอปจริงพร้อมหลักฐานวิดีโอ/ภาพ
+  → ยืนยันว่าผลตรงกับที่ร่างไว้แล้วเท่านั้นถึงส่งต่อไปเขียน automate จริงได้. ใช้ทุกครั้งที่ได้รับการ์ด/ไฟล์ Excel/
+  requirement มาแล้วจะทำ automate ไม่ว่าจะพูดตรง ("ทำ automate ให้การ์ดนี้") หรืออ้อม ("แปลง test case เป็น automate",
+  "เตรียมเทสก่อนจะ automate", "Support ส่ง excel เคสมาให้ ช่วยทำ automate หน่อย")
 ---
 
 # QA Automate Readiness
@@ -24,29 +25,37 @@ Gate นี้บังคับให้มี **หลักฐานยืน
 ## ขั้นตอน (มี 2 GATE ที่ห้ามข้าม)
 
 ### 1. รับ input
-การ์ด Linear / requirement / use case / test step / workflow ที่ต้องแปลงเป็น automate
+รับได้ 2 รูปแบบหลัก (ตามที่ทีม Support ส่งมาให้ QA จริง):
+- **การ์ด Linear** ที่มีอยู่แล้ว — บางครั้งเนื้อหาในการ์ดบางเบา (แค่ description/AC สั้นๆ) ต้องขยายความจาก use case/step/flow ที่ Support ส่งมาเพิ่มเติมด้วย
+- **ไฟล์ Excel** (use case, test step, workflow) — อ่านให้ครบทุกแถว/คอลัมน์ก่อนสรุป ห้ามข้ามหรือสรุปเกินจากที่มีในไฟล์จริง (ตามกฎห้ามเดา/แต่งข้อมูล)
 
-### 2. วิเคราะห์ + ร่างเทสเคส
+### 2. เช็คว่ามีการ์ด Linear รองรับหรือยัง
+- **มีการ์ดแล้ว** → ข้ามไปขั้น 3
+- **ยังไม่มี** (เช่น ได้รับมาเป็นไฟล์ Excel ล้วนๆ ไม่เคยมีการ์ด Linear) → **QA/Claude ต้องสร้างการ์ด Linear (Requirement) ก่อนเสมอ**
+  จากเนื้อหาที่ได้รับมาจริง (ห้ามข้ามขั้นนี้ไปร่าง TC ตรงๆ) เพราะ `linear-testcase-writer` ต้องมี Linear issue ให้อ่านเป็น
+  แหล่งความจริงเสมอ — ใช้ Linear tool ตรงๆ สร้าง issue (title/description ตามเนื้อหาที่ได้รับ, ไม่แต่งเพิ่ม) แล้วค่อยไปขั้นถัดไป
+
+### 3. วิเคราะห์ + ร่างเทสเคส
 เรียก skill **`linear-testcase-writer`** สร้างโครง EXE/Scenario/Test Case ตาม template มาตรฐาน — **ห้ามเขียนโครง
 EXE/Scenario/TC เอง** นอก skill นั้น (กันรูปแบบเพี้ยนไปคนละแบบต่อคน)
 
-### 3. เก็บ draft เป็นไฟล์ `.md`
+### 4. เก็บ draft เป็นไฟล์ `.md`
 เก็บไว้ในโปรเจกต์ (ไม่ใช่สร้างจริงบน Linear) — pattern: `test-cases/<requirement-id>-<slug>.md`
 ดูตัวอย่างจริงที่ `test-cases/COR-1724-admin-user-role.md` (มี header บอก workflow + status ของไฟล์ชัดเจน)
 
-### 4. GATE 1 — QA review
+### 5. GATE 1 — QA review
 ส่งไฟล์ draft ให้ QA review — **ห้ามไปขั้นถัดไปจนกว่า QA จะ approve ชัดเจน**
 
-### 5. สำรวจแอปจริง (ต้องขอยืนยันก่อนเริ่ม)
+### 6. สำรวจแอปจริง (ต้องขอยืนยันก่อนเริ่ม)
 หลัง draft ผ่านแล้ว ขอยืนยันจาก QA อีกครั้งก่อนไปสำรวจ/ทดสอบแอปจริงตาม TC ที่ร่างไว้ (ผ่าน Playwright MCP หรือเทสมือ)
 ทุก TC/Scenario สำคัญต้องมี**หลักฐานวิดีโอหรือภาพ**ประกอบผลที่เจอจริง
 
-### 6. เทียบผลจริงกับ Expected Result
+### 7. เทียบผลจริงกับ Expected Result
 อัปเดตช่อง "Actual Result" ในไฟล์ draft ตามผลที่เจอจริง:
 - **ตรงกับที่ร่างไว้** → TC นั้นถือว่า "พร้อม automate"
 - **ไม่ตรง** (เจอบั๊ก/พฤติกรรมต่างจากที่คาด) → กลับไปแก้ draft หรือแจ้ง QA ก่อนเสมอ **ห้ามข้ามไปเขียน automate ตามพฤติกรรมที่ยังไม่ยืนยัน**
 
-### 7. GATE 2 — ส่งต่อให้เขียน automate
+### 8. GATE 2 — ส่งต่อให้เขียน automate
 เขียน automate code ได้**เฉพาะ TC ที่ผ่านการยืนยันจากแอปจริงแล้วเท่านั้น** — จากนี้ส่งต่อให้สกิลเขียน automate เฉพาะ
 โปรเจกต์เป็นคนจัดการรายละเอียดทางเทคนิค (เช่น `cortex-automate` ในโปรเจกต์ Cortex Automate)
 
@@ -54,8 +63,8 @@ EXE/Scenario/TC เอง** นอก skill นั้น (กันรูปแ�
 
 | สกิล | ใช้ตอนไหน | หน้าที่ |
 |---|---|---|
-| `linear-testcase-writer` | Step 2 เท่านั้น | ร่างโครง EXE/Scenario/TC ตาม template/naming/label มาตรฐาน |
-| สกิลเขียน automate เฉพาะโปรเจกต์ (เช่น `cortex-automate`) | Step 7 เท่านั้น | รายละเอียดทางเทคนิคของการเขียน/รันโค้ด automate จริง |
+| `linear-testcase-writer` | Step 3 เท่านั้น | ร่างโครง EXE/Scenario/TC ตาม template/naming/label มาตรฐาน |
+| สกิลเขียน automate เฉพาะโปรเจกต์ (เช่น `cortex-automate`) | Step 8 เท่านั้น | รายละเอียดทางเทคนิคของการเขียน/รันโค้ด automate จริง |
 | `linear-execution-test` | ไม่เกี่ยวกับ gate นี้ | สร้างการ์ดจริงบน Linear เพื่อไป run แบบ manual — คนละวัตถุประสงค์ |
 
 สกิลนี้เป็นชั้น**workflow เชื่อม** ระหว่างการได้รับ requirement กับการลงมือเขียน automate — ไม่ทำหน้าที่ของ
@@ -68,6 +77,11 @@ Playwright MCP เก็บ screenshot หลักฐาน, พบ gap 2 เ�
 และ gate 2 ตามขั้นตอนนี้ (ดูรายละเอียดเต็มใน `TODO.md` ของโปรเจกต์นั้น)
 
 ## Skill update log
+
+`2026-09-30` — เพิ่มขั้นตอนรับ input จากไฟล์ Excel (นอกจากการ์ด Linear) และเพิ่ม step ใหม่ "เช็คว่ามีการ์ด Linear รองรับ
+หรือยัง — ถ้ายังไม่มีต้องสร้างก่อนเสมอ" เพราะทีม Support บางครั้งส่ง use case/step/flow มาเป็นไฟล์ Excel โดยไม่มีการ์ด
+Linear รองรับเลย ซึ่งขัดกับ `linear-testcase-writer` ที่ต้องมี Linear issue ให้อ่านเป็นแหล่งความจริงเสมอ — เลื่อนหมายเลข
+step เดิมทั้งหมดลง 1 (เดิม step 2-7 → step 3-8) และแก้ตารางความสัมพันธ์กับสกิลอื่นให้ตรงกับหมายเลขใหม่
 
 `2026-09-30` — แยกออกมาจาก `cortex-automate` (เดิมคือ R16 ในสกิลนั้น) ให้เป็นสกิลอิสระที่ใช้ได้ทุกโปรเจกต์ QA ไม่ผูกกับ
 automate เฉพาะทาง — ขยายรายละเอียดจาก R16 เดิมให้มี 2 gate ชัดเจน (QA review ที่ draft / ยืนยันผลจากแอปจริงด้วยวิดีโอ)
