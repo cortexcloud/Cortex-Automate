@@ -6,7 +6,7 @@ const USERNAME_PREFIX = 'CORTEX_USERNAME_';
 export const DEFAULT_ROLE = 'Super_User';
 
 /** role ที่ setup เตรียม session ให้ — เทสไหนใช้ role อื่น ต้องเพิ่มชื่อ role ที่นี่ด้วย */
-export const ROLES_IN_USE: string[] = [DEFAULT_ROLE];
+export const ROLES_IN_USE: string[] = [DEFAULT_ROLE, 'Admin'];
 
 /** role ที่กรอก user ไว้ใน .env (คู่ CORTEX_USERNAME_<Role> / CORTEX_PASSWORD_<Role>) เช่น Super_User, Doctor, Nurse */
 export function listRoles(): string[] {
