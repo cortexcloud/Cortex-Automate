@@ -777,3 +777,20 @@ SC-06/SC-09 และ SC-14/SC-15 โดยไม่ตั้งใจ แก้
       อัปเดต CTXN-10495: แก้ Actual Result เต็มตามผลจริงข้างบน + สถานะเป็น "Not Test" (บางส่วน pass แต่ส่วนหลักที่ AC ต้องการยัง
       ยืนยันไม่ได้) + แนบหลักฐานครบ 11 ไฟล์ (9 ภาพ + 2 วิดีโอ, อัปทีละไฟล์ตามกฎ signed URL หมดอายุ 60 วิ) เก็บไว้ที่
       `.playwright-mcp/COR-1724-v2/{images,videos}/` ลบ temp script ทิ้งแล้วตามธรรมเนียม
+
+- [x] **P10 — เติม Test Data จริงใน CTXN-10495 + ปิดผล Step 5-6 เป็น Fail ร่วมกับ user ที่มีสิทธิ์เข้า Keycloak เอง** (12 ต.ค. 2026)
+      User ทัก "ไม่ใส่ data test ให้ด้วยละ เพราะเดี๋ยวต้องไปเช็คข้อมูลใน Keycloak ต่อ" → แก้ section Test Data ของ CTXN-10495
+      ใส่ username จริง `qa-up-74545603` + Cortex user ID `a11bd9bc-62ed-4f83-920c-2e097e1a8eb4` (ไม่บันทึกรหัสผ่านจริงตามกฎ
+      ความปลอดภัยโปรเจกต์ — ระบุให้ใช้ปุ่ม "รีเซ็ตรหัสผ่าน" แทนถ้าต้อง login จริง)
+      User มีสิทธิ์เข้า Keycloak admin console เอง (ทีมไม่มีสิทธิ์นี้มาตลอดงาน) ส่งภาพ Role mapping ของ user นี้ 2 ภาพ
+      (ติ๊ก "Hide inherited roles" แล้วไม่ติ๊ก) — ผลจริง: มีแค่ 6 role มาตรฐานที่ Keycloak สร้างให้ทุก user ใหม่อัตโนมัติ
+      (`default-roles-cortex`, `offline_access`, `uma_authorization`, `account:manage-account`, `account:manage-account-links`,
+      `account:view-profile`) **ไม่พบ** `FHIRCortexReadWrite`, `postgrest_emr_read_write`, `EHRBaseUser` เลยสักตัว — ตรงกับที่
+      เคยเจอทางอ้อมผ่าน Cortex UI (แท็บ "บทบาทการใช้งาน" ขึ้น 0 บทบาท) ยืนยันแล้วว่าเป็นกลไกคนละระดับแต่ผลตรงกัน
+      สรุป: ชื่อ role ที่ Expected Result เขียนไว้ (`default-cortex-user`) ผิด (ของจริงคือ `default-roles-cortex` ชื่อมาตรฐาน
+      ของ Keycloak เอง) ถือเป็นเรื่องเล็กน้อยไม่กระทบผล แต่ **ไม่พบ baseline-access role ที่ AC กำหนดไว้เลยสักตัว = บั๊กจริง**
+      กระทบ AC หมวด "Baseline access for new accounts" ทั้งหมวด ไม่ใช่แค่ TC นี้
+      แก้ Actual Result step 5-6 จาก "Not Test" → **"Fail"** + เปลี่ยนสถานะการ์ดจาก "Not Test" → **"Failed"**
+      (เจอบั๊ก escaping ระหว่างแก้ patch ครั้งแรก — ตัวอักษร `\n` หลุดเป็น literal backslash+n ในเนื้อหา แก้โดยดึง description
+      เต็มมาเขียนทับใหม่ทั้งก้อนแทนการ patch บางส่วน) ตรวจสอบแล้ว: ดึง `get_issue` ยืนยัน description มี newline จริง (ไม่มี `\n`
+      literal หลงเหลือ) และ `status` = `"Failed"` ตรงกับ Actual Result ที่เขียนไว้
