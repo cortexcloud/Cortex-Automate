@@ -739,6 +739,25 @@ SC-06/SC-09 และ SC-14/SC-15 โดยไม่ตั้งใจ แก้
       AC bullet coverage เทียบ 32 bullet จริงจาก Linear — มี 2 bullet ไม่มี TC ชี้ตรง (S1.1, S6.1 ภาพรวม) **เหมือนกับไฟล์เดิมก่อนรื้อ
       ทุกประการ** (ไม่ใช่ gap ใหม่ที่เกิดจากการรวม TC) ยืนยันด้วย evidence file reference ทั้ง 54 ไฟล์ที่อ้างถึงในไฟล์ใหม่ มีอยู่จริง
       บน disก ครบ (เช็คทั้ง `.playwright-mcp/COR-1724/` และ `.playwright-mcp/e2e-user-role-exploration/`) ไม่มีไฟล์ orphan
-- [ ] **P3 — ให้ผู้ใช้ review ไฟล์ใหม่ก่อน sync Linear** (checkpoint สำคัญ — รอ user ตรวจสอบ/อนุมัติ)
-- [ ] **P4 — Sync Linear (หลัง P3 อนุมัติเท่านั้น)**: เลือก 34 จาก 87 การ์ดเดิม overwrite เนื้อหาเป็น flow-TC ใหม่ อีก 53 การ์ด mark Canceled
-- [ ] **P5 — อัปเดต CTXN-9655 (การ์ดสรุป sign-off)** ให้ tally ใหม่อ้างอิง 34 TC แทน 87
+- [x] **P3 — ผู้ใช้เช็คไฟล์ใหม่** (12 ต.ค. 2026 — ผ่านการ "ลองทำเทสเคสข้อแรก" จริงบน dev-x ก่อน แล้วค่อยคุยเรื่อง Linear)
+
+- [x] **P6 — ค้นพบนอกแผน: session อื่น (`cortex-automate-64`) สร้างโครงสร้างใหม่ทับ CTXN-9655 ไปแล้วตั้งแต่ 9 ต.ค.** (12 ต.ค. 2026)
+      user ถาม "TC-COR-1724-001 = สร้าง user โหมด Username & Password แล้วได้ baseline role อัตโนมัติ ไม่ใช่หรอ" — เช็คแล้วไม่ตรง
+      กับทั้งไฟล์ markdown ใหม่, ไฟล์ Excel, และการ์ด Linear เดิม (CTXN-9656) เลย — ตรวจ CTXN-9655 (การ์ดสรุปเดิม) พบว่า description
+      ว่างเปล่า ผิดจากที่ TODO.md บันทึกไว้ (เคยมี tally เต็ม) ถาม user แล้วได้คำตอบ: session Claude/agent อื่น (`cortex-automate-64`,
+      เจอใน ListAgents ตรงเวลากับ archivedAt ของการ์ดเดิมทั้งหมดคือ 9 ต.ค. 08:20-41) สร้าง **EXE ใหม่ (CTXN-10490) → 4 Scenario ใหม่
+      (CTXN-10491-10494) → TC ใหม่ 54 ใบ (CTXN-10495+)** ทับเข้าไปใต้ CTXN-9655 โดยไม่เกี่ยวกับ session นี้เลย เนื้อหาต่างไปเน้น
+      Keycloak role mapping ระดับลึก (`default-cortex-user`, `FHIRCortexReadWrite` ฯลฯ) ที่ทีมไม่เคยมีสิทธิ์เข้าถึงมาก่อน
+- [x] **P7 — user สั่งเคลียร์ 87 การ์ดเดิม (CTXN-9656 เป็นต้น) ที่ sync ไว้ก่อนหน้าทิ้ง** (12 ต.ค. 2026)
+      ถามย้ำขอบเขต: เคลียร์แค่ 87 TC หรือทั้งเซ็ต (EXE+16 Scenario+87 TC) — user เลือก "เคลียร์ทั้งเซ็ต" (104 ใบ) เพื่อไม่ให้เหลือ
+      EXE/Scenario เดิมเป็นเปลือกว่างค้าง (ไม่มี hard-delete ให้ใช้ ใช้ mark Canceled ตามธรรมเนียมเดิมของโปรเจกต์)
+      ทำแล้ว: mark Canceled ครบ 104 ใบ (CTXN-9687 EXE เดิม + 16 Scenario เดิม CTXN-9691-9726 + 87 TC เดิม CTXN-9656-9792)
+      เจอปัญหาระหว่างทำ: 4 ใบ (CTXN-9680, 9684, 9685, 9738 — ทั้งหมดเคยเป็นสถานะ "Passed"/completed มาก่อน) เรียก `save_issue`
+      รอบแรกแล้วไม่ติด (ตรวจพบจาก response ที่ status ยังเป็น Passed ไม่ใช่ Canceled) — ลองซ้ำรอบสองสำเร็จทั้ง 4 ใบ ตรวจสอบปิดท้าย
+      ด้วย `list_issues parentId=CTXN-9723 includeArchived=true` (scenario ที่มี TC มากสุด 21 ใบ) ยืนยันครบ "Canceled" ทุกใบ
+      ไม่แตะการ์ดชุดใหม่ของ session อื่นเลย (CTXN-10490 เป็นต้นไป) และไม่แตะ CTXN-9655 (ให้เป็น parent ของโครงสร้างใหม่ต่อไป) ·
+      ไม่แตะ 3 การ์ด noise ที่ปนอยู่ใต้บาง Scenario เดิม ("Design Task"/"Test Case and Testing"/"Update in cortex-testing" —
+      ไม่ตรง naming pattern ของเรา ไม่ได้อยู่ในสโคป 104 ใบที่ user สั่ง)
+
+- [ ] **P8 — ยังไม่ได้ทำ: reconcile ไฟล์ markdown 34-TC กับโครงสร้างใหม่ของ session อื่น** รอ user สั่งต่อว่าจะเอายังไงกับไฟล์
+      markdown local (เก็บไว้เป็น reference, รื้อใหม่ให้ตรงกับการ์ด Linear ชุดใหม่, หรืออื่นๆ) — ยังไม่ได้ตัดสินใจ
