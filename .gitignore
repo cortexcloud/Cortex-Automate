@@ -17,3 +17,7 @@ node_modules/
 
 # คลิปผลการเล่น Scenario (มีข้อมูลผู้ป่วยทดสอบ)
 /clips/
+
+# ไฟล์ขยะของ macOS (ติดมากับไฟล์ zip / โฟลเดอร์ที่คัดลอกจาก Mac)
+__MACOSX/
+.DS_Store
