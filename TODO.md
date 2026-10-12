@@ -83,7 +83,7 @@ Skill ที่ใช้: `linear-testcase-writer`
       ทำแล้ว: เพิ่มแถว `test:module:er` และ `test:e2e` ในตารางคำสั่ง
 - [x] **P2 — อัปเดต `.claude/skills/cortex-automate/SKILL.md`**: เพิ่มแถวกฎใหม่ใน §7 (30 ก.ย. 2026, บันทึกการตัดสินใจนี้) ·
       อัปเดตตารางคำสั่ง §3 · เพิ่ม note โครงสร้าง `tests/E2E/` ใน §2 (แก้ path `tests/er/` ที่ล้าสมัยด้วยถ้าทำอยู่แล้ว)
-      ทำแล้ว: เพิ่ม R28 ในตาราง §7 · เพิ่ม 2 แถวในตารางคำสั่ง §3 · แก้ผังโครงสร้าง §2 (`tests/er/`+`tests/smoke/` ที่ไม่มีจริงแล้ว → `tests/modules/er/`+`tests/E2E/`) · เพิ่ม log ใน §10
+      ทำแล้ว: เพิ่ม R28 ในตาราง §7 (เปลี่ยนเลขเป็น R47 เมื่อ 12 ต.ค. 2026 — เลขชนกับ R28 ของการ์ด SBH-1400 ตอน merge branch Jame) · เพิ่ม 2 แถวในตารางคำสั่ง §3 · แก้ผังโครงสร้าง §2 (`tests/er/`+`tests/smoke/` ที่ไม่มีจริงแล้ว → `tests/modules/er/`+`tests/E2E/`) · เพิ่ม log ใน §10
 - [x] **P3 — รัน `npm run typecheck` + ลองรัน `npm run test:module:er` จริงหนึ่งรอบ** ยืนยันว่า script ทำงานถูกต้อง (filter path + ยัง login ผ่าน setup dependency ตามปกติ)
       ทำแล้ว: typecheck ผ่าน · รัน `npm run test:module:er` จริง — script filter ไป `tests/modules/er` ถูกต้อง, setup dependency login ก่อนแล้วค่อยรัน chrome project ตามปกติ (เหมือน `npm test` เดิม) → **script ทำงานถูกต้องตามที่ออกแบบ**
       พบระหว่างรัน (ไม่เกี่ยวกับ script นี้ เป็นปัญหาที่มีอยู่ก่อนแล้วใน spec/dev-x เอง): 2/4 เทสพัง — (1) `SBH-1013` เคสผู้ป่วยมี HN ล้มตอนยกเลิก Encounter ท้ายเทส เจอ `POST .../cancel → 500 InternalServerError "Failed to cancel ER encounter"` (2) `SBH-1021` ล้มด้วย timeout 20s รอ response ตอนกดบันทึก Triage — ยังไม่ได้แก้ ต้องถามผู้ใช้ก่อนว่าจะให้ไล่ดูสองเคสนี้ต่อไหม
