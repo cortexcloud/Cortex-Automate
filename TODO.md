@@ -824,3 +824,28 @@ SC-06/SC-09 และ SC-14/SC-15 โดยไม่ตั้งใจ แก้
       อัปเดต CTXN-10496: เพิ่ม Actual Result ส่วนนี้ + แนบหลักฐานเพิ่ม 4 ไฟล์ (3 ภาพ + 1 วิดีโอ การลอง login จริง) รวมเป็น 15 ไฟล์
       ทั้งหมด + เปลี่ยนสถานะเป็น **Failed** (เหตุผลหลัก: ไม่มี baseline role เหมือน TC-001 + พบบั๊ก OTP login เพิ่ม) ลบ temp script
       ที่ใช้ (รวม TOTP algorithm helper ที่เขียนไว้เผื่อแต่ไม่ได้ใช้) ทิ้งแล้วตามธรรมเนียม
+
+- [x] **P13 — ตามคำแนะนำ user ("OTP ต้องลอง login ครั้งแรกด้วย password ชั่วคราว") ลองจริงทั้ง TC-001/TC-002 ด้วยปุ่ม "รีเซ็ตรหัสผ่าน"** (12 ต.ค. 2026)
+      เทคนิค: กดปุ่ม "รีเซ็ตรหัสผ่าน" ในแท็บ "การเข้าสู่ระบบ" ของ Cortex (role Super_User) → อ่านค่ารหัสผ่านจาก `input[type="password"]`
+      ด้วย `.inputValue()` ตรงๆ **ไม่เคยกดปุ่ม "แสดงรหัสผ่าน" เลยสักครั้ง** เพื่อไม่ให้ screenshot ไหนหลุดเห็น plaintext credential
+      (ยึดตามกฎความปลอดภัยโปรเจกต์อย่างเคร่งครัด) ค่ารหัสผ่านอยู่ใน memory ของ script เท่านั้น ไม่ print ไม่ persist ที่ไหน
+      **TC-002 (qa-otp-77836964)**: reset แล้ว login สำเร็จจริง (ก่อนหน้าเข้าใจผิดว่า "login ไม่ได้เลย" — ที่จริงคือ "login ไม่ได้
+      เฉพาะตอนไม่มี password" ซึ่งยังถูกต้องอยู่ แต่พอมี password จาก reset ก็ login ผ่าน) → ถูกบังคับ Update Password (ปกติ) →
+      ถูกบังคับ VERIFY_PROFILE ให้กรอก Email/First/Last name (ไม่คาดคิด เพราะตอนสร้างไม่บังคับ) → กรอกแล้ว submit ผ่าน → Keycloak
+      ส่ง auth code กลับ Cortex สำเร็จ **แต่ตลอด flow ไม่เจอหน้า Configure OTP/QR code เลยแม้แต่ครั้งเดียว** — ยืนยันแน่ชัดว่า
+      "Configure OTP" required action ไม่เคยถูกตั้งค่าให้ account โหมด OTP จริง (ตรงกับที่เคยเห็นใน Cortex UI เองว่าช่อง "สิ่งที่ต้อง
+      ทำเมื่อเข้าสู่ระบบครั้งถัดไป" ว่างเปล่า) เปลี่ยนจาก "ตรวจไม่ได้" เป็น **Fail ยืนยันแน่นหนาขึ้น** (เดิม Fail จาก Role mapping
+      อยู่แล้ว ข้อนี้เป็นหลักฐานเสริมเรื่องเดียวกัน)
+      **TC-001 (qa-up-74545603)**: flow เดียวกันทุกอย่าง (reset → login → Update Password → VERIFY_PROFILE → auth code กลับ
+      Cortex สำเร็จ) — เพิ่มเติม Pass ยืนยัน "Required user actions มี Update Password" ตรง Expected Result พอดี
+      **ทั้งคู่เจอ pattern เดียวกัน**: VERIFY_PROFILE บังคับกรอก Email/First/Last name ทั้งที่ตอนสร้าง account ไม่บังคับกรอกเลย —
+      ไม่ใช่ product bug (ระบบทำงานตามที่ควร) แต่เป็น gap ของ Test Case เดิม (TC-005/TC-006 ไม่ได้เขียน step นี้ไว้) บันทึกเตือนไว้
+      ในทั้งสองการ์ดแล้วว่า TC-005/TC-006 ต้องเจอ step นี้เพิ่ม
+      **พบเรื่องที่ยังสรุปไม่ได้ (ไม่นับเป็นบั๊กยืนยัน)**: หลังได้ auth code กลับมาที่ `dev-x.cortexcloud.co/cortex` ทั้งสองเคส หน้าเว็บ
+      ค้างว่างไม่โหลดแอปต่อ (ตรวจแล้ว: ไม่มี JS error, `#root` innerHTML length=0 คงที่นานถึง 15 วิ, มีแค่ Keycloak
+      login-status-iframe ที่ pending ค้างเฉยๆ) — อาจเป็นบั๊กจริงของระบบ หรืออาจเป็นผลจาก third-party cookie/iframe behavior
+      เฉพาะ automated browser (เคยมีเคส OTP enrollment ทำสำเร็จผ่าน Playwright มาก่อนในงาน Phase 1 จึงไม่ใช่ข้อจำกัดของเครื่องมือ
+      เองเสมอไป) **บันทึกไว้ในทั้งสองการ์ดว่าต้องลองซ้ำด้วยเบราว์เซอร์จริงของคนก่อนนับเป็นบั๊ก** ไม่ใช่ตัวตัดสินผล TC เพราะทั้งคู่ Fail
+      จาก Role mapping อยู่แล้ว
+      อัปเดต CTXN-10496 เพิ่มหลักฐาน 4 ไฟล์ (3 ภาพ + 1 วิดีโอ) และ CTXN-10495 เพิ่มหลักฐาน 4 ไฟล์ (3 ภาพ + 1 วิดีโอ) รวมเป็น
+      19 และ 19 ไฟล์ตามลำดับ — ลบ temp script ทั้งหมด (รวม diagnostic scripts ที่ใช้ตรวจ console/network) ทิ้งแล้วตามธรรมเนียม
