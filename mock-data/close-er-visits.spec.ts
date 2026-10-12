@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { closeVisitAtCashier } from '../helpers/cashier';
-import { expectOk, gotoErDashboard, type ErDashboardEncounter } from '../helpers/er';
-import { trackAuthorization } from '../helpers/er-report';
-import { checkStep } from '../helpers/evidence';
+import { closeVisitAtCashier } from '../helpers/functions/cashier';
+import { expectOk, gotoErDashboard, type ErDashboardEncounter } from '../helpers/functions/er';
+import { trackAuthorization } from '../helpers/functions/er-report';
+import { checkStep } from '../helpers/functions/evidence';
 import { expect, test } from './fixtures';
 import { SYSTEM } from './uat-er';
 

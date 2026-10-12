@@ -11,10 +11,10 @@ import {
   openVisitDialog,
   selectExistingPatient,
   type ErVisit,
-} from '../helpers/er';
-import { openDisposition } from '../helpers/er-disposition';
-import { trackAuthorization } from '../helpers/er-report';
-import { ESI_BUTTON, labelledBox, triageForm } from '../helpers/er-triage';
+} from '../helpers/functions/er';
+import { openDisposition } from '../helpers/functions/er-disposition';
+import { trackAuthorization } from '../helpers/functions/er-report';
+import { ESI_BUTTON, labelledBox, triageForm } from '../helpers/functions/er-triage';
 import { expect, test } from './fixtures';
 import { COVERAGE_UC, SETTINGS, SYSTEM, fetchNurseTasks, nextUatPatient, openErVisitForHn, recordDrugAllergy, recordMockPatient, savePhysicianNote, submitOrders } from './uat-er';
 import {

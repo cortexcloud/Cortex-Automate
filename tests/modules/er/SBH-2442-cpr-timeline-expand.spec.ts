@@ -1,9 +1,9 @@
-import { closeVisitAtCashier } from '../../../helpers/cashier';
-import { dismissToast, expectTriageFormOpen, expectVisitHeader, gotoErDashboard, trackOpenedErVisits, type ErVisit } from '../../../helpers/er';
-import { cprForm, cprHistoryForm, cprHistoryTab, cprSavedBanner, cprTimeline, openCprForm, parseCprQuery, readCprTimeline, saveCprEvent, waitForCprQuery, type CprEvent } from '../../../helpers/er-cpr';
-import { ESI_BUTTON, saveButton, triageForm } from '../../../helpers/er-triage';
-import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/evidence';
-import { newTestPatient } from '../../../helpers/test-data';
+import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
+import { dismissToast, expectTriageFormOpen, expectVisitHeader, gotoErDashboard, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
+import { cprForm, cprHistoryForm, cprHistoryTab, cprSavedBanner, cprTimeline, openCprForm, parseCprQuery, readCprTimeline, saveCprEvent, waitForCprQuery, type CprEvent } from '../../../helpers/functions/er-cpr';
+import { ESI_BUTTON, saveButton, triageForm } from '../../../helpers/functions/er-triage';
+import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { SYSTEM, registerAndOpenErVisit } from '../../../mock-data/uat-er';
 import { VITALS_NORMAL, fillTriage, gotoVisit, recordMenu, saveTriageForm } from '../../../mock-data/uat-play';

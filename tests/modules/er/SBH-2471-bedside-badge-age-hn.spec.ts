@@ -1,7 +1,7 @@
 import { type Locator, type Page } from '@playwright/test';
 import fs from 'node:fs';
-import { closeVisitAtCashier } from '../../../helpers/cashier';
-import { dismissToast, expectOk, expectTriageFormOpen, gotoErDashboard, openErDashboardFromMenu, openVisitDialog, trackOpenedErVisits, type ErVisit } from '../../../helpers/er';
+import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
+import { dismissToast, expectOk, expectTriageFormOpen, gotoErDashboard, openErDashboardFromMenu, openVisitDialog, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
 import {
   NO_PRINT_AGENT_TEXT,
   ageOn,
@@ -22,11 +22,11 @@ import {
   type BadgeFields,
   type BadgeLine,
   type BadgePdf,
-} from '../../../helpers/er-badge';
-import { trackAuthorization } from '../../../helpers/er-report';
-import { triageForm } from '../../../helpers/er-triage';
-import { alerted, checkStep, clicked, expected, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/evidence';
-import { newTestPatient, type NewPatient } from '../../../helpers/test-data';
+} from '../../../helpers/functions/er-badge';
+import { trackAuthorization } from '../../../helpers/functions/er-report';
+import { triageForm } from '../../../helpers/functions/er-triage';
+import { alerted, checkStep, clicked, expected, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { newTestPatient, type NewPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { SYSTEM, recordMockPatient, registerAndOpenErVisit } from '../../../mock-data/uat-er';
 import { VITALS_NORMAL, fillTriage, gotoVisit, saveTriageForm } from '../../../mock-data/uat-play';

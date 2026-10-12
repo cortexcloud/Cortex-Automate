@@ -1,5 +1,5 @@
 import { type Locator, type Page } from '@playwright/test';
-import { closeVisitAtCashier } from '../../../helpers/cashier';
+import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import {
   confirmOpenErVisit,
   dismissToast,
@@ -11,9 +11,9 @@ import {
   openTriagePage,
   registerNewPatient,
   type ErVisit,
-} from '../../../helpers/er';
-import { createAdmitRequest } from '../../../helpers/er-admit';
-import { draftDisposition, graphqlMutation, signDisposition } from '../../../helpers/er-disposition';
+} from '../../../helpers/functions/er';
+import { createAdmitRequest } from '../../../helpers/functions/er-admit';
+import { draftDisposition, graphqlMutation, signDisposition } from '../../../helpers/functions/er-disposition';
 import {
   ER_LIST_TABS,
   bangkokToday,
@@ -33,12 +33,12 @@ import {
   openErPatientListFromMenu,
   readErListTabs,
   type ErEncounterState,
-} from '../../../helpers/er-list';
-import { trackAuthorization } from '../../../helpers/er-report';
-import { saveTriage } from '../../../helpers/er-triage';
-import { alerted, checkStep, clicked, expected, filled, holdForClip, markEvidence, snapEvidence } from '../../../helpers/evidence';
-import { expect, test } from '../../../helpers/fixtures';
-import { newTestPatient } from '../../../helpers/test-data';
+} from '../../../helpers/functions/er-list';
+import { trackAuthorization } from '../../../helpers/functions/er-report';
+import { saveTriage } from '../../../helpers/functions/er-triage';
+import { alerted, checkStep, clicked, expected, filled, holdForClip, markEvidence, snapEvidence } from '../../../helpers/functions/evidence';
+import { expect, test } from '../../../helpers/functions/fixtures';
+import { newTestPatient } from '../../../helpers/functions/test-data';
 
 // SBH-2391 [ER] Disposition patient list — แท็บ รอจำหน่าย / ปุ่ม จำหน่าย / แท็บ เสร็จสิ้น บนหน้ารายการผู้ป่วย ER (สเปกของ dev: SBH-2396)
 // แปลงจากชุด Manual: EXE SBH-2448 → SC-001 (SBH-2449) TC-001–003 (SBH-2451–2453) · SC-002 (SBH-2450) TC-004 (SBH-2454) · 2 เทสตาม flow (R9):

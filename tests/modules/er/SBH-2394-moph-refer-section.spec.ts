@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { expectVisitHeader } from '../../../helpers/er';
-import { trackAuthorization } from '../../../helpers/er-report';
-import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/evidence';
+import { expectVisitHeader } from '../../../helpers/functions/er';
+import { trackAuthorization } from '../../../helpers/functions/er-report';
+import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import {
   REFER_IN_PATH,
   REFER_SECTIONS,
@@ -22,7 +22,7 @@ import {
   type ReferInDetail,
   type ReferInItem,
   type ReferSectionData,
-} from '../../../helpers/refer-in';
+} from '../../../helpers/functions/refer-in';
 import { expect, test } from '../../../mock-data/fixtures';
 import { envName } from '../../../utils/env';
 

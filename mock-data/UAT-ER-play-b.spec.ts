@@ -11,11 +11,11 @@ import {
   openVisitDialog,
   waitForApi,
   type ErVisit,
-} from '../helpers/er';
-import { openDisposition } from '../helpers/er-disposition';
-import { fetchWaitTimeSettings, restoreWaitTimeSettings } from '../helpers/er-quality';
-import { trackAuthorization } from '../helpers/er-report';
-import { ESI_BUTTON, triageForm } from '../helpers/er-triage';
+} from '../helpers/functions/er';
+import { openDisposition } from '../helpers/functions/er-disposition';
+import { fetchWaitTimeSettings, restoreWaitTimeSettings } from '../helpers/functions/er-quality';
+import { trackAuthorization } from '../helpers/functions/er-report';
+import { ESI_BUTTON, triageForm } from '../helpers/functions/er-triage';
 import { expect, test } from './fixtures';
 import { COVERAGE_UC, fetchNurseTasks, nextUatPatient, recordMockPatient, registerAndOpenErVisit, savePhysicianNote, SETTINGS, submitOrders, SYSTEM } from './uat-er';
 import {
@@ -400,7 +400,7 @@ test.describe(`เล่น Scenario UAT ER (${SYSTEM})`, () => {
     let hn = '';
 
     await play.step('ลงทะเบียนผู้ป่วยใหม่ (สร้าง HN) — ได้ HN ใหม่ ไม่ต้องกรอกที่อยู่', async () => {
-      const { registerNewPatient } = await import('../helpers/er');
+      const { registerNewPatient } = await import('../helpers/functions/er');
       await openTriagePage(page);
       ({ hn, dialog } = await registerNewPatient(page, fresh));
       play.note('ไม่ได้บันทึกรูปภาพตอนลงทะเบียน (R31 ข้อ 5.3 ไม่อัปโหลดรูป)');

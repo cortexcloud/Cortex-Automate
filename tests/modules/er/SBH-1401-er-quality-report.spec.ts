@@ -10,8 +10,8 @@ import {
   registerNewPatient,
   waitForApi,
   type ErVisit,
-} from '../../../helpers/er';
-import { acknowledgeTreatment, draftDisposition, openDisposition, signDisposition, type ErDischargeSummary } from '../../../helpers/er-disposition';
+} from '../../../helpers/functions/er';
+import { acknowledgeTreatment, draftDisposition, openDisposition, signDisposition, type ErDischargeSummary } from '../../../helpers/functions/er-disposition';
 import {
   addDays,
   bangkokDate,
@@ -47,7 +47,7 @@ import {
   type QualityReport,
   type QualityRow,
   type WaitTimeSetting,
-} from '../../../helpers/er-quality';
+} from '../../../helpers/functions/er-quality';
 import {
   addMonths,
   currentMonth,
@@ -63,11 +63,11 @@ import {
   trackAuthorization,
   type Sheet,
   type SheetValue,
-} from '../../../helpers/er-report';
-import { saveTriage } from '../../../helpers/er-triage';
-import { alerted, checkStep, clicked, expected, filled, markEvidence, snapEvidence } from '../../../helpers/evidence';
-import { expect, test } from '../../../helpers/fixtures';
-import { newTestPatient } from '../../../helpers/test-data';
+} from '../../../helpers/functions/er-report';
+import { saveTriage } from '../../../helpers/functions/er-triage';
+import { alerted, checkStep, clicked, expected, filled, markEvidence, snapEvidence } from '../../../helpers/functions/evidence';
+import { expect, test } from '../../../helpers/functions/fixtures';
+import { newTestPatient } from '../../../helpers/functions/test-data';
 
 // SBH-1401 [ER][ER Statistics Report] 4. รายงานแสดงคุณภาพของห้องฉุกเฉิน (TOR 4.9.8.10.4)
 // แปลงจากชุด Manual: EXE SBH-2338 → TC-001–008 (SBH-2343–SBH-2350) · 2 เทสตาม flow (R9):

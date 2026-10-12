@@ -108,7 +108,7 @@ function randomThaiId(): string {
 
 ค่าทดสอบที่ใช้แล้วผ่าน: ไม่มี / ญาติ / BP 120/80 · PR 80 · RR 18 · T 37 · SpO2 98 / GCS E4V5M6 / CC ปวดท้อง / ESI 4 / โซนเหลือง (แนะนำ)
 
-### 3.0) รายละเอียดฟอร์ม (สำรวจตอนเขียน spec SBH-1021 — 26 ก.ย. 2026) · helper อยู่ที่ `helpers/er-triage.ts`
+### 3.0) รายละเอียดฟอร์ม (สำรวจตอนเขียน spec SBH-1021 — 26 ก.ย. 2026) · helper อยู่ที่ `helpers/functions/er-triage.ts`
 
 - ขอบเขตฟอร์ม: `getByRole('tabpanel', { name: 'Triage' })` (แท็บอื่น: Trauma / Non-Trauma / เด็ก / สัตว์มีพิษ — นอก scope SBH-1021) ·
   ช่องฝั่งซ้าย (วิธีการมาถึง / อุปกรณ์ช่วยเหลือ* / ผู้ที่มาด้วย*) อยู่ใน `getByRole('region', { name: 'วิธีการมาถึง' })` นอก tabpanel — combobox ไม่มีชื่อ ลำดับ 0 = อุปกรณ์, 1 = ผู้ที่มาด้วย
@@ -174,7 +174,7 @@ function randomThaiId(): string {
   - หลังลงนาม ผู้ป่วยยังอยู่บนบอร์ดโซนเดิม · การ์ดบนบอร์ดขึ้น `Diagnosis: -` ทั้งที่มี K30 → **บั๊ก** ผู้ใช้เปิดการ์ดแล้ว รอ Dev แก้ (28 ก.ย. 2026) ยังไม่ assert
   - Physician Note ส่ง contribution 2 ครั้ง/การบันทึก — ผู้ใช้ให้ถือว่าไม่เป็นไร (R22)
   - (ตรวจ 29 ก.ย. 2026 SBH-1401) เมนู Disposition = `navigation "การดำเนินการดูแลผู้ป่วย"` → `menuitem "Disposition"` (`click({force:true})`) · ทุกขั้นเป็น graphql mutation:
-    `StartErDischarge` → `SaveErDischargeDraft` (statusCode DRAFT, dischargeTypeCode With Approval = "1", By Transfer = "4") → `FinalizeErDischarge` (statusCode COMPLETE + `completedAt` ปัดเป็นวินาที) · helper `helpers/er-disposition.ts`
+    `StartErDischarge` → `SaveErDischargeDraft` (statusCode DRAFT, dischargeTypeCode With Approval = "1", By Transfer = "4") → `FinalizeErDischarge` (statusCode COMPLETE + `completedAt` ปัดเป็นวินาที) · helper `helpers/functions/er-disposition.ts`
   - **By Transfer**: ช่อง "โรงพยาบาลปลายทาง" ไม่บังคับ ("หากเป็นการย้ายภายในโรงพยาบาล ไม่ต้องระบุ") ลงนามได้เลย
   - **หลังลงนาม Encounter ยังเป็น in-progress** (สถานะบนหัวจอ เช็คอิน · ตัวเลือกมีแค่ เช็คอิน / พร้อมตรวจ / ยกเลิก) → ค้นผู้ป่วยคนเดิมที่หน้าคัดกรองจะพาไป Encounter เดิม เปิด Visit ใหม่วันเดียวกันไม่ได้ ·
     Encounter ปิดเป็น completed โดย `system` ตอน 22:00 (15:00 UTC) หรือโดยผู้ใช้ (ยังไม่รู้ว่าปิดจากเมนูไหน — ถามผู้ใช้แล้ว)

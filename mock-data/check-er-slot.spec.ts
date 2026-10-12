@@ -1,5 +1,5 @@
-import { gotoErDashboard, openTriagePage, selectExistingPatient } from '../helpers/er';
-import { trackAuthorization } from '../helpers/er-report';
+import { gotoErDashboard, openTriagePage, selectExistingPatient } from '../helpers/functions/er';
+import { trackAuthorization } from '../helpers/functions/er-report';
 import { expect, test } from './fixtures';
 import { SYSTEM } from './uat-er';
 

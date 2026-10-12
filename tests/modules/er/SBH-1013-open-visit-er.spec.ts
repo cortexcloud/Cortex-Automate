@@ -17,10 +17,10 @@ import {
   trackOpenedErVisits,
   type ErVisit,
   type FoundPatient,
-} from '../../../helpers/er';
-import { checkStep, markEvidence } from '../../../helpers/evidence';
-import { expect, test } from '../../../helpers/fixtures';
-import { newTestPatient } from '../../../helpers/test-data';
+} from '../../../helpers/functions/er';
+import { checkStep, markEvidence } from '../../../helpers/functions/evidence';
+import { expect, test } from '../../../helpers/functions/fixtures';
+import { newTestPatient } from '../../../helpers/functions/test-data';
 
 // SBH-1013 [ER][Registration] Open Visit for ER
 // แปลงจากชุด Manual: EXE SBH-1702 → TC-001–006 (SBH-1707–SBH-1712)

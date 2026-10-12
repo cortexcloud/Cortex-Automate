@@ -8,7 +8,7 @@ const ROOT = path.join(__dirname, '..');
 export const DEFAULT_ROLE = 'Super_User';
 
 /** role ที่ setup เตรียม session ให้ — เทสไหนใช้ role อื่น ต้องเพิ่มชื่อ role ที่นี่ด้วย */
-export const ROLES_IN_USE: string[] = [DEFAULT_ROLE, 'Doctor']; // Doctor: แพทย์เฉพาะทางที่ตอบ Consult ใน mock-data/UAT-ER-play.spec.ts
+export const ROLES_IN_USE: string[] = [DEFAULT_ROLE, 'Doctor', 'Admin']; // Doctor: แพทย์เฉพาะทางที่ตอบ Consult ใน mock-data/UAT-ER-play.spec.ts
 
 /** host ของ SBH Prod (รพ.สระบุรี) — ใช้ได้เฉพาะสคริปต์ใน mock-data/ และเทสการ์ดที่อยู่ในรายการของ playwright.sbh-prod.cards.config.ts */
 export const SBH_PROD_HOST = 'cortex.srbrhospital.com';

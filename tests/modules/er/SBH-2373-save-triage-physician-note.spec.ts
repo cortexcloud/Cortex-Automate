@@ -1,10 +1,10 @@
 import { type Page, type Response } from '@playwright/test';
-import { closeVisitAtCashier } from '../../../helpers/cashier';
-import { dismissToast, expectTriageFormOpen, expectVisitHeader, gotoErDashboard, openCarePanel, openVisitDialog, trackOpenedErVisits, type ErVisit } from '../../../helpers/er';
-import { trackAuthorization } from '../../../helpers/er-report';
-import { ESI_BUTTON, saveButton, triageForm } from '../../../helpers/er-triage';
-import { alerted, checkStep, clicked, expected, filled, holdForClip, markEvidence, snapEvidence } from '../../../helpers/evidence';
-import { newTestPatient } from '../../../helpers/test-data';
+import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
+import { dismissToast, expectTriageFormOpen, expectVisitHeader, gotoErDashboard, openCarePanel, openVisitDialog, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
+import { trackAuthorization } from '../../../helpers/functions/er-report';
+import { ESI_BUTTON, saveButton, triageForm } from '../../../helpers/functions/er-triage';
+import { alerted, checkStep, clicked, expected, filled, holdForClip, markEvidence, snapEvidence } from '../../../helpers/functions/evidence';
+import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { SYSTEM, recordMockPatient, registerAndOpenErVisit, savePhysicianNote } from '../../../mock-data/uat-er';
 import { VITALS_NORMAL, boardEncounter, fillTriage, gotoVisit, saveTriageForm } from '../../../mock-data/uat-play';

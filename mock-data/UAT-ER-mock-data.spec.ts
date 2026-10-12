@@ -8,12 +8,12 @@ import {
   openTriagePage,
   openVisitDialog,
   registerNewPatient,
-} from '../helpers/er';
-import { trackAuthorization } from '../helpers/er-report';
-import { triageForm } from '../helpers/er-triage';
-import { checkStep, expected, markEvidence } from '../helpers/evidence';
-import type { ErVisit } from '../helpers/er';
-import type { NewPatient } from '../helpers/test-data';
+} from '../helpers/functions/er';
+import { trackAuthorization } from '../helpers/functions/er-report';
+import { triageForm } from '../helpers/functions/er-triage';
+import { checkStep, expected, markEvidence } from '../helpers/functions/evidence';
+import type { ErVisit } from '../helpers/functions/er';
+import type { NewPatient } from '../helpers/functions/test-data';
 import { expect, test } from './fixtures';
 import {
   SETTINGS,
