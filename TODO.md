@@ -794,3 +794,19 @@ SC-06/SC-09 และ SC-14/SC-15 โดยไม่ตั้งใจ แก้
       (เจอบั๊ก escaping ระหว่างแก้ patch ครั้งแรก — ตัวอักษร `\n` หลุดเป็น literal backslash+n ในเนื้อหา แก้โดยดึง description
       เต็มมาเขียนทับใหม่ทั้งก้อนแทนการ patch บางส่วน) ตรวจสอบแล้ว: ดึง `get_issue` ยืนยัน description มี newline จริง (ไม่มี `\n`
       literal หลงเหลือ) และ `status` = `"Failed"` ตรงกับ Actual Result ที่เขียนไว้
+
+- [x] **P11 — ทดสอบจริง CTXN-10496 / TC-COR-1724-002 (สร้าง user โหมด OTP) ตามที่ user ขอทดสอบข้อถัดไป** (12 ต.ค. 2026)
+      User แจ้งแนวทางทำงานต่อจากนี้: ทดสอบและตรวจความถูกต้องแต่ละข้อไปพร้อมกัน (รูปแบบเดียวกับ TC-001 — ส่วนที่ทำได้เอง Claude ทำ,
+      ส่วน Keycloak ให้ user ช่วยตรวจ) — refresh auth session ก่อน (storageState หมดอายุ) แล้วสำรวจ DOM จริงของฟอร์ม "เพิ่มผู้ใช้งาน"
+      พบ: login method dropdown มีแค่ 2 ตัวเลือกจริง (Username & Password / OTP ไม่มี "ทั้งคู่" เป็นตัวเลือกที่ 3 ในดรอปดาวน์นี้ —
+      เข้าใจว่า OTP+รหัสผ่านชั่วคราวของ TC-003 น่าจะเป็นอีกกลไกแยกต่างหาก), Email field ไม่มี required attribute จริง
+      **Step 1-2 Pass**: เลือก OTP แล้วช่องรหัสผ่านชั่วคราวหายไปจาก DOM จริง (ยืนยันด้วย script ไม่ใช่แค่สายตา) ตรงตาม Expected
+      **Step 3 Pass (เจอบั๊กเดิมซ้ำ + พบรายละเอียดเพิ่ม)**: กด บันทึก ขึ้น toast error เดิม (403 ErrUserDirectoryForbidden) **และรอบนี้
+      สังเกตเพิ่มว่า modal ไม่ auto-close ด้วย** (ต้องปิดเองก่อนไปหน้าอื่น) ไม่เชื่อ toast ไปค้นหาต่อ เจอ user `qa-otp-77836964`
+      สร้างสำเร็จจริง, Email/ชื่อ/นามสกุล แสดง "-" ตรงตามที่เว้นว่างไว้ (ยืนยัน Email ไม่บังคับจริงตาม AC)
+      **Step 4-5 Not Test**: ต้องใช้ Keycloak เหมือน TC-001 — รอ user ช่วยตรวจ "Configure OTP" required action + Role mapping
+      **เพิ่มเติม**: เปิดแท็บ "บทบาทการใช้งาน" ผ่าน Cortex UI เอง พบ 0 บทบาทเหมือน TC-001 (ไม่ฟันธงแทน Keycloak จนกว่าจะตรวจจริง)
+      อัปเดต CTXN-10496: เติม Test Data จริง (username + Cortex user ID) + Actual Result เต็มตามผลจริงข้างบน + สถานะ "Not Test"
+      + แนบหลักฐานครบ 11 ไฟล์ (9 ภาพ + 2 วิดีโอ) เก็บไว้ที่ `.playwright-mcp/COR-1724-v2/{images,videos}/` (ลบภาพ 08 ที่เป็น
+      duplicate เข้าใจผิดทิ้ง — คลิกแถวในตารางไม่เปิด detail จริง ต้องกดปุ่มดินสอแก้ไขแทน) ลบ temp script ทั้งหมดแล้วตามธรรมเนียม
+      **รอ user ช่วยตรวจ Keycloak ต่อเหมือน TC-001 ก่อนจะปิดผล TC นี้เป็น Pass/Fail**
