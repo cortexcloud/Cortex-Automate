@@ -1,5 +1,50 @@
 # TODO
 
+## COR-1724 (โครงสร้างใหม่ CTXN-1049x) — รอบขยายผลหลัง TC-001/TC-002: highlight Fail, วิดีโอต่อเนื่อง, TC ใหม่ 3 รายการ
+
+**Decision (12 ต.ค. 2026 ผ่าน AskUserQuestion):** ผู้ใช้ยืนยันแล้ว —
+(1) สไตล์การลงผล: ดูตัวอย่างการ์ด SBH-2513 (โปรเจกต์อื่น ใช้แค่เป็นตัวอย่างสไตล์ตามที่ user สั่งเจาะจง ไม่เอา business logic/ข้อมูลมาปน) แล้วสั่งให้ใช้
+สไตล์เดียวกัน (heading + ฝังรูปใน body ตรงจุด) **แทน** แนวทาง emoji เดิม — แต่ section name ของ template `linear-testcase-writer`
+(ข้อมูลอ้างอิง/Preconditions/Test Data/Test Steps/Expected Result/Actual Result/หมายเหตุ) ต้องคงเดิมตามกฎ skill ห้ามเปลี่ยนชื่อ/ตัด
+section ดังนั้นใช้เทคนิคของ SBH-2513 **ภายใน** โครงเดิม: ขึ้น `##` heading ให้ section name เดิม, ใส่สถานะ Pass/Fail ต่อท้าย heading
+"Actual Result" ตรงๆ (เช่น "## Actual Result — 🔴 Fail"), เพิ่มบรรทัดสรุป "ขั้นที่ผ่าน/ไม่ผ่าน" ไว้ต้น Actual Result, และฝังรูป/วิดีโอ
+ด้วย `<linear-image>`/`<linear-embed node-type="video">` tag ตรงจุดในเนื้อหาแทนปล่อยเป็น attachment list ท้ายการ์ดอย่างเดียว
+(2) ภาพ Keycloak ที่ส่งมาก่อนหน้า — รอผู้ใช้ส่งไฟล์ใหม่ (ไฟล์เดิมไม่ได้อยู่ในเครื่องที่เข้าถึงได้)
+(3) Role sync 2 ทิศทาง มี TC อยู่แล้ว (TC-018 CTXN-10512 Cortex→Keycloak, TC-021 CTXN-10515 Keycloak→Cortex) ไม่ต้องสร้างใหม่ แค่ยังไม่ได้ทดสอบ
+(4) สร้าง TC ใหม่ 3 รายการ: login ซ้ำด้วย password ใหม่, login ด้วย permanent password (ไม่ติ๊กชั่วคราว), ข้อความ error ผิดตอนสร้าง user
+(5) วิดีโอ: รื้อทำ TC-001/TC-002 ใหม่เป็นคลิปเดียวต่อเนื่อง (สร้าง→เช็ค role→login) ด้วย test account ใหม่ + TC ใหม่ทุกตัวทำแบบนี้ตั้งแต่ต้น
+
+- [ ] **P0 — ทดสอบ syntax `<linear-image>`/`<linear-embed node-type="video">` บนการ์ดเดียวก่อน** (กันพังเป็นวงกว้าง) ยืนยันว่า
+      อัปโหลดไฟล์ด้วย `prepare_attachment_upload`/`create_attachment_from_upload` แล้วเอา signed URL ที่ได้ไปแปะใน tag แบบ SBH-2513
+      ใน `description` field ตรงๆ แล้ว render ถูกต้องจริงก่อนใช้งานเต็มรูปแบบใน P1 เป็นต้นไป
+
+- [ ] **P1 — รื้อทำ TC-001 (CTXN-10495) เป็น flow เดียวต่อเนื่อง + เขียนผลด้วยสไตล์ใหม่**: สร้าง test account ใหม่ (prefix `qa-up-*`) →
+      เช็ค Role mapping ผ่าน Keycloak (ขอให้ user ช่วยตรวจเหมือนเดิม) → reset password → login ครั้งแรกจริง (Update Password →
+      VERIFY_PROFILE) ทั้งหมดอัดเป็น **วิดีโอเดียว** (ไม่แยกคลิป) แทนที่วิดีโอเดิม 2 คลิป + เขียน description ใหม่ทั้งก้อนตามสไตล์ที่ตกลงกัน
+      (heading, สถานะใน heading, รูปฝัง inline ตรงจุด)
+
+- [ ] **P2 — รื้อทำ TC-002 (CTXN-10496) แบบเดียวกัน**: สร้าง test account ใหม่ (prefix `qa-otp-*`) โหมด OTP → เช็ค Role mapping →
+      reset password → login ครั้งแรกจริง (Update Password → VERIFY_PROFILE → ยืนยันไม่มี Configure OTP) อัดเป็นวิดีโอเดียวต่อเนื่อง +
+      เขียน description สไตล์ใหม่เหมือน P1
+
+- [ ] **P3 — แนบภาพ Keycloak ที่ user ส่งมาใหม่เข้า CTXN-10495/CTXN-10496** (บล็อกรอผู้ใช้ส่งไฟล์ก่อน — ยังทำไม่ได้ตอนนี้)
+
+- [ ] **P4 — ร่าง + สร้าง TC ใหม่ 3 รายการใน Linear ต่อจาก TC-054 (ใช้ skill `linear-testcase-writer`)**:
+      - TC-055 (HPY, CTXN-10491): ตรวจสอบการ login ซ้ำด้วย password ใหม่ที่เพิ่งเปลี่ยน (ต่อจาก Update Password สำเร็จ)
+      - TC-056 (HPY, CTXN-10491): ตรวจสอบการ login ด้วย permanent password (reset แบบไม่ติ๊ก "รหัสผ่านชั่วคราว" — ไม่ต้องเจอ Update Password บังคับ)
+      - TC-057 (ERR, CTXN-10494): ตรวจสอบข้อความแจ้งเตือนผิดพลาดตอนสร้าง user ที่จริงสร้างสำเร็จ (บั๊กเดิมที่เจอซ้ำใน TC-001/TC-002)
+      เสนอโครงสร้าง draft ให้ user เห็นก่อนสร้างจริงตามกฎ skill (ยืนยัน QA Module/Sub-module ตาม label เดิมที่ใช้อยู่: Admin / Account)
+
+- [ ] **P5 — ทดสอบ TC-018 (CTXN-10512)**: assign role หลายตัวจาก Cortex UI → ให้ user ช่วยเช็ค Keycloak Role mapping ว่าตรงกัน
+
+- [ ] **P6 — ทดสอบ TC-021 (CTXN-10515)**: ขอให้ user สร้าง role `qa-new-role` ใน Keycloak เอง → เช็คฝั่ง Cortex ว่าค้นหาเจอในรายการกำหนดบทบาท
+
+- [ ] **P7 — ทดสอบ TC-003 เป็นต้นไปตามลำดับ** (ต่อจาก TC-001/TC-002 เดิม) — ใช้ video-flow เดียวต่อเนื่องแบบใหม่ตั้งแต่ต้น
+
+หมายเหตุ: P4 (TC ใหม่ 3 รายการ), P5, P6, P7 — ตอนกรอกผล "Actual Result" ให้ใช้สไตล์ใหม่ตาม P0/P1/P2 ด้วยทุกใบ (heading +
+สถานะใน heading + รูปฝัง inline) ไม่ใช่แค่ P1/P2 เท่านั้น
+
+
 ## COR-1724 — [Admin] User, Role in keycloak -> Admin — Test Coverage (Security-focused)
 
 Requirement: https://linear.app/cortexcloud/issue/COR-1724/admin-user-role-in-keycloak-admin
