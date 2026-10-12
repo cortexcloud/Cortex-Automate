@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0040/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 08:30",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "5",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000040",
+            "cid": "1101700204405",
+            "title_name": "นาง",
+            "first_name": "รัตนา",
+            "middle_name": "",
+            "last_name": "เพชรรัตน์",
+            "gender": "F",
+            "birthdate": "1975-04-04",
+            "mobile_no": "0812347080"
+        },
+        "address": {
+            "no": "56/3",
+            "village_no": "8",
+            "street": "ถนนเพชรเกษม",
+            "subdistrict": "หนองค้างพลู",
+            "district": "หนองแขม",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "มะเร็งเต้านมขวา stage IIB ผ่าตัด modified radical mastectomy 1 เดือนก่อน",
+    "record_illness_present": "มาตามนัด แผลผ่าตัดแห้งดี ไม่มีอาการผิดปกติ",
+    "test_results": "Pathology: IDC grade 2, ER+/PR+/HER2-, 3/15 nodes positive | CBC ปกติ | LFT ปกติ",
+    "initial_diagnosis_free_text": "Carcinoma of right breast pT2N1M0 (stage IIB), post MRM",
+    "initial_diagnosis": [
+        {
+            "icd10": "C50.9",
+            "dx_name": "Malignant neoplasm of breast, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8543",
+            "datetime": "2026-08-20 09:00",
+            "anaesthesia_type": "1",
+            "ansesthesia_other_description": "",
+            "description": "Modified radical mastectomy right"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-08-21 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "PARA500",
+            "name": "Paracetamol 500 mg",
+            "description": "1 เม็ด q 6 hr prn ปวด"
+        }
+    ],
+    "treatment_provided": "ดูแลแผลหลังผ่าตัด",
+    "reason_refer": "ส่งต่อพบแพทย์เคมีบำบัดเพื่อรับ adjuvant chemotherapy และ hormonal therapy",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "122",
+        "diastolic_bp": "76",
+        "heart_rate": "78",
+        "oxygen_saturation": "99",
+        "pain_score": "0",
+        "respiratory_rate": "18",
+        "temperature": "36.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "56",
+        "height": "158",
+        "entry_datetime": "2026-09-24 08:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0079/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 14:55",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000079",
+            "cid": "1101700204791",
+            "title_name": "นาย",
+            "first_name": "ประจักษ์",
+            "middle_name": "",
+            "last_name": "อ่อนศรี",
+            "gender": "M",
+            "birthdate": "1988-03-22",
+            "mobile_no": "0812348523"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังชาย กองงานสาธารณะนอกเรือนจำ ปฏิเสธโรคประจำตัว",
+    "record_illness_present": "ทำงานขุดลอกคูคลองกลางแดด 4 ชม. เวลา 14:10 น. บ่นเวียนศีรษะ แล้วล้มลง ชักเกร็ง 1 ครั้ง ตัวร้อนจัด ผิวแห้ง ซึม สับสน",
+    "test_results": "Rectal temp แรกรับ 41.6 C | GCS E3V3M5 | DTX 98 mg% | ผิวหนังแดง แห้ง ร้อน | ปัสสาวะสีโค้ก | สถานพยาบาลเรือนจำไม่มี lab",
+    "initial_diagnosis_free_text": "Exertional heat stroke with altered mental status and seizure, suspected rhabdomyolysis",
+    "initial_diagnosis": [
+        {
+            "icd10": "T67.0",
+            "dx_name": "Heatstroke and sunstroke",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "3893",
+            "datetime": "2026-10-08 14:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Venous catheterization, not elsewhere classified"
+        },
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-08 14:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-08 14:15",
+            "end_time": "2026-10-08 14:15",
+            "code": "DIAZ10",
+            "name": "Diazepam 10 mg/2 ml",
+            "description": "5 mg IV"
+        },
+        {
+            "start_time": "2026-10-08 14:20",
+            "end_time": "2026-10-08 14:50",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1,000 ml (แช่เย็น)",
+            "description": "IV load 1,000 ml"
+        }
+    ],
+    "treatment_provided": "ถอดเสื้อผ้า พ่นละอองน้ำ + พัดลม ประคบน้ำแข็งที่ซอกคอ รักแร้ ขาหนีบ, NSS เย็น 1,000 ml IV load, Diazepam 5 mg IV, O2 mask 10 LPM, retain Foley catheter, อุณหภูมิลดเหลือ 39.4 C ก่อนส่ง",
+    "reason_refer": "ส่งต่ออายุรแพทย์ ต้องการ ICU เฝ้าระวัง rhabdomyolysis, AKI, DIC",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขัง เจ้าหน้าที่ราชทัณฑ์ควบคุมตัว 2 นาย ใส่เครื่องพันธนาการที่ข้อเท้า ทำ cooling ต่อเนื่องระหว่างนำส่ง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "92",
+        "diastolic_bp": "54",
+        "heart_rate": "138",
+        "oxygen_saturation": "95",
+        "pain_score": "0",
+        "respiratory_rate": "30",
+        "temperature": "39.4",
+        "e": "3",
+        "v": "3",
+        "m": "5",
+        "weight": "70",
+        "height": "169",
+        "entry_datetime": "2026-10-08 14:55"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

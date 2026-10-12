@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0078/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 04:50",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000078",
+            "cid": "1101700204782",
+            "title_name": "นาย",
+            "first_name": "วรากร",
+            "middle_name": "",
+            "last_name": "ทิพย์มณี",
+            "gender": "M",
+            "birthdate": "1985-10-26",
+            "mobile_no": "0812348486"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังระหว่างพิจารณาคดี เข้าเรือนจำ 2 สัปดาห์ โรคซึมเศร้า ขาดยา 1 เดือน",
+    "record_illness_present": "ผู้ต้องขังร่วมห้องพบแขวนคอในห้องน้ำเรือนนอน เวลา 04:05 น. ไม่ทราบระยะเวลา ปลดลงมาไม่รู้สึกตัว หายใจเฮือก คลำชีพจรได้",
+    "test_results": "GCS E1V1M4 | Pupils 3 mm RTL both eyes | Ligature mark เหนือ thyroid cartilage | SpO2 แรกรับ 82% | DTX 132 mg% | ไม่มี subcutaneous emphysema",
+    "initial_diagnosis_free_text": "Near-hanging with hypoxic encephalopathy, GCS 6, post endotracheal intubation; major depressive disorder",
+    "initial_diagnosis": [
+        {
+            "icd10": "T71",
+            "dx_name": "Asphyxiation",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9352",
+            "datetime": "2026-10-08 04:12",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Application of neck support (cervical collar)"
+        },
+        {
+            "icd9": "9604",
+            "datetime": "2026-10-08 04:25",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of endotracheal tube"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-08 04:15",
+            "end_time": "2026-10-08 04:50",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1,000 ml",
+            "description": "IV rate 80 ml/hr"
+        },
+        {
+            "start_time": "2026-10-08 04:22",
+            "end_time": "2026-10-08 04:22",
+            "code": "MIDA5",
+            "name": "Midazolam 5 mg/ml",
+            "description": "3 mg IV ก่อนใส่ท่อช่วยหายใจ"
+        }
+    ],
+    "treatment_provided": "ใส่ cervical collar, on ETT no.7.5 mark 22 cm ช่วยหายใจด้วย ambu bag O2 10 LPM SpO2 98%, on IV NSS, ยกศีรษะสูง 30 องศา",
+    "reason_refer": "ส่งต่อเพื่อ CT brain / CT neck ต้องการเครื่องช่วยหายใจและ ICU และปรึกษาจิตแพทย์",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขัง เจ้าหน้าที่ราชทัณฑ์ควบคุมตัว 2 นาย ใส่เครื่องพันธนาการที่ข้อเท้า แจ้งญาติและพนักงานสอบสวนแล้ว ต้องเฝ้าระวังการทำร้ายตนเองซ้ำ",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "142",
+        "diastolic_bp": "88",
+        "heart_rate": "118",
+        "oxygen_saturation": "98",
+        "pain_score": "0",
+        "respiratory_rate": "14",
+        "temperature": "36.8",
+        "e": "1",
+        "v": "1",
+        "m": "4",
+        "weight": "68",
+        "height": "172",
+        "entry_datetime": "2026-10-08 04:50"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

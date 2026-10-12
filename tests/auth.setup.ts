@@ -1,5 +1,6 @@
 import { test as setup } from '@playwright/test';
-import { ROLES_IN_USE, authFile, getCredentials } from '../utils/env';
+import path from 'node:path';
+import { DEFAULT_ROLE, ROLES_IN_USE, authFile, envFile, getCredentials, listRoles } from '../utils/env';
 import { isSessionAlive } from '../utils/session';
 
 // เตรียม session ของทุก role ใน ROLES_IN_USE (utils/env.ts) ครั้งเดียวต่อรอบ → .auth/<Role>.json
@@ -8,6 +9,8 @@ for (const role of ROLES_IN_USE) {
   // ขอ context ไม่ใช่ page: รอบที่ใช้ session เดิมไม่เปิดหน้าเว็บเลย (ไม่งั้นได้วิดีโอจอขาวเปล่า)
   // รอบที่ล็อกอินจริงเปิดหน้าจาก context นี้ → มีวิดีโอขั้นล็อกอินในรายงานเหมือนเทสอื่น (R14)
   setup(`ล็อกอิน ${role}`, async ({ context }) => {
+    // role เสริมที่ไฟล์ .env ของระบบนี้ไม่ได้กรอก user ไว้ → ข้าม (แต่ละเครื่อง / แต่ละระบบมี role ไม่เท่ากัน) · role ตั้งต้นต้องมีเสมอ
+    setup.skip(role !== DEFAULT_ROLE && !listRoles().includes(role), `ไม่ได้กรอก CORTEX_USERNAME_${role} ในไฟล์ ${path.basename(envFile())}`);
     const { username, password } = getCredentials(role);
     const baseURL = setup.info().project.use.baseURL!;
 
@@ -40,7 +43,7 @@ for (const role of ROLES_IN_USE) {
         .catch(() => null);
       throw new Error(
         `ล็อกอิน ${role} ไม่สำเร็จ${kcError ? `: ${kcError.trim()}` : ''} — ` +
-          `ตรวจ CORTEX_USERNAME_${role} / CORTEX_PASSWORD_${role} ในไฟล์ .env`,
+          `ตรวจ CORTEX_USERNAME_${role} / CORTEX_PASSWORD_${role} ในไฟล์ ${path.basename(envFile())}`,
       );
     }
 

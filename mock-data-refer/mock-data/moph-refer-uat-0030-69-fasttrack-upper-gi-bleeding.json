@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0030/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 13:10",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "OFC",
+        "ref_name": "สิทธิข้าราชการ/รัฐวิสาหกิจ",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000030",
+            "cid": "1101700204308",
+            "title_name": "นาย",
+            "first_name": "ธนากร",
+            "middle_name": "",
+            "last_name": "แก้วมณี",
+            "gender": "M",
+            "birthdate": "1966-09-03",
+            "mobile_no": "0812346710"
+        },
+        "address": {
+            "no": "88/19",
+            "village_no": "2",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ตับแข็งจากแอลกอฮอล์ (Child-Pugh B) เคยมีเส้นเลือดขอดหลอดอาหาร",
+    "record_illness_present": "อาเจียนเป็นเลือดสด 3 ครั้ง ประมาณ 500 ml ถ่ายดำ 1 วัน หน้ามืด",
+    "test_results": "Hb 7.2 | Plt 78,000 | INR 1.6 | BUN 48, Cr 1.1 | Glasgow-Blatchford score 14",
+    "initial_diagnosis_free_text": "Upper GI bleeding, suspected esophageal variceal bleeding; alcoholic cirrhosis Child-Pugh B",
+    "initial_diagnosis": [
+        {
+            "icd10": "I85.0",
+            "dx_name": "Oesophageal varices with bleeding",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9607",
+            "datetime": "2026-09-24 12:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "NG tube insertion"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 12:30",
+            "end_time": "2026-09-24 13:10",
+            "code": "TERLI1",
+            "name": "Terlipressin 1 mg",
+            "description": "2 mg IV q 4 hr"
+        },
+        {
+            "start_time": "2026-09-24 12:35",
+            "end_time": "2026-09-24 13:10",
+            "code": "OMEP40",
+            "name": "Omeprazole 40 mg",
+            "description": "80 mg IV bolus"
+        },
+        {
+            "start_time": "2026-09-24 12:40",
+            "end_time": "2026-09-24 13:10",
+            "code": "CEFT1",
+            "name": "Ceftriaxone 1 g",
+            "description": "1 g IV OD"
+        },
+        {
+            "start_time": "2026-09-24 12:50",
+            "end_time": "2026-09-24 13:10",
+            "code": "PRC",
+            "name": "Leukocyte-poor PRC 1 unit",
+            "description": "IV in 2 hr"
+        }
+    ],
+    "treatment_provided": "Terlipressin, PPI, ceftriaxone prophylaxis, PRC 1 unit, NPO",
+    "reason_refer": "ส่งต่อทำ EGD with band ligation ด่วน",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "92",
+        "diastolic_bp": "54",
+        "heart_rate": "118",
+        "oxygen_saturation": "97",
+        "pain_score": "3",
+        "respiratory_rate": "22",
+        "temperature": "36.5",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "62",
+        "height": "170",
+        "entry_datetime": "2026-09-24 13:10"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

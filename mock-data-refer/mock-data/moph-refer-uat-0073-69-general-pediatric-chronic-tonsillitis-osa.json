@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0073/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 10:10",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "5",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000073",
+            "cid": "1101700204731",
+            "title_name": "ด.ญ.",
+            "first_name": "พิชญาภา",
+            "middle_name": "",
+            "last_name": "วงค์คำ",
+            "gender": "F",
+            "birthdate": "2018-08-08",
+            "mobile_no": "0812348301"
+        },
+        "address": {
+            "no": "93/62",
+            "village_no": "2",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ภูมิแพ้จมูก ปฏิเสธแพ้ยา",
+    "record_illness_present": "เจ็บคอ ทอนซิลอักเสบเป็นหนอง 7 ครั้งใน 1 ปี นอนกรนเสียงดัง หยุดหายใจขณะหลับเป็นพักๆ หายใจทางปาก ง่วงตอนกลางวัน",
+    "test_results": "Tonsils grade 4+ both sides, no exudate | Lateral neck X-ray: adenoid hypertrophy, adenoid-nasopharyngeal ratio 0.8 | CBC ปกติ",
+    "initial_diagnosis_free_text": "Chronic tonsillitis with adenotonsillar hypertrophy, suspected obstructive sleep apnea",
+    "initial_diagnosis": [
+        {
+            "icd10": "J35.0",
+            "dx_name": "Chronic tonsillitis",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8709",
+            "datetime": "2026-10-07 09:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Other soft tissue x-ray of face, head, and neck"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-07-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "CETI5",
+            "name": "Cetirizine 5 mg/5 ml syrup",
+            "description": "5 ml ก่อนนอน"
+        },
+        {
+            "start_time": "2026-07-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "MOME50",
+            "name": "Mometasone nasal spray 50 mcg",
+            "description": "พ่นจมูกข้างละ 1 ครั้ง วันละครั้ง"
+        }
+    ],
+    "treatment_provided": "ให้ยาปฏิชีวนะเมื่อมีการอักเสบเฉียบพลัน ยาพ่นจมูกสเตียรอยด์ 3 เดือน อาการไม่ดีขึ้น",
+    "reason_refer": "ส่งต่อโสต ศอ นาสิกแพทย์เพื่อพิจารณาผ่าตัด adenotonsillectomy และตรวจ sleep test",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "98",
+        "diastolic_bp": "60",
+        "heart_rate": "92",
+        "oxygen_saturation": "98",
+        "pain_score": "0",
+        "respiratory_rate": "20",
+        "temperature": "36.7",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "24",
+        "height": "124",
+        "entry_datetime": "2026-10-07 10:10"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

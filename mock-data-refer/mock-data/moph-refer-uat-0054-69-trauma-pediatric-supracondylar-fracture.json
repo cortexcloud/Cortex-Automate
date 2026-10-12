@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0054/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 18:20",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000054",
+            "cid": "1101700204545",
+            "title_name": "ด.ช.",
+            "first_name": "กฤตภาส",
+            "middle_name": "",
+            "last_name": "สุขเกษม",
+            "gender": "M",
+            "birthdate": "2019-04-12",
+            "mobile_no": "0812347598"
+        },
+        "address": {
+            "no": "74/19",
+            "village_no": "1",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว วัคซีนครบตามเกณฑ์",
+    "record_illness_present": "หกล้มขณะวิ่งเล่น เอามือขวายันพื้น 17:15 น. ข้อศอกขวาบวมผิดรูป ขยับไม่ได้ ปลายมืออุ่น คลำชีพจร radial ได้ กระดกนิ้วได้ครบ",
+    "test_results": "X-ray Rt elbow AP/lateral: supracondylar fracture of humerus, Gartland type III, posteromedial displacement",
+    "initial_diagnosis_free_text": "Closed supracondylar fracture of right humerus, Gartland type III; neurovascular intact",
+    "initial_diagnosis": [
+        {
+            "icd10": "S42.4",
+            "dx_name": "Fracture of lower end of humerus",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8822",
+            "datetime": "2026-10-06 17:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Skeletal x-ray of elbow and forearm"
+        },
+        {
+            "icd9": "9354",
+            "datetime": "2026-10-06 17:55",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Application of splint (posterior long arm slab)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 17:35",
+            "end_time": "2026-10-06 17:35",
+            "code": "MORP10",
+            "name": "Morphine 10 mg/ml",
+            "description": "2 mg IV (0.1 mg/kg)"
+        }
+    ],
+    "treatment_provided": "Posterior long arm slab ข้อศอกงอ 30 องศา, ยกแขนสูง, Morphine 2 mg IV, NPO ตั้งแต่ 17:30 น.",
+    "reason_refer": "ส่งต่อศัลยแพทย์ออร์โธปิดิกส์เพื่อ closed reduction and percutaneous pinning",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | บิดามารดาเดินทางมาด้วย ประเมิน neurovascular ทุก 30 นาที",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "104",
+        "diastolic_bp": "62",
+        "heart_rate": "112",
+        "oxygen_saturation": "99",
+        "pain_score": "8",
+        "respiratory_rate": "22",
+        "temperature": "36.9",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "22",
+        "height": "120",
+        "entry_datetime": "2026-10-06 18:20"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

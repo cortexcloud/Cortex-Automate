@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0033/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 21:40",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000033",
+            "cid": "1101700204332",
+            "title_name": "นาง",
+            "first_name": "ศิริพร",
+            "middle_name": "",
+            "last_name": "ใจงาม",
+            "gender": "F",
+            "birthdate": "1994-01-11",
+            "mobile_no": "0812346821"
+        },
+        "address": {
+            "no": "301",
+            "village_no": "1",
+            "street": "ถนนพหลโยธิน",
+            "subdistrict": "สามเสนใน",
+            "district": "พญาไท",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "G2P1A0, LMP 7 สัปดาห์ก่อน",
+    "record_illness_present": "ปวดท้องน้อยด้านขวาเฉียบพลัน เป็นลม 1 ครั้ง มีเลือดออกทางช่องคลอดเล็กน้อย",
+    "test_results": "UPT positive | U/S: free fluid in cul-de-sac and Morison pouch, no intrauterine gestational sac | Hb 8.4",
+    "initial_diagnosis_free_text": "Ruptured right tubal ectopic pregnancy with hemoperitoneum; hypovolemic shock",
+    "initial_diagnosis": [
+        {
+            "icd10": "O00.1",
+            "dx_name": "Tubal pregnancy",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8878",
+            "datetime": "2026-09-24 21:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Pelvic ultrasound"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 21:05",
+            "end_time": "2026-09-24 21:40",
+            "code": "RLS1000",
+            "name": "Ringer lactate 1000 ml",
+            "description": "IV load 1,000 ml x 2 เส้น"
+        }
+    ],
+    "treatment_provided": "IV fluid 2 เส้น, cross-match 2 units, NPO, ขอเลือด O group",
+    "reason_refer": "ส่งต่อผ่าตัด laparotomy ด่วน โดยสูตินรีแพทย์",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | สามีมาด้วย ลงนามยินยอมเบื้องต้นแล้ว",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "80",
+        "diastolic_bp": "48",
+        "heart_rate": "130",
+        "oxygen_saturation": "98",
+        "pain_score": "9",
+        "respiratory_rate": "24",
+        "temperature": "36.4",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "54",
+        "height": "158",
+        "entry_datetime": "2026-09-24 21:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

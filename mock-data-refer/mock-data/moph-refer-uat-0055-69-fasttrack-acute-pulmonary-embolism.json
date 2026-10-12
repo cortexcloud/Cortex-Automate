@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0055/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 13:25",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000055",
+            "cid": "1101700204553",
+            "title_name": "นาง",
+            "first_name": "พัชรินทร์",
+            "middle_name": "",
+            "last_name": "จันทร์แจ่ม",
+            "gender": "F",
+            "birthdate": "1974-02-08",
+            "mobile_no": "0812347635"
+        },
+        "address": {
+            "no": "75/26",
+            "village_no": "2",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผ่าตัดเปลี่ยนข้อเข่าขวา 10 วันก่อน ความดันโลหิตสูง BMI 31",
+    "record_illness_present": "หอบเหนื่อยเฉียบพลัน เจ็บหน้าอกขวาเวลาหายใจเข้า 2 ชม. หน้ามืดเกือบเป็นลม ขาขวาบวมกดเจ็บ 3 วัน",
+    "test_results": "EKG: sinus tachycardia, S1Q3T3 | Troponin-T 86 ng/L | D-dimer 8,400 | CXR: no infiltration | ABG (room air): pH 7.46, PaO2 58, PaCO2 30 | Wells score 7.5",
+    "initial_diagnosis_free_text": "Acute pulmonary embolism, intermediate-high risk, with right leg DVT; post TKA day 10; HT",
+    "initial_diagnosis": [
+        {
+            "icd10": "I26.9",
+            "dx_name": "Pulmonary embolism without mention of acute cor pulmonale",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8952",
+            "datetime": "2026-10-06 12:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        },
+        {
+            "icd9": "8744",
+            "datetime": "2026-10-06 12:50",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Routine chest x-ray"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 13:00",
+            "end_time": "2026-10-06 13:00",
+            "code": "ENOX80",
+            "name": "Enoxaparin 80 mg/0.8 ml",
+            "description": "70 mg SC (1 mg/kg)"
+        },
+        {
+            "start_time": "2026-10-06 12:55",
+            "end_time": "2026-10-06 13:25",
+            "code": "NSS500",
+            "name": "0.9% NaCl 500 ml",
+            "description": "IV drip 500 ml"
+        },
+        {
+            "start_time": "2020-01-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "AMLO5",
+            "name": "Amlodipine 5 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "O2 mask with bag 10 LPM SpO2 94%, Enoxaparin 70 mg SC, NSS 500 ml IV, monitor EKG",
+    "reason_refer": "ส่งต่ออายุรแพทย์โรคปอด/หัวใจ เพื่อ CTPA ยืนยันการวินิจฉัยและพิจารณา thrombolysis ต้องการ ICU",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ประสานอายุรแพทย์ปลายทางแล้ว 13:10 น.",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "102",
+        "diastolic_bp": "64",
+        "heart_rate": "124",
+        "oxygen_saturation": "90",
+        "pain_score": "5",
+        "respiratory_rate": "30",
+        "temperature": "37.2",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "74",
+        "height": "155",
+        "entry_datetime": "2026-10-06 13:25"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

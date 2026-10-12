@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0048/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-05 19:10",
+    "refer_expire_date": "2026-11-04 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000048",
+            "cid": "1101700204481",
+            "title_name": "ด.ญ.",
+            "first_name": "ณิชาภัทร",
+            "middle_name": "",
+            "last_name": "ทองคำ",
+            "gender": "F",
+            "birthdate": "2024-05-20",
+            "mobile_no": "0812347376"
+        },
+        "address": {
+            "no": "68/67",
+            "village_no": "4",
+            "street": "ถนนพระราม 4",
+            "subdistrict": "ลุมพินี",
+            "district": "ปทุมวัน",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "คลอดครบกำหนด วัคซีนครบตามเกณฑ์ ปฏิเสธโรคประจำตัว",
+    "record_illness_present": "ถ่ายเหลวเป็นน้ำ 10 ครั้ง/วัน อาเจียน 6 ครั้ง มา 2 วัน ซึมลง ไม่ปัสสาวะ 10 ชม. ปากแห้ง ตาโหล capillary refill 4 วินาที",
+    "test_results": "Na 128, K 3.0, HCO3 11, BUN 32, Cr 0.9 | DTX 62 mg% | Stool exam: WBC 0-1, no RBC | Rotavirus Ag positive",
+    "initial_diagnosis_free_text": "Acute rotaviral gastroenteritis with severe dehydration and hypovolemic shock; hyponatremia; hypoglycemia",
+    "initial_diagnosis": [
+        {
+            "icd10": "A08.0",
+            "dx_name": "Rotaviral enteritis",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "3893",
+            "datetime": "2026-10-05 18:25",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Venous catheterization, not elsewhere classified"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-05 18:30",
+            "end_time": "2026-10-05 19:00",
+            "code": "NSS500",
+            "name": "0.9% NaCl 500 ml",
+            "description": "240 ml IV bolus 2 ครั้ง (20 ml/kg)"
+        },
+        {
+            "start_time": "2026-10-05 18:35",
+            "end_time": "2026-10-05 18:35",
+            "code": "D10W",
+            "name": "10% Dextrose in water",
+            "description": "24 ml IV push (2 ml/kg)"
+        },
+        {
+            "start_time": "2026-10-05 18:40",
+            "end_time": "2026-10-05 18:40",
+            "code": "ONDA4",
+            "name": "Ondansetron 4 mg/2 ml",
+            "description": "1.5 mg IV"
+        }
+    ],
+    "treatment_provided": "NSS 240 ml IV bolus 2 ครั้ง, 10% D/W 24 ml IV push, Ondansetron 1.5 mg IV, ต่อด้วย 5% D/NSS/2 rate 60 ml/hr, O2 mask 6 LPM",
+    "reason_refer": "ส่งต่อกุมารแพทย์ ต้องการ PICU เฝ้าระวัง shock และแก้ไข electrolyte",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | มารดาเดินทางมาด้วย DTX ซ้ำก่อนส่ง 104 mg%",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "78",
+        "diastolic_bp": "44",
+        "heart_rate": "168",
+        "oxygen_saturation": "96",
+        "pain_score": "2",
+        "respiratory_rate": "38",
+        "temperature": "38.2",
+        "e": "3",
+        "v": "4",
+        "m": "6",
+        "weight": "12",
+        "height": "88",
+        "entry_datetime": "2026-10-05 19:10"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

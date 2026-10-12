@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0057/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 20:35",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000057",
+            "cid": "1101700204570",
+            "title_name": "นาย",
+            "first_name": "ภาณุวัฒน์",
+            "middle_name": "",
+            "last_name": "เรืองศรี",
+            "gender": "M",
+            "birthdate": "2002-01-16",
+            "mobile_no": "0812347709"
+        },
+        "address": {
+            "no": "77/40",
+            "village_no": "4",
+            "street": "ถนนเพชรเกษม",
+            "subdistrict": "หนองค้างพลู",
+            "district": "หนองแขม",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว หูชั้นกลางอักเสบข้างขวา 1 สัปดาห์ก่อน",
+    "record_illness_present": "ไข้สูง ปวดศีรษะมาก 2 วัน อาเจียนพุ่ง 4 ครั้ง วันนี้ซึม สับสน คอแข็ง กลัวแสง",
+    "test_results": "CBC: WBC 21,400, N 90% | DTX 118 mg% | Stiff neck positive, Kernig sign positive | ไม่มี papilledema | Cr 0.9",
+    "initial_diagnosis_free_text": "Acute bacterial meningitis, suspected otogenic source",
+    "initial_diagnosis": [
+        {
+            "icd10": "G00.9",
+            "dx_name": "Bacterial meningitis, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9052",
+            "datetime": "2026-10-06 19:50",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Microscopic examination of blood, culture"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 19:45",
+            "end_time": "2026-10-06 19:45",
+            "code": "PARA500",
+            "name": "Paracetamol 500 mg",
+            "description": "2 เม็ด stat"
+        },
+        {
+            "start_time": "2026-10-06 20:00",
+            "end_time": "2026-10-06 20:00",
+            "code": "DEXA4",
+            "name": "Dexamethasone 4 mg/ml",
+            "description": "10 mg IV ก่อนยาปฏิชีวนะ"
+        },
+        {
+            "start_time": "2026-10-06 20:05",
+            "end_time": "2026-10-06 20:05",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV"
+        },
+        {
+            "start_time": "2026-10-06 20:10",
+            "end_time": "2026-10-06 20:35",
+            "code": "VANC500",
+            "name": "Vancomycin 500 mg",
+            "description": "1 g IV drip"
+        }
+    ],
+    "treatment_provided": "เจาะ hemoculture 2 ขวด, Dexamethasone 10 mg IV ก่อนยาปฏิชีวนะ, Ceftriaxone 2 g IV, Vancomycin 1 g IV drip, NSS 1,000 ml rate 100 ml/hr",
+    "reason_refer": "ส่งต่ออายุรแพทย์ระบบประสาทเพื่อ CT brain และเจาะหลัง (LP) ยืนยันการวินิจฉัย",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "108",
+        "diastolic_bp": "66",
+        "heart_rate": "116",
+        "oxygen_saturation": "97",
+        "pain_score": "9",
+        "respiratory_rate": "22",
+        "temperature": "39.6",
+        "e": "3",
+        "v": "4",
+        "m": "6",
+        "weight": "60",
+        "height": "173",
+        "entry_datetime": "2026-10-06 20:35"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

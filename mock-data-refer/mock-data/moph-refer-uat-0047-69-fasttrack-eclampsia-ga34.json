@@ -1,0 +1,132 @@
+{
+    "refer_out_no": "0047/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-05 22:30",
+    "refer_expire_date": "2026-11-04 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000047",
+            "cid": "1101700204472",
+            "title_name": "นาง",
+            "first_name": "อรทัย",
+            "middle_name": "",
+            "last_name": "บัวขาว",
+            "gender": "F",
+            "birthdate": "1999-08-14",
+            "mobile_no": "0812347339"
+        },
+        "address": {
+            "no": "67/60",
+            "village_no": "3",
+            "street": "ถนนเพชรเกษม",
+            "subdistrict": "หนองค้างพลู",
+            "district": "หนองแขม",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "G1P0 GA 34 สัปดาห์ ฝากครรภ์ 6 ครั้ง BP ครั้งล่าสุด 138/88 ปฏิเสธโรคประจำตัว",
+    "record_illness_present": "ปวดศีรษะ ตาพร่ามัว จุกแน่นลิ้นปี่ 3 ชม. ชักเกร็งกระตุกทั้งตัว 1 ครั้ง นาน 1 นาที เวลา 21:40 น. หลังชักซึมเล็กน้อย เด็กดิ้นดี",
+    "test_results": "Urine protein 3+ | Plt 98,000 | AST 142, ALT 118 | Cr 1.1 | FHS 148 bpm | DTR 3+",
+    "initial_diagnosis_free_text": "Eclampsia, G1P0 GA 34 wk, suspected HELLP syndrome",
+    "initial_diagnosis": [
+        {
+            "icd10": "O15.0",
+            "dx_name": "Eclampsia in pregnancy",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-05 22:00",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        },
+        {
+            "icd9": "8878",
+            "datetime": "2026-10-05 22:05",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Diagnostic ultrasound of gravid uterus"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-05 21:50",
+            "end_time": "2026-10-05 22:10",
+            "code": "MGSO4",
+            "name": "Magnesium sulfate 10% 10 ml",
+            "description": "4 g IV loading ใน 20 นาที"
+        },
+        {
+            "start_time": "2026-10-05 22:00",
+            "end_time": "2026-10-05 22:00",
+            "code": "HYDR20",
+            "name": "Hydralazine 20 mg/ml",
+            "description": "5 mg IV"
+        },
+        {
+            "start_time": "2026-10-05 22:10",
+            "end_time": "2026-10-05 22:30",
+            "code": "MGSO450",
+            "name": "Magnesium sulfate 50% 20 ml",
+            "description": "20 g in D5W 500 ml drip 1 g/hr"
+        },
+        {
+            "start_time": "2026-10-05 22:15",
+            "end_time": "2026-10-05 22:15",
+            "code": "DEXA4",
+            "name": "Dexamethasone 4 mg/ml",
+            "description": "6 mg IM (เข็มที่ 1)"
+        }
+    ],
+    "treatment_provided": "MgSO4 4 g IV loading ต่อด้วย 1 g/hr, Hydralazine 5 mg IV, Dexamethasone 6 mg IM (เข็มที่ 1), นอนตะแคงซ้าย, O2 mask 10 LPM, retain Foley catheter urine 60 ml/hr",
+    "reason_refer": "ส่งต่อสูติแพทย์เพื่อยุติการตั้งครรภ์และดูแลทารกคลอดก่อนกำหนด (ต้องการ NICU)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | พยาบาลห้องคลอดนำส่ง เตรียม Calcium gluconate ไปด้วย",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "172",
+        "diastolic_bp": "112",
+        "heart_rate": "102",
+        "oxygen_saturation": "98",
+        "pain_score": "6",
+        "respiratory_rate": "20",
+        "temperature": "37.0",
+        "e": "3",
+        "v": "5",
+        "m": "6",
+        "weight": "76",
+        "height": "158",
+        "entry_datetime": "2026-10-05 22:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0080/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 23:15",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000080",
+            "cid": "1101700204804",
+            "title_name": "นาย",
+            "first_name": "มานพ",
+            "middle_name": "",
+            "last_name": "คงเจริญ",
+            "gender": "M",
+            "birthdate": "1980-01-09",
+            "mobile_no": "0812348560"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังเข้าใหม่วันที่ 3 (คดีเมาแล้วขับ) ดื่มสุราขาววันละ 1 ขวดมา 20 ปี เคยชักจากการขาดสุรา 1 ครั้ง ทำงานโรงงานจนถึงก่อนเข้าเรือนจำ",
+    "record_illness_present": "มือสั่น เหงื่อแตก นอนไม่หลับ 2 วัน วันนี้สับสน เห็นภาพหลอน กระวนกระวาย ชักเกร็งกระตุกทั้งตัว 1 ครั้ง นาน 2 นาที เวลา 22:20 น.",
+    "test_results": "CIWA-Ar score 28 | DTX 86 mg% | Tremor, diaphoresis, disoriented to time and place | ไม่มี focal neurological deficit | ไม่มีบาดแผลที่ศีรษะ",
+    "initial_diagnosis_free_text": "Alcohol withdrawal delirium (delirium tremens) with withdrawal seizure, CIWA-Ar 28",
+    "initial_diagnosis": [
+        {
+            "icd10": "F10.4",
+            "dx_name": "Mental and behavioural disorders due to use of alcohol, withdrawal state with delirium",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "3893",
+            "datetime": "2026-10-08 22:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Venous catheterization, not elsewhere classified"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-08 22:25",
+            "end_time": "2026-10-08 22:45",
+            "code": "DIAZ10",
+            "name": "Diazepam 10 mg/2 ml",
+            "description": "10 mg IV 2 ครั้ง"
+        },
+        {
+            "start_time": "2026-10-08 22:35",
+            "end_time": "2026-10-08 22:35",
+            "code": "THIA100",
+            "name": "Thiamine 100 mg/ml",
+            "description": "100 mg IV"
+        },
+        {
+            "start_time": "2026-10-08 22:40",
+            "end_time": "2026-10-08 23:15",
+            "code": "D5NSS",
+            "name": "5% Dextrose in NSS 1,000 ml",
+            "description": "IV rate 120 ml/hr"
+        }
+    ],
+    "treatment_provided": "Diazepam 10 mg IV 2 ครั้ง, Thiamine 100 mg IV ก่อนให้สารน้ำที่มีน้ำตาล, 5% D/NSS 1,000 ml rate 120 ml/hr, ผูกยึดเพื่อความปลอดภัย",
+    "reason_refer": "ส่งต่ออายุรแพทย์ / จิตแพทย์ ต้องการเฝ้าระวังใกล้ชิดและตรวจเกลือแร่ (สถานพยาบาลเรือนจำไม่มีแพทย์และ lab นอกเวลา)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขัง เจ้าหน้าที่ราชทัณฑ์ควบคุมตัว 2 นาย ใส่เครื่องพันธนาการที่ข้อเท้า",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "168",
+        "diastolic_bp": "102",
+        "heart_rate": "128",
+        "oxygen_saturation": "97",
+        "pain_score": "0",
+        "respiratory_rate": "24",
+        "temperature": "38.0",
+        "e": "4",
+        "v": "4",
+        "m": "6",
+        "weight": "58",
+        "height": "166",
+        "entry_datetime": "2026-10-08 23:15"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

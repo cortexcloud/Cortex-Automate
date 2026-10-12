@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0035/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 18:50",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000035",
+            "cid": "1101700204359",
+            "title_name": "นาย",
+            "first_name": "เอกชัย",
+            "middle_name": "",
+            "last_name": "นาคสวัสดิ์",
+            "gender": "M",
+            "birthdate": "1983-07-19",
+            "mobile_no": "0812346895"
+        },
+        "address": {
+            "no": "12/5",
+            "village_no": "3",
+            "street": "ถนนพระราม 4",
+            "subdistrict": "ลุมพินี",
+            "district": "ปทุมวัน",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "โรคซึมเศร้า เคยทำร้ายตนเอง 1 ครั้ง",
+    "record_illness_present": "ดื่มยาฆ่าแมลงกลุ่ม organophosphate (chlorpyrifos) ประมาณ 100 ml 1 ชั่วโมงก่อนมา น้ำลายฟูมปาก เหงื่อออกมาก รูม่านตาเล็ก",
+    "test_results": "Plasma cholinesterase 850 U/L (ต่ำ) | ABG: pH 7.28, pO2 62",
+    "initial_diagnosis_free_text": "Organophosphate poisoning (chlorpyrifos) with cholinergic crisis; intentional self-poisoning (X68); major depressive disorder",
+    "initial_diagnosis": [
+        {
+            "icd10": "T60.0",
+            "dx_name": "Toxic effect of organophosphate and carbamate insecticides",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9604",
+            "datetime": "2026-09-24 18:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Endotracheal intubation"
+        },
+        {
+            "icd9": "9633",
+            "datetime": "2026-09-24 18:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Gastric lavage"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 18:00",
+            "end_time": "2026-09-24 18:50",
+            "code": "ATRO06",
+            "name": "Atropine 0.6 mg/ml",
+            "description": "2 mg IV doubling q 5 นาที จน atropinization (รวม 18 mg)"
+        },
+        {
+            "start_time": "2026-09-24 18:15",
+            "end_time": "2026-09-24 18:50",
+            "code": "PAM1",
+            "name": "Pralidoxime (2-PAM) 1 g",
+            "description": "30 mg/kg IV loading แล้ว 8 mg/kg/hr"
+        }
+    ],
+    "treatment_provided": "Decontamination, atropinization, 2-PAM, intubation, activated charcoal",
+    "reason_refer": "ส่งต่อ ICU และปรึกษาจิตแพทย์หลังพ้นภาวะวิกฤต",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ปรึกษาศูนย์พิษวิทยารามาธิบดี 1367 แล้ว | เจ้าหน้าที่นำขวดยามาด้วย",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "100",
+        "diastolic_bp": "60",
+        "heart_rate": "58",
+        "oxygen_saturation": "86",
+        "pain_score": "",
+        "respiratory_rate": "10",
+        "temperature": "36.8",
+        "e": "1",
+        "v": "T",
+        "m": "5",
+        "weight": "68",
+        "height": "169",
+        "entry_datetime": "2026-09-24 18:50"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

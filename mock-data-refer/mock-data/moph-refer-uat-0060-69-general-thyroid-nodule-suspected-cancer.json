@@ -1,0 +1,97 @@
+{
+    "refer_out_no": "0060/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 10:20",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "5",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000060",
+            "cid": "1101700204600",
+            "title_name": "น.ส.",
+            "first_name": "ธิดารัตน์",
+            "middle_name": "",
+            "last_name": "คำแสน",
+            "gender": "F",
+            "birthdate": "1988-12-29",
+            "mobile_no": "0812347820"
+        },
+        "address": {
+            "no": "80/61",
+            "village_no": "7",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว ป้าเป็นมะเร็งไทรอยด์",
+    "record_illness_present": "คลำพบก้อนที่คอด้านขวา 2 เดือน โตขึ้นช้าๆ ไม่เจ็บ ไม่มีเสียงแหบ กลืนปกติ ไม่มีใจสั่น น้ำหนักคงที่",
+    "test_results": "TSH 1.8, FT4 1.2 | U/S thyroid: solid hypoechoic nodule Rt lobe 2.4 cm, microcalcification, irregular margin (TI-RADS 5), no cervical lymphadenopathy",
+    "initial_diagnosis_free_text": "Solitary right thyroid nodule 2.4 cm, TI-RADS 5, suspected papillary thyroid carcinoma",
+    "initial_diagnosis": [
+        {
+            "icd10": "E04.1",
+            "dx_name": "Nontoxic single thyroid nodule",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8871",
+            "datetime": "2026-10-06 09:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Diagnostic ultrasound of head and neck"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-01-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "CACO1000",
+            "name": "Calcium carbonate 1,000 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "ตรวจ thyroid function และ ultrasound เบื้องต้น ให้คำแนะนำ",
+    "reason_refer": "ส่งต่อศัลยแพทย์ / โสต ศอ นาสิก เพื่อ FNA และวางแผนผ่าตัด thyroidectomy",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "114",
+        "diastolic_bp": "72",
+        "heart_rate": "76",
+        "oxygen_saturation": "99",
+        "pain_score": "0",
+        "respiratory_rate": "16",
+        "temperature": "36.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "54",
+        "height": "159",
+        "entry_datetime": "2026-10-06 10:20"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

@@ -1,0 +1,151 @@
+{
+    "refer_out_no": "0062/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 03:40",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000062",
+            "cid": "1101700204626",
+            "title_name": "นาย",
+            "first_name": "บุญเลิศ",
+            "middle_name": "",
+            "last_name": "พานทอง",
+            "gender": "M",
+            "birthdate": "1958-03-14",
+            "mobile_no": "0812347894"
+        },
+        "address": {
+            "no": "82/75",
+            "village_no": "9",
+            "street": "ถนนพระราม 4",
+            "subdistrict": "ลุมพินี",
+            "district": "ปทุมวัน",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ถุงลมโป่งพอง 8 ปี สูบบุหรี่ 40 pack-year เลิกมา 2 ปี ความดันโลหิตสูง",
+    "record_illness_present": "ไอ เสมหะเหลืองเขียวมากขึ้น 3 วัน หอบเหนื่อยมากขึ้น 6 ชม. พูดได้เป็นคำๆ พ่นยาเองที่บ้าน 4 ครั้งไม่ดีขึ้น",
+    "test_results": "CXR: hyperinflation, no infiltration | ABG (O2 cannula 3 LPM): pH 7.29, PaCO2 68, PaO2 62, HCO3 31 | WBC 13,200 | EKG: sinus tachycardia",
+    "initial_diagnosis_free_text": "COPD with acute exacerbation, acute hypercapnic respiratory failure; HT",
+    "initial_diagnosis": [
+        {
+            "icd10": "J44.1",
+            "dx_name": "Chronic obstructive pulmonary disease with acute exacerbation, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9394",
+            "datetime": "2026-10-06 02:45",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Respiratory medication administered by nebulizer"
+        },
+        {
+            "icd9": "8744",
+            "datetime": "2026-10-06 02:50",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Routine chest x-ray"
+        },
+        {
+            "icd9": "9390",
+            "datetime": "2026-10-06 03:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Non-invasive mechanical ventilation (BiPAP)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 02:45",
+            "end_time": "2026-10-06 03:25",
+            "code": "BERO",
+            "name": "Ipratropium + Fenoterol nebule",
+            "description": "พ่นทุก 20 นาที 3 ครั้ง"
+        },
+        {
+            "start_time": "2026-10-06 02:55",
+            "end_time": "2026-10-06 02:55",
+            "code": "DEXA4",
+            "name": "Dexamethasone 4 mg/ml",
+            "description": "8 mg IV"
+        },
+        {
+            "start_time": "2026-10-06 03:05",
+            "end_time": "2026-10-06 03:05",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV"
+        },
+        {
+            "start_time": "2019-01-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "TIOT18",
+            "name": "Tiotropium 18 mcg inhaler",
+            "description": "สูด 1 ครั้ง วันละครั้ง"
+        },
+        {
+            "start_time": "2019-01-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "AMLO5",
+            "name": "Amlodipine 5 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "Ipratropium + Fenoterol NB ทุก 20 นาที 3 ครั้ง, Dexamethasone 8 mg IV, Ceftriaxone 2 g IV, on BiPAP IPAP 14 EPAP 5 FiO2 0.35 SpO2 91%",
+    "reason_refer": "ส่งต่ออายุรแพทย์โรคปอด ต้องการ ICU / เครื่องช่วยหายใจ (ต้นทางไม่มี ICU)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | นำส่งด้วย BiPAP เตรียมอุปกรณ์ใส่ท่อช่วยหายใจไปด้วย",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "148",
+        "diastolic_bp": "86",
+        "heart_rate": "112",
+        "oxygen_saturation": "91",
+        "pain_score": "0",
+        "respiratory_rate": "30",
+        "temperature": "37.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "55",
+        "height": "165",
+        "entry_datetime": "2026-10-06 03:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        },
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

@@ -1,0 +1,165 @@
+{
+    "refer_out_no": "0069/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 01:55",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000069",
+            "cid": "1101700204693",
+            "title_name": "นาง",
+            "first_name": "ทองใบ",
+            "middle_name": "",
+            "last_name": "สีหานาม",
+            "gender": "F",
+            "birthdate": "1954-04-02",
+            "mobile_no": "0812348153"
+        },
+        "address": {
+            "no": "89/34",
+            "village_no": "7",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ความดันโลหิตสูง เบาหวานชนิดที่ 2 หัวใจขาดเลือดเรื้อรัง ใส่ stent ปี 2565 ไตเสื่อมระยะ 3",
+    "record_illness_present": "นอนราบไม่ได้ 2 คืน ตื่นมาหอบกลางดึก วันนี้หอบเหนื่อยมาก ไอมีเสมหะเป็นฟองสีชมพู เหงื่อแตก ตัวเย็น ขาบวม 2 ข้าง",
+    "test_results": "CXR: cardiomegaly, bilateral perihilar infiltration, Kerley B lines | EKG: sinus tachycardia, old Q wave V1-V3, no new ST change | Troponin-T 62 ng/L (เดิม 45) | NT-proBNP 12,800 | Cr 1.9, K 4.8",
+    "initial_diagnosis_free_text": "Acute cardiogenic pulmonary edema with hypertensive crisis; ischemic cardiomyopathy; CKD stage 3; DM type 2",
+    "initial_diagnosis": [
+        {
+            "icd10": "I50.1",
+            "dx_name": "Left ventricular failure",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8952",
+            "datetime": "2026-10-07 01:05",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        },
+        {
+            "icd9": "8744",
+            "datetime": "2026-10-07 01:15",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Routine chest x-ray"
+        },
+        {
+            "icd9": "9390",
+            "datetime": "2026-10-07 01:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Non-invasive mechanical ventilation (BiPAP)"
+        },
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-07 01:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-07 01:10",
+            "end_time": "2026-10-07 01:10",
+            "code": "FURO20",
+            "name": "Furosemide 20 mg/2 ml",
+            "description": "80 mg IV"
+        },
+        {
+            "start_time": "2026-10-07 01:15",
+            "end_time": "2026-10-07 01:55",
+            "code": "NTG50",
+            "name": "Nitroglycerin 50 mg/10 ml",
+            "description": "50 mg in D5W 250 ml drip 10 mcg/min titrate"
+        },
+        {
+            "start_time": "2026-10-07 01:20",
+            "end_time": "2026-10-07 01:20",
+            "code": "MORP10",
+            "name": "Morphine 10 mg/ml",
+            "description": "2 mg IV"
+        },
+        {
+            "start_time": "2022-06-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "ASA81",
+            "name": "Aspirin 81 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        },
+        {
+            "start_time": "2022-06-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "ATOR40",
+            "name": "Atorvastatin 40 mg",
+            "description": "1 เม็ด ก่อนนอน"
+        },
+        {
+            "start_time": "2018-01-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "LOSA50",
+            "name": "Losartan 50 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "นั่งศีรษะสูง, on BiPAP IPAP 12 EPAP 6 FiO2 0.6, Furosemide 80 mg IV ปัสสาวะออก 450 ml, NTG drip titrate, Morphine 2 mg IV, retain Foley catheter",
+    "reason_refer": "ส่งต่ออายุรแพทย์โรคหัวใจ ต้องการ CCU และ echocardiogram (ต้นทางไม่มี ICU)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | นำส่งด้วย BiPAP เตรียมอุปกรณ์ใส่ท่อช่วยหายใจไปด้วย",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "204",
+        "diastolic_bp": "116",
+        "heart_rate": "126",
+        "oxygen_saturation": "88",
+        "pain_score": "0",
+        "respiratory_rate": "34",
+        "temperature": "36.4",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "61",
+        "height": "152",
+        "entry_datetime": "2026-10-07 01:55"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        },
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

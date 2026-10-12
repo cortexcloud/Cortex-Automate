@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0075/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 09:50",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "4",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000075",
+            "cid": "1101700204758",
+            "title_name": "น.ส.",
+            "first_name": "ชุติกาญจน์",
+            "middle_name": "",
+            "last_name": "มูลสาร",
+            "gender": "F",
+            "birthdate": "1997-10-19",
+            "mobile_no": "0812348375"
+        },
+        "address": {
+            "no": "95/76",
+            "village_no": "4",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ไทรอยด์เป็นพิษ (Graves' disease) 2 ปี รับประทานยาไม่สม่ำเสมอ",
+    "record_illness_present": "ใจสั่น มือสั่น เหงื่อออกมาก น้ำหนักลด 6 กก. ใน 3 เดือน ตาโปน คอโตขึ้น ประจำเดือนมาน้อย",
+    "test_results": "FT4 5.8 (0.8-1.8), FT3 18.2, TSH < 0.005 | CBC: WBC 5,400, ANC 2,900 | AST 38, ALT 42 | EKG: sinus tachycardia 118/min | Diffuse goiter 60 g with bruit",
+    "initial_diagnosis_free_text": "Graves' disease with uncontrolled thyrotoxicosis and Graves' ophthalmopathy, poor response to antithyroid drug",
+    "initial_diagnosis": [
+        {
+            "icd10": "E05.0",
+            "dx_name": "Thyrotoxicosis with diffuse goitre",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8952",
+            "datetime": "2026-10-07 09:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2024-10-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "MMI5",
+            "name": "Methimazole 5 mg",
+            "description": "4 เม็ด วันละครั้ง หลังอาหารเช้า"
+        },
+        {
+            "start_time": "2024-10-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "PROP10",
+            "name": "Propranolol 10 mg",
+            "description": "1 เม็ด วันละ 3 ครั้ง หลังอาหาร"
+        }
+    ],
+    "treatment_provided": "ปรับ Methimazole เป็น 30 mg/วัน, Propranolol 40 mg วันละ 3 ครั้ง, แนะนำคุมกำเนิด",
+    "reason_refer": "ส่งต่ออายุรแพทย์ต่อมไร้ท่อเพื่อพิจารณา radioactive iodine / ผ่าตัด และจักษุแพทย์ประเมินตา",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "136",
+        "diastolic_bp": "68",
+        "heart_rate": "118",
+        "oxygen_saturation": "99",
+        "pain_score": "0",
+        "respiratory_rate": "20",
+        "temperature": "37.3",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "46",
+        "height": "160",
+        "entry_datetime": "2026-10-07 09:50"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

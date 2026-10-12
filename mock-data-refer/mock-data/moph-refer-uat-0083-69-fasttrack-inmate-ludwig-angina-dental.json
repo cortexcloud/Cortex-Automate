@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0083/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 20:10",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000083",
+            "cid": "1101700204839",
+            "title_name": "น.ส.",
+            "first_name": "กัลยาณี",
+            "middle_name": "",
+            "last_name": "โพธิ์ทอง",
+            "gender": "F",
+            "birthdate": "1997-04-28",
+            "mobile_no": "0812348671"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังหญิง ต้องโทษ 3 ปี ฟันผุหลายซี่ ปวดฟันกรามล่างซ้าย 2 สัปดาห์ รอคิวหน่วยทันตกรรมเคลื่อนที่",
+    "record_illness_present": "คางและใต้ลิ้นบวมแดงแข็ง 2 วัน วันนี้บวมลามลงคอทั้ง 2 ข้าง อ้าปากได้น้อย กลืนน้ำลายไม่ได้ เสียงอู้อี้ ไข้สูง นอนราบแล้วหายใจลำบาก",
+    "test_results": "Brawny induration of submandibular and submental space both sides, floor of mouth elevated | Trismus อ้าปากได้ 1 ซม. | ฟัน 37 ผุทะลุโพรงประสาท | ยังไม่มี stridor | DTX 112 mg%",
+    "initial_diagnosis_free_text": "Ludwig's angina from odontogenic infection (tooth 37) with impending upper airway obstruction",
+    "initial_diagnosis": [
+        {
+            "icd10": "K12.2",
+            "dx_name": "Cellulitis and abscess of mouth",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "3893",
+            "datetime": "2026-10-08 19:25",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Venous catheterization, not elsewhere classified"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-08 19:35",
+            "end_time": "2026-10-08 19:35",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV"
+        },
+        {
+            "start_time": "2026-10-08 19:40",
+            "end_time": "2026-10-08 20:00",
+            "code": "CLIN600",
+            "name": "Clindamycin 600 mg/4 ml",
+            "description": "600 mg IV drip"
+        },
+        {
+            "start_time": "2026-10-08 19:45",
+            "end_time": "2026-10-08 19:45",
+            "code": "DEXA4",
+            "name": "Dexamethasone 4 mg/ml",
+            "description": "8 mg IV"
+        }
+    ],
+    "treatment_provided": "นั่งศีรษะสูง, O2 cannula 3 LPM, Ceftriaxone 2 g IV, Clindamycin 600 mg IV, Dexamethasone 8 mg IV, NPO, on IV NSS 80 ml/hr",
+    "reason_refer": "ส่งต่อโสต ศอ นาสิกแพทย์ / ศัลยแพทย์ช่องปาก เพื่อผ่าตัดระบายหนองและดูแลทางเดินหายใจ",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขังหญิง เจ้าหน้าที่ราชทัณฑ์หญิงควบคุมตัว 2 นาย เตรียมอุปกรณ์ช่วยหายใจระหว่างนำส่ง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "118",
+        "diastolic_bp": "72",
+        "heart_rate": "116",
+        "oxygen_saturation": "96",
+        "pain_score": "8",
+        "respiratory_rate": "24",
+        "temperature": "39.1",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "52",
+        "height": "158",
+        "entry_datetime": "2026-10-08 20:10"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}
