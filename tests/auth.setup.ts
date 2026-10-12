@@ -1,5 +1,6 @@
 import { test as setup } from '@playwright/test';
-import { ROLES_IN_USE, authFile, getCredentials } from '../utils/env';
+import path from 'node:path';
+import { ROLES_IN_USE, authFile, envFile, getCredentials } from '../utils/env';
 import { isSessionAlive } from '../utils/session';
 
 // เตรียม session ของทุก role ใน ROLES_IN_USE (utils/env.ts) ครั้งเดียวต่อรอบ → .auth/<Role>.json
@@ -40,7 +41,7 @@ for (const role of ROLES_IN_USE) {
         .catch(() => null);
       throw new Error(
         `ล็อกอิน ${role} ไม่สำเร็จ${kcError ? `: ${kcError.trim()}` : ''} — ` +
-          `ตรวจ CORTEX_USERNAME_${role} / CORTEX_PASSWORD_${role} ในไฟล์ .env`,
+          `ตรวจ CORTEX_USERNAME_${role} / CORTEX_PASSWORD_${role} ในไฟล์ ${path.basename(envFile())}`,
       );
     }
 

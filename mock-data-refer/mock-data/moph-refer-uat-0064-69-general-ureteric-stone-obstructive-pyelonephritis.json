@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0064/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 12:10",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "1",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "OFC",
+        "ref_name": "สิทธิข้าราชการ/รัฐวิสาหกิจ",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000064",
+            "cid": "1101700204642",
+            "title_name": "นาย",
+            "first_name": "เกรียงไกร",
+            "middle_name": "",
+            "last_name": "สมบูรณ์ทรัพย์",
+            "gender": "M",
+            "birthdate": "1972-05-18",
+            "mobile_no": "0812347968"
+        },
+        "address": {
+            "no": "84/89",
+            "village_no": "2",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "เกาต์ นิ่วในไตซ้าย เคยสลายนิ่ว 5 ปีก่อน",
+    "record_illness_present": "ปวดบั้นเอวซ้ายร้าวลงขาหนีบ เป็นพักๆ 2 วัน ปัสสาวะแสบขัด มีเลือดปน ไข้หนาวสั่นวันนี้",
+    "test_results": "UA: RBC 50-100, WBC 30-50, nitrite positive | CBC: WBC 16,900, N 88% | Cr 1.6 (เดิม 1.0) | KUB: radiopaque stone 9 mm at Lt UVJ level | U/S: moderate Lt hydronephrosis",
+    "initial_diagnosis_free_text": "Left distal ureteric calculus 9 mm with obstructive pyelonephritis and acute kidney injury; gout",
+    "initial_diagnosis": [
+        {
+            "icd10": "N20.1",
+            "dx_name": "Calculus of ureter",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8779",
+            "datetime": "2026-10-06 11:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Other x-ray of urinary system (KUB)"
+        },
+        {
+            "icd9": "8875",
+            "datetime": "2026-10-06 11:25",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Diagnostic ultrasound of urinary system"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 11:15",
+            "end_time": "2026-10-06 11:15",
+            "code": "MORP10",
+            "name": "Morphine 10 mg/ml",
+            "description": "3 mg IV"
+        },
+        {
+            "start_time": "2026-10-06 11:40",
+            "end_time": "2026-10-06 11:40",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV หลังเก็บ urine culture"
+        },
+        {
+            "start_time": "2021-01-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "ALLO100",
+            "name": "Allopurinol 100 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "NSS 1,000 ml rate 120 ml/hr, Ceftriaxone 2 g IV หลังเก็บ urine culture, Morphine 3 mg IV, งด NSAIDs",
+    "reason_refer": "ส่งต่อศัลยแพทย์ระบบทางเดินปัสสาวะเพื่อระบายปัสสาวะฉุกเฉิน (DJ stent / PCN) ต้นทางไม่มี urologist",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "128",
+        "diastolic_bp": "78",
+        "heart_rate": "104",
+        "oxygen_saturation": "98",
+        "pain_score": "8",
+        "respiratory_rate": "20",
+        "temperature": "38.9",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "76",
+        "height": "170",
+        "entry_datetime": "2026-10-06 12:10"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

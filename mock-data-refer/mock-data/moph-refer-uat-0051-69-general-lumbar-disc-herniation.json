@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0051/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-05 11:15",
+    "refer_expire_date": "2026-11-04 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "5",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "LGO",
+        "ref_name": "สิทธิพนักงานส่วนท้องถิ่น",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000051",
+            "cid": "1101700204511",
+            "title_name": "นาง",
+            "first_name": "จันทร์เพ็ญ",
+            "middle_name": "",
+            "last_name": "ศรีสวัสดิ์",
+            "gender": "F",
+            "birthdate": "1978-06-17",
+            "mobile_no": "0812347487"
+        },
+        "address": {
+            "no": "71/88",
+            "village_no": "7",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว แพ้ยา Ibuprofen (ผื่น)",
+    "record_illness_present": "ปวดหลังส่วนล่างร้าวลงขาซ้าย 3 เดือน ชาหลังเท้าซ้าย กระดกข้อเท้าซ้ายอ่อนแรงเล็กน้อย กลั้นปัสสาวะอุจจาระได้ปกติ กายภาพบำบัด 6 สัปดาห์ไม่ดีขึ้น",
+    "test_results": "X-ray LS spine: narrowing disc space L4-L5 | SLRT positive Lt 40 degrees | EHL power Lt grade IV",
+    "initial_diagnosis_free_text": "Lumbar disc herniation L4-L5 with left L5 radiculopathy, failed conservative treatment",
+    "initial_diagnosis": [
+        {
+            "icd10": "M51.1",
+            "dx_name": "Lumbar and other intervertebral disc disorders with radiculopathy",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8724",
+            "datetime": "2026-10-05 10:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "X-ray of lumbosacral spine"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-07-01 08:00",
+            "end_time": "2026-10-05 08:00",
+            "code": "PARA500",
+            "name": "Paracetamol 500 mg",
+            "description": "2 เม็ด เวลาปวด ทุก 6 ชม."
+        },
+        {
+            "start_time": "2026-08-01 08:00",
+            "end_time": "2026-10-05 08:00",
+            "code": "GABA300",
+            "name": "Gabapentin 300 mg",
+            "description": "1 เม็ด ก่อนนอน"
+        },
+        {
+            "start_time": "2026-08-01 08:00",
+            "end_time": "2026-10-05 08:00",
+            "code": "TOLP150",
+            "name": "Tolperisone 150 mg",
+            "description": "1 เม็ด เช้า-เย็น หลังอาหาร"
+        }
+    ],
+    "treatment_provided": "ยาแก้ปวด กายภาพบำบัด 6 สัปดาห์ แนะนำท่าทางการทำงาน",
+    "reason_refer": "ส่งต่อศัลยแพทย์ออร์โธปิดิกส์ (spine) เพื่อ MRI LS spine และพิจารณาผ่าตัด",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "118",
+        "diastolic_bp": "74",
+        "heart_rate": "74",
+        "oxygen_saturation": "99",
+        "pain_score": "6",
+        "respiratory_rate": "16",
+        "temperature": "36.5",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "62",
+        "height": "157",
+        "entry_datetime": "2026-10-05 11:15"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

@@ -1,0 +1,130 @@
+{
+    "refer_out_no": "0022/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 10:05",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "OFC",
+        "ref_name": "สิทธิข้าราชการ/รัฐวิสาหกิจ",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000022",
+            "cid": "1101700204227",
+            "title_name": "นาง",
+            "first_name": "บุญเรือน",
+            "middle_name": "",
+            "last_name": "จันทร์หอม",
+            "gender": "F",
+            "birthdate": "1944-04-18",
+            "mobile_no": "0812346414"
+        },
+        "address": {
+            "no": "56/3",
+            "village_no": "8",
+            "street": "ถนนเพชรเกษม",
+            "subdistrict": "หนองค้างพลู",
+            "district": "หนองแขม",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ความดันโลหิตสูง เบาหวานชนิดที่ 2 กระดูกพรุน รับประทาน Warfarin จาก AF",
+    "record_illness_present": "ลื่นล้มในห้องน้ำ สะโพกซ้ายกระแทกพื้น ลุกเดินไม่ได้ ขาซ้ายสั้นและหมุนออก ไม่มีศีรษะกระแทก",
+    "test_results": "X-ray: displaced fracture neck of left femur | INR 2.8 | FBS 168 | Cr 1.3, eGFR 38",
+    "initial_diagnosis_free_text": "Fracture neck of left femur (Garden IV); AF on warfarin (INR 2.8); HT; T2DM; CKD stage 3b; fall on same level (W01)",
+    "initial_diagnosis": [
+        {
+            "icd10": "S72.0",
+            "dx_name": "Fracture of neck of femur",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8726",
+            "datetime": "2026-09-24 09:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "X-ray hip and pelvis"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2025-01-01 08:00",
+            "end_time": "2026-09-23 20:00",
+            "code": "WARF3",
+            "name": "Warfarin 3 mg",
+            "description": "1 เม็ด ก่อนนอน (หยุดแล้ว)"
+        },
+        {
+            "start_time": "2024-06-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "METF500",
+            "name": "Metformin 500 mg",
+            "description": "1 เม็ด เช้า-เย็น หลังอาหาร"
+        },
+        {
+            "start_time": "2024-06-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "AMLO5",
+            "name": "Amlodipine 5 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        },
+        {
+            "start_time": "2026-09-24 09:30",
+            "end_time": "2026-09-24 10:05",
+            "code": "VITK10",
+            "name": "Vitamin K1 10 mg/ml",
+            "description": "2 mg IV slow push"
+        }
+    ],
+    "treatment_provided": "Skin traction, Paracetamol 500 mg 2 เม็ด, Vitamin K1 2 mg IV, หยุด Warfarin",
+    "reason_refer": "ส่งต่อเพื่อผ่าตัด hemiarthroplasty และดูแลร่วมกับอายุรแพทย์",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ญาติ (บุตรสาว) เดินทางมาด้วย",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "152",
+        "diastolic_bp": "84",
+        "heart_rate": "96",
+        "oxygen_saturation": "96",
+        "pain_score": "7",
+        "respiratory_rate": "20",
+        "temperature": "36.8",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "48",
+        "height": "152",
+        "entry_datetime": "2026-09-24 10:05"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        },
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

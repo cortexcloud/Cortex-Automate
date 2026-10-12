@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0023/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 16:45",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "2",
+    "emergency": "4",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000023",
+            "cid": "1101700204235",
+            "title_name": "ด.ช.",
+            "first_name": "ภูมิพัฒน์",
+            "middle_name": "",
+            "last_name": "รักษ์ไทย",
+            "gender": "M",
+            "birthdate": "2016-09-09",
+            "mobile_no": "0812346451"
+        },
+        "address": {
+            "no": "12/5",
+            "village_no": "3",
+            "street": "ถนนพระราม 4",
+            "subdistrict": "ลุมพินี",
+            "district": "ปทุมวัน",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ไม่มีโรคประจำตัว ได้รับวัคซีนตามเกณฑ์ ไม่เคยได้รับวัคซีนพิษสุนัขบ้า",
+    "record_illness_present": "ถูกสุนัขจรจัดกัดมือขวา 2 ชั่วโมงก่อนมา แผลฉีกขาดลึก 3 cm ที่ฝ่ามือ มีเลือดออก ขยับนิ้วได้ดี",
+    "test_results": "",
+    "initial_diagnosis_free_text": "Dog bite right hand, WHO category III exposure; bitten by dog (W54)",
+    "initial_diagnosis": [
+        {
+            "icd10": "S61.9",
+            "dx_name": "Open wound of wrist and hand, part unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8659",
+            "datetime": "2026-09-24 16:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Wound irrigation, no primary suture"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 16:15",
+            "end_time": "2026-09-24 16:15",
+            "code": "RABV",
+            "name": "Purified Vero cell rabies vaccine 0.1 ml",
+            "description": "ID 2 จุด (Day 0)"
+        },
+        {
+            "start_time": "2026-09-24 16:20",
+            "end_time": "2026-09-24 16:45",
+            "code": "AMOCL",
+            "name": "Amoxicillin-clavulanate 457 mg/5 ml",
+            "description": "7 ml วันละ 2 ครั้ง หลังอาหาร"
+        }
+    ],
+    "treatment_provided": "ล้างแผลด้วยสบู่และน้ำสะอาด 15 นาที, rabies vaccine D0, antibiotic prophylaxis",
+    "reason_refer": "ต้นทางไม่มี Equine/Human rabies immunoglobulin (ERIG/HRIG) ส่งต่อเพื่อรับ RIG ภายใน 7 วัน",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ปกครอง (มารดา) มาด้วย สุนัขจรจัด ติดตามไม่ได้",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "104",
+        "diastolic_bp": "64",
+        "heart_rate": "96",
+        "oxygen_saturation": "99",
+        "pain_score": "4",
+        "respiratory_rate": "20",
+        "temperature": "36.9",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "30",
+        "height": "136",
+        "entry_datetime": "2026-09-24 16:45"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

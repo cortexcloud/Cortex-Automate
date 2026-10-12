@@ -1,0 +1,132 @@
+{
+    "refer_out_no": "0056/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 04:40",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000056",
+            "cid": "1101700204561",
+            "title_name": "นาง",
+            "first_name": "กนกวรรณ",
+            "middle_name": "",
+            "last_name": "ใจซื่อ",
+            "gender": "F",
+            "birthdate": "1995-05-25",
+            "mobile_no": "0812347672"
+        },
+        "address": {
+            "no": "76/33",
+            "village_no": "3",
+            "street": "ถนนพหลโยธิน",
+            "subdistrict": "สามเสนใน",
+            "district": "พญาไท",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "G2P1 GA 39 สัปดาห์ คลอดปกติ 03:10 น. ทารกเพศชาย 3,650 กรัม ปฏิเสธโรคประจำตัว",
+    "record_illness_present": "หลังคลอดรก 03:25 น. มดลูกหดรัดตัวไม่ดี เลือดออกทางช่องคลอดต่อเนื่อง ประมาณ 1,500 ml ใน 1 ชม. หน้ามืด ใจสั่น",
+    "test_results": "Hct 24% (ก่อนคลอด 35%) | Plt 152,000 | PT 13.5, INR 1.1 | 20-min WBCT: clot | รกครบ ไม่มีแผลฉีกขาดที่ปากมดลูก",
+    "initial_diagnosis_free_text": "Immediate postpartum hemorrhage from uterine atony, EBL 1,500 ml, hypovolemic shock class III",
+    "initial_diagnosis": [
+        {
+            "icd10": "O72.1",
+            "dx_name": "Other immediate postpartum haemorrhage",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-06 03:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        },
+        {
+            "icd9": "9904",
+            "datetime": "2026-10-06 04:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Transfusion of packed cells"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 03:30",
+            "end_time": "2026-10-06 04:40",
+            "code": "OXYT10",
+            "name": "Oxytocin 10 U/ml",
+            "description": "20 U in LRS 1,000 ml drip"
+        },
+        {
+            "start_time": "2026-10-06 03:35",
+            "end_time": "2026-10-06 03:35",
+            "code": "METH02",
+            "name": "Methylergometrine 0.2 mg/ml",
+            "description": "0.2 mg IM"
+        },
+        {
+            "start_time": "2026-10-06 03:45",
+            "end_time": "2026-10-06 03:45",
+            "code": "MISO200",
+            "name": "Misoprostol 200 mcg",
+            "description": "800 mcg (4 เม็ด) ทางทวารหนัก"
+        },
+        {
+            "start_time": "2026-10-06 03:50",
+            "end_time": "2026-10-06 03:50",
+            "code": "TXA500",
+            "name": "Tranexamic acid 500 mg/5 ml",
+            "description": "1 g IV"
+        }
+    ],
+    "treatment_provided": "Bimanual uterine compression, Oxytocin 20 U in LRS 1,000 ml, Methylergometrine 0.2 mg IM, Misoprostol 800 mcg ทางทวารหนัก, Tranexamic acid 1 g IV, PRC 1 unit, LRS 2,000 ml, retain Foley catheter",
+    "reason_refer": "ส่งต่อสูติแพทย์เพื่อพิจารณา balloon tamponade / ผ่าตัด ต้องการเลือดและ ICU (เลือดที่ต้นทางไม่เพียงพอ)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | พยาบาลห้องคลอดนวดมดลูกต่อเนื่องระหว่างนำส่ง ทารกอยู่กับญาติที่ต้นทาง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "86",
+        "diastolic_bp": "50",
+        "heart_rate": "128",
+        "oxygen_saturation": "97",
+        "pain_score": "4",
+        "respiratory_rate": "24",
+        "temperature": "36.4",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "63",
+        "height": "157",
+        "entry_datetime": "2026-10-06 04:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0061/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 09:15",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "4",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000061",
+            "cid": "1101700204618",
+            "title_name": "ด.ช.",
+            "first_name": "ปัณณวิชญ์",
+            "middle_name": "",
+            "last_name": "ศรีจันทร์",
+            "gender": "M",
+            "birthdate": "2025-06-03",
+            "mobile_no": "0812347857"
+        },
+        "address": {
+            "no": "81/68",
+            "village_no": "8",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "คลอดครบกำหนด น้ำหนักแรกเกิด 3,100 กรัม วัคซีนครบตามเกณฑ์",
+    "record_illness_present": "ตรวจพบเสียง murmur ตอนมารับวัคซีน ดูดนมแล้วเหนื่อย เหงื่อออกศีรษะ น้ำหนักขึ้นช้า ไม่เขียว ปอดอักเสบ 2 ครั้งใน 6 เดือน",
+    "test_results": "Pansystolic murmur grade III/VI at LLSB | CXR: cardiomegaly CT ratio 0.62, increased pulmonary vasculature | EKG: biventricular hypertrophy | Hct 34%",
+    "initial_diagnosis_free_text": "Suspected ventricular septal defect with heart failure, failure to thrive",
+    "initial_diagnosis": [
+        {
+            "icd10": "Q21.0",
+            "dx_name": "Ventricular septal defect",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8744",
+            "datetime": "2026-10-06 08:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Routine chest x-ray"
+        },
+        {
+            "icd9": "8952",
+            "datetime": "2026-10-06 08:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-15 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "FURO10",
+            "name": "Furosemide 10 mg/ml syrup",
+            "description": "0.8 ml วันละ 2 ครั้ง (1 mg/kg/dose)"
+        }
+    ],
+    "treatment_provided": "เริ่ม Furosemide 1 mg/kg/dose วันละ 2 ครั้ง แนะนำการให้นม นัดติดตามน้ำหนัก",
+    "reason_refer": "ส่งต่อกุมารแพทย์โรคหัวใจเพื่อตรวจ echocardiogram และวางแผนการรักษา",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "88",
+        "diastolic_bp": "52",
+        "heart_rate": "138",
+        "oxygen_saturation": "97",
+        "pain_score": "0",
+        "respiratory_rate": "44",
+        "temperature": "36.8",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "8",
+        "height": "76",
+        "entry_datetime": "2026-10-06 09:15"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

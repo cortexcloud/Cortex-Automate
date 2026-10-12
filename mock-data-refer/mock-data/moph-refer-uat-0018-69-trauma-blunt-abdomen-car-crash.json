@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0018/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 02:40",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000018",
+            "cid": "1101700204189",
+            "title_name": "นาง",
+            "first_name": "วิไลวรรณ",
+            "middle_name": "",
+            "last_name": "ศรีสุข",
+            "gender": "F",
+            "birthdate": "1985-11-02",
+            "mobile_no": "0812346266"
+        },
+        "address": {
+            "no": "88/19",
+            "village_no": "2",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ไทรอยด์เป็นพิษ รับประทานยา PTU",
+    "record_illness_present": "ผู้โดยสารรถเก๋งด้านหน้า รถชนเสาไฟฟ้า คาดเข็มขัดนิรภัย ปวดท้องด้านซ้ายบนมาก แรกรับ BP 78/50 ซีด มีรอยช้ำเข็มขัดนิรภัยที่ท้อง",
+    "test_results": "FAST: positive LUQ and pelvis | Hb 8.2 g/dL, Hct 25% | Lactate 4.6 | CXR: fracture left 9th-10th ribs",
+    "initial_diagnosis_free_text": "Blunt abdominal trauma with hemoperitoneum, suspected splenic injury grade IV; hemorrhagic shock class III; fracture left ribs 9-10; car occupant injured in collision with fixed object (V47.6)",
+    "initial_diagnosis": [
+        {
+            "icd10": "S36.0",
+            "dx_name": "Injury of spleen",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8876",
+            "datetime": "2026-09-24 02:05",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "FAST ultrasound abdomen"
+        },
+        {
+            "icd9": "3893",
+            "datetime": "2026-09-24 02:00",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Venous catheterization x2 large bore"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 02:00",
+            "end_time": "2026-09-24 02:40",
+            "code": "RLS1000",
+            "name": "Ringer lactate 1000 ml",
+            "description": "IV load 1000 ml"
+        },
+        {
+            "start_time": "2026-09-24 02:15",
+            "end_time": "2026-09-24 02:40",
+            "code": "TXA500",
+            "name": "Tranexamic acid 500 mg/5 ml",
+            "description": "1 g IV in 10 นาที แล้ว 1 g drip ใน 8 ชม."
+        },
+        {
+            "start_time": "2026-09-24 02:20",
+            "end_time": "2026-09-24 02:40",
+            "code": "PRCO",
+            "name": "O-negative PRC 1 unit",
+            "description": "IV free flow"
+        }
+    ],
+    "treatment_provided": "Damage control resuscitation: IV RLS 1 L, PRC O-neg 1 unit, TXA 1 g, pelvic binder, Foley catheter",
+    "reason_refer": "ต้องผ่าตัด exploratory laparotomy / splenectomy ด่วน ต้นทางไม่มีห้องผ่าตัดพร้อม",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | Cross-match ส่งตามมาพร้อมผู้ป่วย 4 units",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "78",
+        "diastolic_bp": "50",
+        "heart_rate": "132",
+        "oxygen_saturation": "95",
+        "pain_score": "9",
+        "respiratory_rate": "28",
+        "temperature": "35.9",
+        "e": "3",
+        "v": "5",
+        "m": "6",
+        "weight": "58",
+        "height": "160",
+        "entry_datetime": "2026-09-24 02:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

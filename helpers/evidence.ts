@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, type TestStepInfo } from '@playwright/test';
+import fs from 'node:fs';
 
 /** หน้าที่มีกรอบจาก markEvidence() รอลบหลังถ่ายภาพของ checkStep */
 const marked = new WeakSet<Page>();
@@ -6,6 +7,8 @@ const marked = new WeakSet<Page>();
 const shotCount = new WeakMap<Page, number>();
 /** error ที่ step ลูกถ่ายภาพไปแล้ว — step แม่ไม่ต้องถ่ายซ้ำ */
 const captured = new WeakSet<object>();
+/** ลำดับไฟล์ภาพหลักฐานของแต่ละเทส (key = test.info()) */
+const fileOrder = new WeakMap<object, number>();
 
 /**
  * test.step ที่แนบภาพหน้าจอเป็นหลักฐานไว้ใต้ step นั้นในรายงาน (R13)
@@ -107,7 +110,23 @@ export async function snapEvidence(page: Page, name: string) {
   const body = await page.screenshot();
   await clearMarks(page);
   shotCount.set(page, (shotCount.get(page) ?? 0) + 1);
+  saveEvidenceFile(name, body);
   await test.info().attach(name, { body, contentType: 'image/png' });
+}
+
+/**
+ * เก็บภาพหลักฐานเป็นไฟล์เรียงลำดับด้วย: <โฟลเดอร์ผลของเทส>/evidence/01 <ชื่อ>.png
+ * (ภาพที่ attach แบบ body อยู่ในรายงาน HTML เท่านั้น — ไฟล์ชุดนี้ไว้แนบที่อื่น เช่น Test Result ของ TC ใน Linear)
+ * โฟลเดอร์ผลรันถูกล้างทุกรอบ → คัดลอกออกก่อนรันรอบถัดไป
+ */
+function saveEvidenceFile(name: string, body: Buffer) {
+  // ลำดับนับต่อเทส (ไม่ใช่ต่อหน้า) — เทสที่ใช้ 2 หน้าต่าง (2 บัญชี) ภาพจะเรียงตามเวลาที่ถ่ายจริง ไม่ชนเลขกัน
+  const info = test.info();
+  fileOrder.set(info, (fileOrder.get(info) ?? 0) + 1);
+  const order = String(fileOrder.get(info)).padStart(2, '0');
+  const file = test.info().outputPath('evidence', `${order} ${name.replace(/[\\/:*?"<>|]/g, '-').slice(0, 120)}.png`);
+  fs.mkdirSync(test.info().outputPath('evidence'), { recursive: true });
+  fs.writeFileSync(file, body);
 }
 
 /** อยู่ในจอเต็มตัว และจุดกลางไม่ถูกแถบที่ลอยทับ (เช่นแถบระดับความเร่งด่วนของฟอร์ม Triage) บัง */
@@ -139,5 +158,86 @@ async function attachScreenshot(page: Page, step: TestStepInfo, name: string) {
   await clearMarks(page);
   if (!body) return;
   shotCount.set(page, (shotCount.get(page) ?? 0) + 1);
+  saveEvidenceFile(name, body);
   await step.attach(name, { body, contentType: 'image/png' });
+}
+
+/** 1 แถวของตารางเทียบค่า: ชื่อช่อง + ค่าจากแต่ละแหล่ง (เรียงตาม columns) + ตรงกันไหม */
+export interface CompareRow {
+  label: string;
+  values: string[];
+  same: boolean;
+}
+
+/**
+ * แสดงตารางเทียบค่า (เช่น ค่าบนหน้าจอ / ค่าจากหน้าอ้างอิง / ค่าจาก API) ซ้อนครึ่งขวาของหน้าเดิม ให้ภาพหลักฐานและคลิปเห็นทั้งหน้าจอจริง (ครึ่งซ้าย) และผลเทียบพร้อมกัน
+ * หัวตารางบอกชัดว่าเป็นตารางที่สคริปต์ทดสอบสร้าง ไม่ใช่หน้าจอของระบบ · แสดงก่อน expect เพื่อให้ภาพ Error เห็นแถวที่ไม่ตรง · ลบด้วย hideCompareTable()
+ * `side: 'left'` = ซ้อนครึ่งซ้ายแทน (สิ่งที่ต้องเห็นคู่กับตารางอยู่ฝั่งขวาของจอ เช่น popover ใต้ปุ่มมุมขวาบน) · `width` = ความกว้าง (เช่น '530px' ให้พ้นหน้าต่างกลางจอ)
+ */
+export async function showCompareTable(page: Page, title: string, columns: string[], rows: CompareRow[], options: { side?: 'left' | 'right'; width?: string } = {}): Promise<Locator> {
+  await page.evaluate(
+    ({ title, columns, rows, side, width }) => {
+      document.querySelector('[data-compare-overlay]')?.remove();
+      const overlay = document.createElement('div');
+      overlay.setAttribute('data-compare-overlay', '');
+      Object.assign(overlay.style, {
+        position: 'fixed',
+        [side]: '12px',
+        top: '84px',
+        width,
+        maxHeight: 'calc(100vh - 100px)',
+        overflow: 'auto',
+        background: '#fff',
+        border: '2px solid #1f6f43',
+        borderRadius: '6px',
+        boxShadow: '0 4px 16px rgba(0,0,0,.25)',
+        zIndex: '2147483000',
+        padding: '10px 12px',
+        font: '13px/1.35 sans-serif',
+        color: '#000',
+      });
+      const head = document.createElement('div');
+      head.textContent = title;
+      Object.assign(head.style, { font: '600 15px sans-serif', color: '#1f6f43' });
+      const caption = document.createElement('div');
+      caption.textContent = 'ตารางเทียบค่าที่สคริปต์ทดสอบสร้างขึ้น (ไม่ใช่หน้าจอของระบบ)';
+      Object.assign(caption.style, { color: '#666', fontSize: '12px', marginBottom: '6px' });
+      const table = document.createElement('table');
+      Object.assign(table.style, { borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' });
+      const addRow = (cells: string[], header: boolean, same?: boolean) => {
+        const tr = table.insertRow();
+        cells.forEach((text, index) => {
+          const cell = tr.insertCell();
+          cell.textContent = text;
+          Object.assign(cell.style, { border: '1px solid #ccc', padding: '3px 6px', verticalAlign: 'top', wordBreak: 'break-word' });
+          if (header) Object.assign(cell.style, { background: '#eef5f0', fontWeight: '600' });
+          else if (index === 0) Object.assign(cell.style, { background: '#fafafa' });
+          if (index === 0) cell.style.width = '17%';
+          if (index === cells.length - 1) {
+            Object.assign(cell.style, { width: '64px', textAlign: 'center', fontWeight: '600' });
+            if (!header) cell.style.color = same ? '#1f6f43' : '#cf1322';
+          }
+        });
+        if (!header && !same) tr.style.background = '#fff1f0';
+      };
+      addRow(['ช่อง', ...columns, 'ผล'], true);
+      for (const row of rows) addRow([row.label || '(ทั้งส่วน)', ...row.values, row.same ? '✓ ตรง' : '✗ ไม่ตรง'], false, row.same);
+      overlay.append(head, caption, table);
+      document.body.appendChild(overlay);
+    },
+    { title, columns, rows, side: options.side ?? 'right', width: options.width ?? 'calc(50vw - 24px)' },
+  );
+  return page.locator('[data-compare-overlay]');
+}
+
+export async function hideCompareTable(page: Page) {
+  await page.evaluate(() => document.querySelector('[data-compare-overlay]')?.remove()).catch(() => undefined);
+}
+
+/**
+ * ค้างหน้าจอไว้ครู่หนึ่งให้คนดูคลิปอ่านทัน (กรอบแดง / ตารางเทียบค่า ขึ้นแล้วหายเร็วเกินไปถ้าไม่ค้าง)
+ * ใช้เฉพาะเพื่อจังหวะของคลิป — ห้ามใช้แทนการรอเงื่อนไข (รอด้วย expect เสมอ)
+ */
+export async function holdForClip(page: Page, ms = 1_200) {
+  await page.waitForTimeout(ms);
 }

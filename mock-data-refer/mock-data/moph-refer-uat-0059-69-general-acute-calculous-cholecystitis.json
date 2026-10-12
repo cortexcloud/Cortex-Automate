@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0059/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 14:05",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "1",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "LGO",
+        "ref_name": "สิทธิพนักงานส่วนท้องถิ่น",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000059",
+            "cid": "1101700204596",
+            "title_name": "นาง",
+            "first_name": "สายสุนีย์",
+            "middle_name": "",
+            "last_name": "มณีรัตน์",
+            "gender": "F",
+            "birthdate": "1971-10-11",
+            "mobile_no": "0812347783"
+        },
+        "address": {
+            "no": "79/54",
+            "village_no": "6",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "นิ่วในถุงน้ำดี ทราบมา 2 ปี ไขมันในเลือดสูง",
+    "record_illness_present": "ปวดท้องใต้ชายโครงขวาร้าวไปสะบักขวา 2 วัน หลังรับประทานอาหารมัน ไข้ คลื่นไส้ อาเจียน 3 ครั้ง ตัวตาไม่เหลือง",
+    "test_results": "CBC: WBC 14,600, N 82% | TB 1.1, DB 0.4, ALP 118, AST 44, ALT 52 | Amylase 68 | U/S: gallstones 1.2 cm หลายก้อน, GB wall 5 mm, pericholecystic fluid, CBD 4 mm | Murphy sign positive",
+    "initial_diagnosis_free_text": "Acute calculous cholecystitis, Tokyo grade I; DLP",
+    "initial_diagnosis": [
+        {
+            "icd10": "K80.0",
+            "dx_name": "Calculus of gallbladder with acute cholecystitis",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8876",
+            "datetime": "2026-10-06 13:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Diagnostic ultrasound of abdomen and retroperitoneum"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 13:30",
+            "end_time": "2026-10-06 13:30",
+            "code": "TRAM50",
+            "name": "Tramadol 50 mg/ml",
+            "description": "50 mg IV"
+        },
+        {
+            "start_time": "2026-10-06 13:35",
+            "end_time": "2026-10-06 13:35",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV"
+        },
+        {
+            "start_time": "2026-10-06 13:40",
+            "end_time": "2026-10-06 14:00",
+            "code": "METR500",
+            "name": "Metronidazole 500 mg/100 ml",
+            "description": "500 mg IV drip"
+        },
+        {
+            "start_time": "2024-01-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "SIMV20",
+            "name": "Simvastatin 20 mg",
+            "description": "1 เม็ด ก่อนนอน"
+        }
+    ],
+    "treatment_provided": "NPO, 5% D/N/2 1,000 ml rate 100 ml/hr, Ceftriaxone 2 g IV, Metronidazole 500 mg IV, Tramadol 50 mg IV",
+    "reason_refer": "ส่งต่อศัลยแพทย์เพื่อผ่าตัด laparoscopic cholecystectomy ภายใน 72 ชม.",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "132",
+        "diastolic_bp": "80",
+        "heart_rate": "94",
+        "oxygen_saturation": "98",
+        "pain_score": "7",
+        "respiratory_rate": "18",
+        "temperature": "38.3",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "71",
+        "height": "156",
+        "entry_datetime": "2026-10-06 14:05"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

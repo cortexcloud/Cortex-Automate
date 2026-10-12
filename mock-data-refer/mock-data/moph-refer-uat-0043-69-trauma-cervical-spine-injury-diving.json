@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0043/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-05 16:05",
+    "refer_expire_date": "2026-11-04 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000043",
+            "cid": "1101700204430",
+            "title_name": "นาย",
+            "first_name": "พงศกร",
+            "middle_name": "",
+            "last_name": "อ่อนละมัย",
+            "gender": "M",
+            "birthdate": "1991-07-23",
+            "mobile_no": "0812347191"
+        },
+        "address": {
+            "no": "63/32",
+            "village_no": "8",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว ดื่มสุราเป็นครั้งคราว",
+    "record_illness_present": "กระโดดน้ำศีรษะกระแทกพื้นสระ 15:00 น. แขนขาอ่อนแรงทั้ง 4 รยางค์ทันที ชาตั้งแต่ระดับไหปลาร้าลงไป หายใจใช้กล้ามเนื้อท้อง",
+    "test_results": "C-spine X-ray lateral: fracture-dislocation C5-C6 | Motor power: deltoid III, biceps II, ต่ำกว่านั้น 0 | BP 88/50, HR 52 (neurogenic shock)",
+    "initial_diagnosis_free_text": "Cervical spinal cord injury, C5-C6 fracture-dislocation, ASIA A, neurogenic shock",
+    "initial_diagnosis": [
+        {
+            "icd10": "S14.1",
+            "dx_name": "Other and unspecified injuries of cervical spinal cord",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9352",
+            "datetime": "2026-10-05 15:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Application of neck support (Philadelphia collar)"
+        },
+        {
+            "icd9": "8722",
+            "datetime": "2026-10-05 15:35",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Other x-ray of cervical spine"
+        },
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-05 15:45",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-05 15:25",
+            "end_time": "2026-10-05 15:55",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1,000 ml",
+            "description": "IV load 1,000 ml"
+        },
+        {
+            "start_time": "2026-10-05 15:50",
+            "end_time": "2026-10-05 16:05",
+            "code": "NORE4",
+            "name": "Norepinephrine 4 mg/4 ml",
+            "description": "4 mg in D5W 250 ml drip 0.1 mcg/kg/min"
+        }
+    ],
+    "treatment_provided": "Philadelphia collar + spinal board, log roll, O2 mask with bag 10 LPM, NSS 1,000 ml load, Norepinephrine drip 0.1 mcg/kg/min, retain Foley catheter",
+    "reason_refer": "ส่งต่อศัลยแพทย์ระบบประสาท/กระดูกสันหลัง เพื่อ MRI C-spine และผ่าตัด decompression ต้องการ ICU",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | นำส่งด้วย ALS พยาบาล 2 คน เฝ้าระวังการหายใจล้มเหลวระหว่างนำส่ง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "92",
+        "diastolic_bp": "54",
+        "heart_rate": "54",
+        "oxygen_saturation": "95",
+        "pain_score": "6",
+        "respiratory_rate": "24",
+        "temperature": "36.2",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "72",
+        "height": "175",
+        "entry_datetime": "2026-10-05 16:05"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

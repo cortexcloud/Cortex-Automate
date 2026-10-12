@@ -1,0 +1,139 @@
+{
+    "refer_out_no": "0070/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 07:20",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "LGO",
+        "ref_name": "สิทธิพนักงานส่วนท้องถิ่น",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000070",
+            "cid": "1101700204707",
+            "title_name": "นาย",
+            "first_name": "สมหมาย",
+            "middle_name": "",
+            "last_name": "กองแก้ว",
+            "gender": "M",
+            "birthdate": "1962-09-30",
+            "mobile_no": "0812348190"
+        },
+        "address": {
+            "no": "90/41",
+            "village_no": "8",
+            "street": "ถนนพหลโยธิน",
+            "subdistrict": "สามเสนใน",
+            "district": "พญาไท",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "เบาหวานชนิดที่ 2 มา 15 ปี ขาดยา 1 เดือน ความดันโลหิตสูง",
+    "record_illness_present": "ญาติให้ประวัติ ปัสสาวะบ่อย กระหายน้ำมาก 1 สัปดาห์ ซึมลง พูดสับสน 1 วัน ไข้ ไอ มีเสมหะ 3 วัน",
+    "test_results": "DTX HI, plasma glucose 986 mg% | Na 152, K 4.2, HCO3 20, BUN 68, Cr 2.4 | Serum osmolality 372 | Serum ketone negative | WBC 15,200 | CXR: RLL infiltration",
+    "initial_diagnosis_free_text": "Hyperosmolar hyperglycemic state precipitated by pneumonia; acute kidney injury; hypernatremia",
+    "initial_diagnosis": [
+        {
+            "icd10": "E11.0",
+            "dx_name": "Type 2 diabetes mellitus with coma",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8744",
+            "datetime": "2026-10-07 06:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Routine chest x-ray"
+        },
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-07 06:35",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-07 06:20",
+            "end_time": "2026-10-07 07:20",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1,000 ml",
+            "description": "IV load 1,000 ml ใน 1 ชม."
+        },
+        {
+            "start_time": "2026-10-07 06:50",
+            "end_time": "2026-10-07 07:20",
+            "code": "RI100",
+            "name": "Regular insulin 100 U/ml",
+            "description": "7 U IV bolus ต่อด้วย drip 7 U/hr"
+        },
+        {
+            "start_time": "2026-10-07 06:55",
+            "end_time": "2026-10-07 06:55",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV"
+        },
+        {
+            "start_time": "2012-01-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "METF500",
+            "name": "Metformin 500 mg",
+            "description": "2 เม็ด เช้า-เย็น หลังอาหาร (ขาดยา 1 เดือน)"
+        },
+        {
+            "start_time": "2012-01-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "GLIP5",
+            "name": "Glipizide 5 mg",
+            "description": "1 เม็ด ก่อนอาหารเช้า (ขาดยา 1 เดือน)"
+        }
+    ],
+    "treatment_provided": "NSS 1,000 ml IV load ใน 1 ชม. ต่อด้วย 500 ml/hr, RI 7 U IV bolus ต่อด้วย drip 7 U/hr, Ceftriaxone 2 g IV, retain Foley catheter, DTX ทุก 1 ชม.",
+    "reason_refer": "ส่งต่ออายุรแพทย์ ต้องการ ICU เฝ้าระวังระดับน้ำตาลและเกลือแร่ใกล้ชิด",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "98",
+        "diastolic_bp": "58",
+        "heart_rate": "116",
+        "oxygen_saturation": "94",
+        "pain_score": "0",
+        "respiratory_rate": "24",
+        "temperature": "38.4",
+        "e": "3",
+        "v": "4",
+        "m": "6",
+        "weight": "70",
+        "height": "166",
+        "entry_datetime": "2026-10-07 07:20"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

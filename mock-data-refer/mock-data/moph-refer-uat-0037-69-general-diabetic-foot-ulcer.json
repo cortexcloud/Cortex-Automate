@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0037/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 10:30",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "4",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "LGO",
+        "ref_name": "สิทธิพนักงานส่วนท้องถิ่น",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000037",
+            "cid": "1101700204375",
+            "title_name": "นาย",
+            "first_name": "บุญส่ง",
+            "middle_name": "",
+            "last_name": "มั่นคง",
+            "gender": "M",
+            "birthdate": "1958-12-12",
+            "mobile_no": "0812346969"
+        },
+        "address": {
+            "no": "145",
+            "village_no": "6",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "เบาหวานชนิดที่ 2 20 ปี ความดันโลหิตสูง",
+    "record_illness_present": "แผลที่ฝ่าเท้าขวา 3 สัปดาห์ มีหนองเล็กน้อย กลิ่นเหม็น ไม่มีไข้",
+    "test_results": "HbA1c 10.2% | WBC 12,800 | X-ray foot: no osteomyelitis",
+    "initial_diagnosis_free_text": "Diabetic foot ulcer right plantar, Wagner grade 2, mild infection; T2DM poorly controlled; HT",
+    "initial_diagnosis": [
+        {
+            "icd10": "E11.5",
+            "dx_name": "Type 2 diabetes mellitus with peripheral circulatory complications",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8628",
+            "datetime": "2026-09-24 10:00",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Wound debridement"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 10:10",
+            "end_time": "2026-10-01 10:10",
+            "code": "AMOCL1",
+            "name": "Amoxicillin-clavulanate 1 g",
+            "description": "1 เม็ด เช้า-เย็น หลังอาหาร 7 วัน"
+        },
+        {
+            "start_time": "2018-01-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "GLIP5",
+            "name": "Glipizide 5 mg",
+            "description": "1 เม็ด ก่อนอาหารเช้า"
+        },
+        {
+            "start_time": "2018-01-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "METF500",
+            "name": "Metformin 500 mg",
+            "description": "2 เม็ด เช้า-เย็น"
+        }
+    ],
+    "treatment_provided": "Debridement, wet dressing, oral antibiotic",
+    "reason_refer": "ส่งต่อคลินิกแผลเบาหวานและ vascular surgeon ประเมิน ABI",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "148",
+        "diastolic_bp": "86",
+        "heart_rate": "84",
+        "oxygen_saturation": "98",
+        "pain_score": "3",
+        "respiratory_rate": "18",
+        "temperature": "37.1",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "80",
+        "height": "168",
+        "entry_datetime": "2026-09-24 10:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

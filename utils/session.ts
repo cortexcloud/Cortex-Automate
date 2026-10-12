@@ -1,9 +1,7 @@
 import { request } from '@playwright/test';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import path from 'node:path';
-
-const ENV_FILE = path.join(__dirname, '..', '.env');
+import { envFile } from './env';
 
 /**
  * session เดิมของ role ยังใช้ได้ไหม — ถาม Keycloak ตรงๆ แบบ prompt=none (~1 วินาที ไม่ต้องเปิดหน้าแอป)
@@ -11,7 +9,8 @@ const ENV_FILE = path.join(__dirname, '..', '.env');
  */
 export async function isSessionAlive(stateFile: string, baseURL: string): Promise<boolean> {
   if (!fs.existsSync(stateFile)) return false;
-  if (fs.existsSync(ENV_FILE) && fs.statSync(ENV_FILE).mtimeMs > fs.statSync(stateFile).mtimeMs) return false;
+  const env = envFile();
+  if (fs.existsSync(env) && fs.statSync(env).mtimeMs > fs.statSync(stateFile).mtimeMs) return false;
 
   const ctx = await request.newContext({ storageState: stateFile });
   try {

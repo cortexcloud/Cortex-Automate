@@ -1,0 +1,103 @@
+{
+    "refer_out_no": "0038/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 15:40",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "1",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000038",
+            "cid": "1101700204383",
+            "title_name": "น.ส.",
+            "first_name": "ชนิดา",
+            "middle_name": "",
+            "last_name": "พึ่งบุญ",
+            "gender": "F",
+            "birthdate": "2010-08-22",
+            "mobile_no": "0812347006"
+        },
+        "address": {
+            "no": "7/222",
+            "village_no": "4",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ไม่มีโรคประจำตัว",
+    "record_illness_present": "ไข้สูงลอย 4 วัน วันนี้ไข้ลง ปวดท้อง อาเจียน 4 ครั้ง มีจุดเลือดออกที่แขน",
+    "test_results": "NS1 Ag positive | Hct 46% (baseline 38%) | WBC 2,800 | Plt 42,000 | Tourniquet test positive",
+    "initial_diagnosis_free_text": "Dengue hemorrhagic fever with warning signs, critical phase day 1",
+    "initial_diagnosis": [
+        {
+            "icd10": "A91",
+            "dx_name": "Dengue haemorrhagic fever",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 14:30",
+            "end_time": "2026-09-24 15:40",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1000 ml",
+            "description": "IV 5 ml/kg/hr"
+        },
+        {
+            "start_time": "2026-09-24 14:30",
+            "end_time": "2026-09-24 15:40",
+            "code": "PARA500",
+            "name": "Paracetamol 500 mg",
+            "description": "1 เม็ด q 6 hr prn ไข้ (งด NSAIDs)"
+        }
+    ],
+    "treatment_provided": "IV NSS 5 ml/kg/hr, monitor Hct q 4 hr, V/S q 1 hr, record I/O",
+    "reason_refer": "ส่งต่อเฝ้าระวังภาวะช็อกในระยะวิกฤต ต้นทางไม่มีกุมารแพทย์",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "100",
+        "diastolic_bp": "76",
+        "heart_rate": "108",
+        "oxygen_saturation": "99",
+        "pain_score": "4",
+        "respiratory_rate": "22",
+        "temperature": "37.2",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "42",
+        "height": "152",
+        "entry_datetime": "2026-09-24 15:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

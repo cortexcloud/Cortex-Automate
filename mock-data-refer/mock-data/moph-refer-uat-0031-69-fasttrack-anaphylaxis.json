@@ -1,0 +1,110 @@
+{
+    "refer_out_no": "0031/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 12:20",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000031",
+            "cid": "1101700204316",
+            "title_name": "น.ส.",
+            "first_name": "พิมพ์ชนก",
+            "middle_name": "",
+            "last_name": "ศรีวงศ์",
+            "gender": "F",
+            "birthdate": "1996-05-21",
+            "mobile_no": "0812346747"
+        },
+        "address": {
+            "no": "145",
+            "village_no": "6",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "แพ้กุ้ง (ผื่นลมพิษ) โรคหอบหืดในวัยเด็ก",
+    "record_illness_present": "รับประทานข้าวผัดกุ้ง 20 นาทีหลังมีผื่นลมพิษทั้งตัว ปากบวม แน่นหน้าอก หายใจมีเสียงวี้ด",
+    "test_results": "",
+    "initial_diagnosis_free_text": "Anaphylaxis due to shellfish (grade 3); history of childhood asthma",
+    "initial_diagnosis": [
+        {
+            "icd10": "T78.0",
+            "dx_name": "Anaphylactic shock due to adverse food reaction",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 11:45",
+            "end_time": "2026-09-24 11:45",
+            "code": "ADR1",
+            "name": "Adrenaline 1 mg/ml",
+            "description": "0.5 mg IM anterolateral thigh (ซ้ำที่ 5 นาที)"
+        },
+        {
+            "start_time": "2026-09-24 11:50",
+            "end_time": "2026-09-24 12:20",
+            "code": "CPM10",
+            "name": "Chlorpheniramine 10 mg/ml",
+            "description": "10 mg IV"
+        },
+        {
+            "start_time": "2026-09-24 11:50",
+            "end_time": "2026-09-24 12:20",
+            "code": "DEXA4",
+            "name": "Dexamethasone 4 mg/ml",
+            "description": "8 mg IV"
+        },
+        {
+            "start_time": "2026-09-24 11:55",
+            "end_time": "2026-09-24 12:20",
+            "code": "SALB",
+            "name": "Salbutamol nebule 2.5 mg",
+            "description": "NB q 20 min x 3"
+        }
+    ],
+    "treatment_provided": "Adrenaline IM x2, antihistamine, steroid, salbutamol NB, IV NSS 1 L",
+    "reason_refer": "อาการดีขึ้นบางส่วน ส่งต่อสังเกตอาการ biphasic reaction 24 ชม. (ต้นทางเป็นคลินิก)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "94",
+        "diastolic_bp": "58",
+        "heart_rate": "116",
+        "oxygen_saturation": "95",
+        "pain_score": "2",
+        "respiratory_rate": "24",
+        "temperature": "37.0",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "52",
+        "height": "160",
+        "entry_datetime": "2026-09-24 12:20"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

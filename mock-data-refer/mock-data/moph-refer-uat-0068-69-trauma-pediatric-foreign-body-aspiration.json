@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0068/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 12:40",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000068",
+            "cid": "1101700204685",
+            "title_name": "ด.ช.",
+            "first_name": "ภูริณัฐ",
+            "middle_name": "",
+            "last_name": "จันทร์ดี",
+            "gender": "M",
+            "birthdate": "2023-02-18",
+            "mobile_no": "0812348116"
+        },
+        "address": {
+            "no": "88/27",
+            "village_no": "6",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว วัคซีนครบตามเกณฑ์",
+    "record_illness_present": "สำลักขณะกินถั่วลิสง 11:30 น. ไอรุนแรง หน้าเขียวชั่วครู่ หลังจากนั้นไอเป็นพักๆ หายใจมีเสียงวี๊ด หายใจเร็ว",
+    "test_results": "CXR inspiratory/expiratory: hyperinflation of right lung with mediastinal shift to left on expiration | SpO2 room air 91% | เสียงหายใจปอดขวาเบาลง มี wheezing",
+    "initial_diagnosis_free_text": "Foreign body aspiration (peanut) in right main bronchus with air trapping",
+    "initial_diagnosis": [
+        {
+            "icd10": "T17.5",
+            "dx_name": "Foreign body in bronchus",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8744",
+            "datetime": "2026-10-07 11:55",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Routine chest x-ray"
+        },
+        {
+            "icd9": "9394",
+            "datetime": "2026-10-07 12:05",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Respiratory medication administered by nebulizer"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-07 12:05",
+            "end_time": "2026-10-07 12:05",
+            "code": "SALB25",
+            "name": "Salbutamol nebule 2.5 mg/2.5 ml",
+            "description": "2.5 mg NB 1 ครั้ง"
+        },
+        {
+            "start_time": "2026-10-07 12:15",
+            "end_time": "2026-10-07 12:15",
+            "code": "DEXA4",
+            "name": "Dexamethasone 4 mg/ml",
+            "description": "2 mg IV"
+        }
+    ],
+    "treatment_provided": "O2 mask 6 LPM SpO2 96%, Salbutamol NB 1 ครั้ง, Dexamethasone 2 mg IV, NPO ตั้งแต่ 11:30 น., on IV 5% D/N/3 rate 50 ml/hr, ไม่ตบหลัง ไม่ล้วงคอ",
+    "reason_refer": "ส่งต่อโสต ศอ นาสิกแพทย์ / กุมารศัลยแพทย์ เพื่อ rigid bronchoscopy นำสิ่งแปลกปลอมออก",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | มารดาเดินทางมาด้วย เตรียมอุปกรณ์ช่วยหายใจเด็กระหว่างนำส่ง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "96",
+        "diastolic_bp": "58",
+        "heart_rate": "142",
+        "oxygen_saturation": "96",
+        "pain_score": "2",
+        "respiratory_rate": "40",
+        "temperature": "37.0",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "15",
+        "height": "98",
+        "entry_datetime": "2026-10-07 12:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

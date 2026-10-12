@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0084/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 10:00",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "5",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000084",
+            "cid": "1101700204847",
+            "title_name": "นาย",
+            "first_name": "ไพโรจน์",
+            "middle_name": "",
+            "last_name": "นาคประเสริฐ",
+            "gender": "M",
+            "birthdate": "1982-09-15",
+            "mobile_no": "0812348708"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังชาย ต้องโทษ 6 ปี เคยฉีดเฮโรอีนเข้าเส้น สักตามร่างกายในเรือนจำ",
+    "record_illness_present": "ตรวจคัดกรองไวรัสตับอักเสบในเรือนจำพบ anti-HCV positive อ่อนเพลียเรื้อรัง แน่นท้องใต้ชายโครงขวาเป็นบางครั้ง ไม่มีตัวตาเหลือง ไม่มีท้องมาน",
+    "test_results": "Anti-HCV positive | HBsAg negative | Anti-HIV negative | AST 96, ALT 124 | Plt 132,000 | Alb 3.8 | APRI score 1.8 | ยังไม่ได้ตรวจ HCV RNA",
+    "initial_diagnosis_free_text": "Chronic hepatitis C infection, APRI 1.8 (suspected significant fibrosis), treatment-naive",
+    "initial_diagnosis": [
+        {
+            "icd10": "B18.2",
+            "dx_name": "Chronic viral hepatitis C",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9059",
+            "datetime": "2026-10-08 09:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Microscopic examination of blood, other (liver function test)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-06-01 08:00",
+            "end_time": "2026-10-08 08:00",
+            "code": "VITB",
+            "name": "Vitamin B complex",
+            "description": "1 เม็ด วันละครั้ง หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "ให้คำปรึกษา ตรวจคัดกรอง HBV / HIV แนะนำไม่ใช้อุปกรณ์สัก / มีดโกนร่วมกัน",
+    "reason_refer": "ส่งต่ออายุรแพทย์ทางเดินอาหารเพื่อตรวจ HCV RNA, ultrasound / fibroscan และเริ่มยา DAA (Sofosbuvir/Velpatasvir)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขัง เจ้าหน้าที่ราชทัณฑ์ควบคุมตัว 2 นาย ใส่เครื่องพันธนาการที่ข้อเท้า นัดหมายล่วงหน้าตามวันออกตรวจ",
+    "infective_disease": "ไวรัสตับอักเสบซีเรื้อรัง - standard precaution",
+    "vital_sign": {
+        "systolic_bp": "124",
+        "diastolic_bp": "78",
+        "heart_rate": "72",
+        "oxygen_saturation": "99",
+        "pain_score": "1",
+        "respiratory_rate": "16",
+        "temperature": "36.5",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "67",
+        "height": "170",
+        "entry_datetime": "2026-10-08 10:00"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

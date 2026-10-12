@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0026/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 05:25",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000026",
+            "cid": "1101700204260",
+            "title_name": "นาย",
+            "first_name": "วีระพงษ์",
+            "middle_name": "",
+            "last_name": "เจริญผล",
+            "gender": "M",
+            "birthdate": "1972-06-30",
+            "mobile_no": "0812346562"
+        },
+        "address": {
+            "no": "7/222",
+            "village_no": "4",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ความดันโลหิตสูง ไขมันในเลือดสูง สูบบุหรี่ 20 pack-year",
+    "record_illness_present": "เจ็บแน่นหน้าอกร้าวไปแขนซ้าย เหงื่อแตก ตั้งแต่ 04:30 น. (onset 55 นาที) EKG ST elevation V1-V4",
+    "test_results": "EKG 04:58: ST elevation 3 mm V1-V4, reciprocal II, III, aVF | Troponin-T 1,250 ng/L | K 3.9, Cr 1.0",
+    "initial_diagnosis_free_text": "Acute anterior wall STEMI, Killip I, door-to-EKG 8 min; HT; DLP; active smoker",
+    "initial_diagnosis": [
+        {
+            "icd10": "I21.0",
+            "dx_name": "Acute transmural myocardial infarction of anterior wall",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8952",
+            "datetime": "2026-09-24 04:58",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 05:00",
+            "end_time": "2026-09-24 05:00",
+            "code": "ASA300",
+            "name": "Aspirin 300 mg",
+            "description": "เคี้ยว 1 เม็ด stat"
+        },
+        {
+            "start_time": "2026-09-24 05:00",
+            "end_time": "2026-09-24 05:00",
+            "code": "CLOP75",
+            "name": "Clopidogrel 75 mg",
+            "description": "600 mg (8 เม็ด) stat"
+        },
+        {
+            "start_time": "2026-09-24 05:05",
+            "end_time": "2026-09-24 05:25",
+            "code": "ENOX60",
+            "name": "Enoxaparin 60 mg/0.6 ml",
+            "description": "30 mg IV bolus"
+        },
+        {
+            "start_time": "2022-01-01 08:00",
+            "end_time": "2026-09-23 08:00",
+            "code": "ATOR40",
+            "name": "Atorvastatin 40 mg",
+            "description": "1 เม็ด ก่อนนอน"
+        }
+    ],
+    "treatment_provided": "STEMI fast track: ASA 300 mg, Clopidogrel 600 mg, Enoxaparin 30 mg IV, O2 cannula 3 LPM, ISDN SL 1 tab",
+    "reason_refer": "Primary PCI ปลายทางมี cath lab 24 ชม. (ประสาน cardiologist แล้ว)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | STEMI fast track, activate cath lab team 05:10 น.",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "142",
+        "diastolic_bp": "88",
+        "heart_rate": "98",
+        "oxygen_saturation": "96",
+        "pain_score": "9",
+        "respiratory_rate": "22",
+        "temperature": "36.7",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "78",
+        "height": "171",
+        "entry_datetime": "2026-09-24 05:25"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

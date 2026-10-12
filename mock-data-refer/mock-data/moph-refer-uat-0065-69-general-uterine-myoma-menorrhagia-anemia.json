@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0065/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 10:45",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "4",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "LGO",
+        "ref_name": "สิทธิพนักงานส่วนท้องถิ่น",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000065",
+            "cid": "1101700204651",
+            "title_name": "นาง",
+            "first_name": "สุภาวดี",
+            "middle_name": "",
+            "last_name": "แสนคำ",
+            "gender": "F",
+            "birthdate": "1982-11-23",
+            "mobile_no": "0812348005"
+        },
+        "address": {
+            "no": "85/6",
+            "village_no": "3",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ธาลัสซีเมียพาหะ ผ่าตัดคลอด 2 ครั้ง",
+    "record_illness_present": "ประจำเดือนมามากและนาน 8-10 วันต่อรอบ มา 6 เดือน มีลิ่มเลือด ปวดหน่วงท้องน้อย เหนื่อยง่าย หน้ามืดเวลาลุก คลำได้ก้อนที่ท้องน้อย",
+    "test_results": "Hb 7.8 g/dL, Hct 25%, MCV 68 | Ferritin 6 | UPT negative | TVS: intramural myoma 7x6 cm at fundus with submucous component, endometrial thickness 9 mm",
+    "initial_diagnosis_free_text": "Uterine leiomyoma 7 cm with menorrhagia and iron deficiency anemia",
+    "initial_diagnosis": [
+        {
+            "icd10": "D25.9",
+            "dx_name": "Leiomyoma of uterus, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8879",
+            "datetime": "2026-10-06 10:00",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Other diagnostic ultrasound (transvaginal)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-08-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "FEFU200",
+            "name": "Ferrous fumarate 200 mg",
+            "description": "1 เม็ด วันละ 3 ครั้ง หลังอาหาร"
+        },
+        {
+            "start_time": "2026-08-01 08:00",
+            "end_time": "2026-10-06 08:00",
+            "code": "TXA500T",
+            "name": "Tranexamic acid 500 mg",
+            "description": "1 เม็ด วันละ 3 ครั้ง ช่วงมีประจำเดือน"
+        }
+    ],
+    "treatment_provided": "Ferrous fumarate 200 mg วันละ 3 ครั้ง, Tranexamic acid ช่วงมีประจำเดือน, แนะนำอาหารเสริมธาตุเหล็ก",
+    "reason_refer": "ส่งต่อสูตินรีแพทย์เพื่อพิจารณาผ่าตัด myomectomy / hysterectomy และให้เลือดก่อนผ่าตัด",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "108",
+        "diastolic_bp": "64",
+        "heart_rate": "92",
+        "oxygen_saturation": "99",
+        "pain_score": "3",
+        "respiratory_rate": "18",
+        "temperature": "36.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "60",
+        "height": "156",
+        "entry_datetime": "2026-10-06 10:45"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

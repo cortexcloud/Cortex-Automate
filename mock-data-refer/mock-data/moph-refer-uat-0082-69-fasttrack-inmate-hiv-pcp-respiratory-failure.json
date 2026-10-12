@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0082/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 13:20",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000082",
+            "cid": "1101700204821",
+            "title_name": "นาย",
+            "first_name": "เอกพล",
+            "middle_name": "",
+            "last_name": "รุ่งเรืองศรี",
+            "gender": "M",
+            "birthdate": "1993-02-20",
+            "mobile_no": "0812348634"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังชาย ต้องโทษ 5 ปี ติดเชื้อ HIV ทราบมา 4 ปี ขาดยาต้านไวรัส 1 ปีก่อนเข้าเรือนจำ CD4 เมื่อ ส.ค. 2569 ได้ 42 cells/mm3",
+    "record_illness_present": "ไข้ ไอแห้ง เหนื่อยมากขึ้นเรื่อยๆ 3 สัปดาห์ วันนี้เหนื่อยขณะพัก เดินไปห้องน้ำไม่ไหว น้ำหนักลด 5 กก. มีฝ้าขาวในปาก",
+    "test_results": "SpO2 room air 84% เดิน 10 ก้าวลดเหลือ 76% | Fine crepitation both lungs | Oral candidiasis | CD4 42 cells/mm3 (ส.ค. 2569) | Sputum AFB negative 2 ครั้ง",
+    "initial_diagnosis_free_text": "Advanced HIV disease with suspected Pneumocystis pneumonia and acute hypoxemic respiratory failure; oral candidiasis",
+    "initial_diagnosis": [
+        {
+            "icd10": "B20.6",
+            "dx_name": "HIV disease resulting in Pneumocystis carinii pneumonia",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9041",
+            "datetime": "2026-10-08 09:00",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Microscopic examination of sputum, bacterial smear (AFB)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-08 12:40",
+            "end_time": "2026-10-08 12:40",
+            "code": "COTR480",
+            "name": "Co-trimoxazole 480 mg",
+            "description": "4 เม็ด stat"
+        },
+        {
+            "start_time": "2026-10-08 12:45",
+            "end_time": "2026-10-08 12:45",
+            "code": "PRED5",
+            "name": "Prednisolone 5 mg",
+            "description": "8 เม็ด (40 mg) stat"
+        },
+        {
+            "start_time": "2026-10-08 12:45",
+            "end_time": "2026-10-08 12:45",
+            "code": "FLUC200",
+            "name": "Fluconazole 200 mg",
+            "description": "1 เม็ด stat"
+        }
+    ],
+    "treatment_provided": "O2 mask with bag 10 LPM SpO2 92%, Co-trimoxazole เริ่มมื้อแรก, Prednisolone 40 mg, Fluconazole 200 mg",
+    "reason_refer": "ส่งต่ออายุรแพทย์โรคติดเชื้อ ต้องการ CXR / ABG ยืนยันการวินิจฉัย ออกซิเจนอัตราไหลสูง และวางแผนเริ่มยาต้านไวรัส",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขัง เจ้าหน้าที่ราชทัณฑ์ควบคุมตัว 2 นาย ใส่เครื่องพันธนาการที่ข้อเท้า ขอรักษาความลับผลเลือดของผู้ป่วย",
+    "infective_disease": "ติดเชื้อ HIV (ผู้ป่วยทราบผลเลือด) - standard precaution",
+    "vital_sign": {
+        "systolic_bp": "104",
+        "diastolic_bp": "62",
+        "heart_rate": "124",
+        "oxygen_saturation": "92",
+        "pain_score": "0",
+        "respiratory_rate": "32",
+        "temperature": "38.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "50",
+        "height": "171",
+        "entry_datetime": "2026-10-08 13:20"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

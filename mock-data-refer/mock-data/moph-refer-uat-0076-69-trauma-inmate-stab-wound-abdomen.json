@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0076/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 16:20",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000076",
+            "cid": "1101700204766",
+            "title_name": "นาย",
+            "first_name": "อนุวัฒน์",
+            "middle_name": "",
+            "last_name": "บุญประคอง",
+            "gender": "M",
+            "birthdate": "1999-05-17",
+            "mobile_no": "0812348412"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังชาย แดน 3 ต้องโทษ 2 ปี ปฏิเสธโรคประจำตัว เคยใช้เมทแอมเฟตามีน",
+    "record_illness_present": "ถูกผู้ต้องขังอื่นแทงด้วยเหล็กแหลมที่ท้องด้านซ้าย 1 แผล เวลา 15:25 น. ระหว่างทะเลาะวิวาทในโรงฝึกงาน ปวดท้องมาก หน้ามืด",
+    "test_results": "แผลแทง 2 ซม. ที่ LUQ มี omentum โผล่ | ท้องแข็งเกร็ง guarding ทั่วท้อง | Hct 33% | สถานพยาบาลเรือนจำไม่มีเครื่อง X-ray / ultrasound",
+    "initial_diagnosis_free_text": "Penetrating stab wound of left upper abdomen with omental evisceration, suspected hollow viscus injury, hypovolemic shock class II",
+    "initial_diagnosis": [
+        {
+            "icd10": "S31.1",
+            "dx_name": "Open wound of abdominal wall",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "3893",
+            "datetime": "2026-10-08 15:35",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Venous catheterization, not elsewhere classified"
+        },
+        {
+            "icd9": "9357",
+            "datetime": "2026-10-08 15:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Application of other wound dressing"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-08 15:35",
+            "end_time": "2026-10-08 16:15",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1,000 ml",
+            "description": "IV load 1,000 ml"
+        },
+        {
+            "start_time": "2026-10-08 15:45",
+            "end_time": "2026-10-08 15:45",
+            "code": "TT05",
+            "name": "Tetanus toxoid 0.5 ml",
+            "description": "0.5 ml IM"
+        },
+        {
+            "start_time": "2026-10-08 15:50",
+            "end_time": "2026-10-08 15:50",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV"
+        }
+    ],
+    "treatment_provided": "ปิดแผลด้วยก๊อซชุบ NSS ไม่ดัน omentum กลับ, on IV 2 เส้น NSS 1,000 ml load, O2 mask with bag 10 LPM, Ceftriaxone 2 g IV, TT 0.5 ml IM, NPO",
+    "reason_refer": "ส่งต่อศัลยแพทย์เพื่อผ่าตัด exploratory laparotomy ฉุกเฉิน (สถานพยาบาลเรือนจำไม่มีแพทย์นอกเวลาและห้องผ่าตัด)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขัง เจ้าหน้าที่ราชทัณฑ์ควบคุมตัว 2 นาย ใส่เครื่องพันธนาการที่ข้อเท้า แจ้งพนักงานสอบสวนแล้ว (คดีทำร้ายร่างกาย)",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "96",
+        "diastolic_bp": "58",
+        "heart_rate": "122",
+        "oxygen_saturation": "97",
+        "pain_score": "9",
+        "respiratory_rate": "24",
+        "temperature": "36.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "62",
+        "height": "170",
+        "entry_datetime": "2026-10-08 16:20"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

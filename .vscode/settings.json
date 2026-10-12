@@ -1,4 +1,5 @@
 {
     "claudeCode.useTerminal": true,
-    "claudeCode.hideOnboarding": true
+    "claudeCode.hideOnboarding": true,
+    "claudeCode.disableLoginPrompt": false
 }

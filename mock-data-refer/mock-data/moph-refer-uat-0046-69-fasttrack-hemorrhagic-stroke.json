@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0046/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-05 08:15",
+    "refer_expire_date": "2026-11-04 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000046",
+            "cid": "1101700204464",
+            "title_name": "นาง",
+            "first_name": "ลำดวน",
+            "middle_name": "",
+            "last_name": "พรมสุวรรณ",
+            "gender": "F",
+            "birthdate": "1960-01-30",
+            "mobile_no": "0812347302"
+        },
+        "address": {
+            "no": "66/53",
+            "village_no": "2",
+            "street": "ถนนพหลโยธิน",
+            "subdistrict": "สามเสนใน",
+            "district": "พญาไท",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ความดันโลหิตสูง เบาหวานชนิดที่ 2 ขาดยา 2 เดือน",
+    "record_illness_present": "ญาติพบหมดสติในห้องน้ำ 07:20 น. ก่อนหน้าบ่นปวดศีรษะรุนแรง อาเจียน 2 ครั้ง แขนขาขวาอ่อนแรง last seen normal 06:45 น.",
+    "test_results": "DTX 186 mg% | Pupils 3 mm RTL both eyes | Motor power Rt grade I, Lt grade V | EKG: sinus rhythm, LVH",
+    "initial_diagnosis_free_text": "Acute stroke, suspected left basal ganglia hemorrhage, GCS E2VTM5; hypertensive emergency; DM type 2",
+    "initial_diagnosis": [
+        {
+            "icd10": "I61.9",
+            "dx_name": "Intracerebral haemorrhage, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8952",
+            "datetime": "2026-10-05 07:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        },
+        {
+            "icd9": "9604",
+            "datetime": "2026-10-05 07:45",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of endotracheal tube"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-05 07:50",
+            "end_time": "2026-10-05 08:15",
+            "code": "NICA10",
+            "name": "Nicardipine 10 mg/10 ml",
+            "description": "20 mg in NSS 100 ml drip titrate"
+        },
+        {
+            "start_time": "2018-01-01 08:00",
+            "end_time": "2026-10-05 08:00",
+            "code": "LOSA50",
+            "name": "Losartan 50 mg",
+            "description": "1 เม็ด หลังอาหารเช้า (ขาดยา 2 เดือน)"
+        },
+        {
+            "start_time": "2018-01-01 08:00",
+            "end_time": "2026-10-05 08:00",
+            "code": "METF500",
+            "name": "Metformin 500 mg",
+            "description": "1 เม็ด เช้า-เย็น หลังอาหาร (ขาดยา 2 เดือน)"
+        }
+    ],
+    "treatment_provided": "On ETT no.7.0 mark 21 cm, Nicardipine drip เป้าหมาย SBP < 160 mmHg, ยกศีรษะสูง 30 องศา, retain Foley catheter",
+    "reason_refer": "Stroke fast track: ส่งต่อเพื่อ CT brain emergency และปรึกษาศัลยแพทย์ระบบประสาท",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | แจ้ง stroke team ปลายทางแล้ว 07:55 น. ผู้ป่วย on ETT ambu bag ระหว่างนำส่ง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "198",
+        "diastolic_bp": "110",
+        "heart_rate": "88",
+        "oxygen_saturation": "98",
+        "pain_score": "0",
+        "respiratory_rate": "16",
+        "temperature": "36.8",
+        "e": "2",
+        "v": "1",
+        "m": "5",
+        "weight": "58",
+        "height": "155",
+        "entry_datetime": "2026-10-05 08:15"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}
