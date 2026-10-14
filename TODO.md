@@ -59,6 +59,23 @@ section ดังนั้นใช้เทคนิคของ SBH-2513 **ภ
         ทุกรอบทดสอบของการ์ดนี้ตั้งแต่ 30 ก.ย. 2026 ถึง 14 ต.ค. 2026 — แยก TC ออกมา track โดยเฉพาะครั้งแรก)
       ทั้ง 3 ใบสถานะ "Not Run" ยังไม่ได้ทดสอบจริง
 
+- [x] **P4.5 — ทดสอบ TC-055/056/057 จริง (14 ต.ค. 2026)** script ทั้ง 3 อยู่ใน `temp_scripts/tc0{55,56,57}-fullflow.js`
+      (ลบทิ้งหลังอัปโหลดหลักฐานเสร็จตามธรรมเนียม), หลักฐานที่ `.playwright-mcp/COR-1724-v3/{images,videos}/tc0{55,56,57}-*`
+      - **TC-055 (CTXN-10707)**: reset password ชั่วคราวให้ `qa-up-50187577` → login ครั้งที่ 1 ด้วยรหัสผ่านชั่วคราว → ถูกบังคับ
+        ไปหน้า Update Password → ตั้งรหัสผ่านถาวรใหม่ → login ครั้งที่ 2 ด้วยรหัสผ่านถาวรนั้น → **ผล: ไม่ถูกถาม Update Password
+        ซ้ำ, เข้าแอปสำเร็จ (`secondLoginAskedUpdatePassword:false`, `secondLoginSuccess:true`) → Pass** พบข้อสังเกตเสริม:
+        รอบนี้ไม่เจอ VERIFY_PROFILE ซ้ำ (เพราะ field profile ถูกกรอกไว้แล้วตอน TC-001) ยืนยันว่า profile data persist ถูกต้อง
+      - **TC-056 (CTXN-10708)**: reset password ให้ account เดิม แต่ปิด toggle "รหัสผ่านชั่วคราว" ในโมดัลก่อนยืนยัน → login ด้วย
+        รหัสผ่านนั้นตรง ๆ → **ผล: login สำเร็จทันที ไม่ถูกถาม Update Password เลย (`askedUpdatePassword:false`,
+        `loginSuccessDirect:true`) → Pass**
+      - **TC-057 (CTXN-10709)**: สร้าง user ใหม่ (`qa-err-*`) ผ่านฟอร์ม "เพิ่มผู้ใช้งาน" ปกติ → กด บันทึก → toast แดงขึ้นจริง
+        ("ระบบไม่ได้รับสิทธิ์ให้จัดการผู้ใช้งานในระบบยืนยันตัวตน กรุณาติดต่อผู้ดูแลระบบ") → ไปค้นหาชื่อ user นั้นในหน้ารายการ →
+        **พบจริงว่าถูกสร้างสำเร็จ (`foundInListAfterSearch:true`) ทั้งที่ toast แจ้ง error → ยืนยันบั๊กซ้ำเป็นครั้งที่ 3 นับจาก
+        30 ก.ย. 2026 (false-negative error toast)**
+      อัปโหลดหลักฐานเข้า Linear ด้วย background agent 3 ตัวพร้อมกัน (คนละการ์ด) ตามแนวทาง bulk-upload เดิม — รอผล แล้วเขียน
+      Actual Result สไตล์ heading+inline-image ของทั้ง 3 ใบ พร้อมเปลี่ยนสถานะเป็น Passed/Passed/Failed (TC-057 ตัว TC เองคือ
+      Failed เพราะ Expected Result ของ TC-057 คือเอกสารยืนยันว่าเกิด mismatch นี้จริง)
+
 - [ ] **P5 — ทดสอบ TC-018 (CTXN-10512)**: assign role หลายตัวจาก Cortex UI → ให้ user ช่วยเช็ค Keycloak Role mapping ว่าตรงกัน
 
 - [ ] **P6 — ทดสอบ TC-021 (CTXN-10515)**: ขอให้ user สร้าง role `qa-new-role` ใน Keycloak เอง → เช็คฝั่ง Cortex ว่าค้นหาเจอในรายการกำหนดบทบาท
