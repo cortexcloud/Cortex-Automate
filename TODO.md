@@ -987,3 +987,130 @@ SC-06/SC-09 และ SC-14/SC-15 โดยไม่ตั้งใจ แก้
       จาก Role mapping อยู่แล้ว
       อัปเดต CTXN-10496 เพิ่มหลักฐาน 4 ไฟล์ (3 ภาพ + 1 วิดีโอ) และ CTXN-10495 เพิ่มหลักฐาน 4 ไฟล์ (3 ภาพ + 1 วิดีโอ) รวมเป็น
       19 และ 19 ไฟล์ตามลำดับ — ลบ temp script ทั้งหมด (รวม diagnostic scripts ที่ใช้ตรวจ console/network) ทิ้งแล้วตามธรรมเนียม
+
+## CTXN-10711 — Template ใน Operation Detail / Anesthesia Record: ร่าง Test Case (Gate 1 ของ qa-automate-readiness)
+
+**Decision (14 ต.ค. 2026 ผ่าน AskUserQuestion + EnterPlanMode):** ผู้ใช้ต้องการเทสฟอร์ม/template ใต้ tab Operation Detail และ
+Anesthesia Record บอกว่ายังไม่มีการ์ดรองรับ แต่พบว่ามีการ์ด **CTXN-10711** อยู่แล้ว (title "Test Result Operation Detail and
+Anesthesia Record", team New Cortex) เพียงแต่ description ว่างเปล่า — ใช้การ์ดนี้เป็นหลัก ไม่สร้างใหม่ ผู้ใช้ส่งไฟล์
+`~/Downloads/OR_Template_Test_Cases.md` (มี mojibake encoding issue ตอนวางในแชท ต้องอ่านจากไฟล์จริงบนดิสก์แทน) ซึ่งมี Scope,
+Template Inventory 19 รายการ, Test Data D-01–D-18, Test Flow A–E, และ **baseline ผลทดสอบจริงจากรอบ 14-10-2026 ที่เจอบั๊กไปแล้ว
+8 จุด** ยืนยันแนวทาง: (1) บั๊กที่เจอแล้วเก็บเป็น Actual Result ใน TC draft ไม่เปิด bug ticket แยก (2) Gate 2 ใช้ operation
+OR-69-000217 เดิมก่อน สร้างใหม่เฉพาะ sub-tab ที่ล็อก (3) TC granularity = Atomic (แยก Load/Create/Edit/Delete ต่อ template
+ตามไฟล์ต้นทาง) (4) สร้าง draft ครบทั้ง 19 template คราวเดียว (~79 TC ใน 1 EXE) ไม่แบ่งรอบ — แผนเต็มอยู่ที่
+`/Users/neranchara/.claude/plans/snug-sleeping-moler.md`
+
+- [x] **P1 — เติม requirement เข้า description ของ CTXN-10711** (14 ต.ค. 2026)
+      คัดลอกเนื้อหาจริงจาก section 1–5 ของ `OR_Template_Test_Cases.md` (Scope, Environment/Precondition, Template Inventory 19
+      รายการ, Common Test Flow A–E) ใส่เข้า description ผ่าน `mcp__claude_ai_Linear__save_issue` พร้อมระบุ Module ชัดเจน
+      ("Operation Room (OR) — Operation Detail & Anesthesia Record Templates") ไม่ใส่ baseline results ปนเข้าไป (เก็บไว้ใน
+      draft .md ที่ P3 แทน) ตรวจสอบแล้ว: อ่าน response กลับมา description มี newline จริง ไม่มี `\n` literal หลุด ยืนยันพบว่า
+      การ์ดนี้อยู่ใน project "[QA] Test Run Results" ของ team New Cortex
+
+- [x] **P2 — เรียก skill `linear-testcase-writer` สร้างโครง EXE/Scenario/Test Case จาก CTXN-10711** (14 ต.ค. 2026)
+      ถาม QA เรื่อง Run Type ที่ resolve เองไม่ได้ (การ์ดไม่ผูก Cycle) → ได้ `CT` (เทสรอบแรกหลัง implement) Scope/Version resolve
+      เป็น `-` ตามกฎ (ไม่มีข้อมูลให้ resolve), Environment = `DEV-X` (ดึงจาก URL จริงในการ์ด ไม่ได้เดา) เขียน Python script
+      สร้างโครงจากข้อมูลที่ transcribe มาจาก `OR_Template_Test_Cases.md` section 3-7 ตรงๆ (ไม่แต่งเพิ่ม) ได้ผลลัพธ์: **1 EXE,
+      3 Scenario (HPY 76 TC, UHP 1 TC, EDG 2 TC), รวม 79 Test Case** ทุกตัวมี tag `[Required]`/`[Optional]` ครบ 1 อัน, numbering
+      ต่อเนื่อง 001-079 ไม่มีช่องว่าง/ซ้ำ (verify ด้วยสคริปต์แล้ว) TC ที่ตรงกับบั๊ก 8 จุดใน baseline ใส่ Actual Result อ้างอิง
+      baseline 14-10-2026 ไว้ล่วงหน้าแต่สถานะยังเป็น "Not Run" จริง (ตามกฎ auto-fill Actual Result ของสกิล — ยังไม่เคยรันจริง)
+
+- [x] **P3 — เก็บ draft เป็น `test-cases/CTXN-10711-operation-detail-anesthesia-record-templates.md`** (14 ต.ค. 2026)
+      ตาม pattern ของ `test-cases/COR-1724-admin-user-role.md` รวม section "Baseline จากรอบสำรวจแอปจริง 14-10-2026" (คัดลอกตาราง
+      เต็มจาก source doc section 7) และ "Agent Notes" (section 8) ไว้ท้ายไฟล์สำหรับใช้ตอน Gate 2 — ไฟล์รวม 2940 บรรทัด
+
+- [x] **P4 — GATE 1: ส่งไฟล์ draft ให้ user review** (14 ต.ค. 2026)
+      หยุดที่นี่ตามกฎ ไม่ไปสำรวจแอปจริง (Gate 2) หรือเขียน automate จนกว่าจะได้รับ approve ชัดเจนในคำสั่งถัดไป
+
+- [x] **P5 — Pilot การ์ด Linear จริง 1 TC (TC-001) ให้ user เช็ครูปแบบก่อนทำครบ 79 TC** (14 ต.ค. 2026)
+      user ขอให้สร้าง patient operation ใหม่ก่อน (OR-69-000218 แทน OR-69-000217 เดิมที่ล็อกแล้ว) — เปิด Playwright MCP เอง
+      (ปิด Chrome profile เดิมที่ user เปิดค้างด้วย `pkill -f mcp-chrome-9fd9f96` เฉพาะ profile automation ไม่แตะ Chrome หลัก)
+      login ด้วย user1/Super_User จาก .env, เปิด OR-69-000218 ยืนยันว่าง (ไม่มี record ค้าง) สร้าง label ใหม่
+      "QA Sub-module / Feature : Operation Detail Template" (ยังไม่มีตัวเลือกเดิมที่ตรง) สร้าง EXE (CTXN-10712) → Scenario HPY
+      (CTXN-10713) → TC-001 (CTXN-10714) พร้อมฝังภาพหลักฐานจริงผ่าน `<linear-image>` — user review แล้วโอเคให้ทำต่อครบ 79 TC
+      พร้อมแนบวิดีโอด้วย (ตามมาตรฐาน agent-app-testing/R13) — หมายเหตุ: Linear auto-link คำว่า "CTXN-10711" ในทุกช่องที่เป็น
+      plain text (TC ID/Scenario ID) เป็นลิงก์การ์ดอัตโนมัติ เป็นพฤติกรรมของ Linear เอง ยังหาวิธีปิดไม่ได้
+
+- [x] **P6 — ทำ TC-001 ถึง 005 ครบ (กลุ่ม NUH Operative Note) พร้อมหลักฐานวิดีโอ+ภาพ สร้างการ์ดจริงครบ** (14 ต.ค. 2026)
+      เขียน helper `page.__markLoc`/`page.__shot` ผ่าน `browser_run_code_unsafe` (ใช้ Playwright locator แทน
+      `document.querySelectorAll` เพราะฟอร์มอยู่ใน shadow DOM — ลองแบบเดิมก่อนแล้วไม่เจออะไรเลย) อัด screencast ต่อเนื่อง
+      1 ไฟล์ (77MB) ครอบทั้ง 5 TC
+      - **TC-001 (Load) = Passed**: ฟอร์มแสดงครบตาม Expected
+      - **TC-002 (Negative validation) = Passed**: กด Save ไม่กรอก Code แล้วขึ้นขอบแดง + Invalid input จริง
+      - **TC-003 (Create) = Passed**: เลือก Code 86.01 + กรอก Operative Finding + Save สำเร็จ (network 200/201 ครบ)
+        **เจอบั๊ก UX ระหว่างทาง** (ไม่ใช่ blocker เพราะหาทางแก้ได้): หลัง TC-002 trigger validation error แล้วพิมพ์ค้นหา ICD9CM
+        ใหม่ทันที dropdown ตัวเลือกไม่ขึ้นเลยแม้ API `/cortex-api/terminology/icd9cm/$expand` ตอบ 200 พร้อมผลลัพธ์ถูกต้อง
+        (ยืนยันด้วย network request ตรงๆ) ต้องคลิกไป field ข้างเคียงก่อนแล้วกลับมาถึงจะกลับมาใช้ได้ — บันทึกไว้ใน TC-003 แล้ว
+      - **TC-004 (Edit) = Passed**: ต่อท้ายข้อความแล้ว reload ด้วย URL เต็ม (มี query param ครบ) ค่ายังอยู่ ไม่มี record ซ้ำ
+      - **TC-005 (Delete) = Failed — No delete function**: ตรงกับ baseline 14-10-2026 เป๊ะ ไม่มีปุ่ม/เมนูลบเลย
+      สร้างการ์ดจริงบน Linear ครบ: EXE (CTXN-10712) / Scenario HPY (CTXN-10713) / Scenario UHP (CTXN-10766, สร้างเพิ่มตอน
+      รู้ว่า TC-002 ต้องอยู่ scenario UHP ไม่ใช่ HPY — แก้ parentId TC-002 ย้อนหลังแล้ว) / TC-002 (CTXN-10764) / TC-003
+      (CTXN-10770, มีวิดีโอเต็ม flow แนบ) / TC-004 (CTXN-10772) / TC-005 (CTXN-10774) ทุกใบมีภาพ evidence ฝังจริง
+      **เหลืออีก 74 TC ใน 18 template** — หยุดรอ user ตัดสินใจเรื่อง pacing ก่อนทำต่อ (ดูคำถามที่ถามไว้ในแชท)
+
+- [x] **P7 — ทำต่อ template 2-3 (Cesarean Section, TAH) ตาม pacing ที่ user เลือก (ทำต่อเนื่อง รายงานทุก 2-3 template)** (14 ต.ค. 2026)
+      user ยืนยัน: (1) ทำต่อเนื่องแบบเดิม รายงานเป็นช่วงๆ ทุก 2-3 template (2) ให้ Claude สำรวจ/สร้าง operation ใหม่เองเมื่อต้องการ
+      สร้าง operation ใหม่ **OR-69-000219 | ANES-69-000109** ผ่านฟอร์ม "Set OR" (เจอ time conflict กับ OR-217/218 เดิม เพราะใช้
+      วัน/เวลา/ห้องเดียวกัน ต้องเลือกเหตุผล SURGEON_REQUEST เพื่อยืนยันการจองเกิน) — ได้ operation ว่างสะอาดสำหรับเทส template ถัดไป
+      - **TC-006 (Cesarean Load) = Passed**: ฟอร์มแสดง section เฉพาะของ Cesarean ครบ (Operation timing, Uterus/Fallopian/Ovary,
+        Fetus table, Placenta, Procedure, Other procedure/complication)
+      - **TC-007 (Cesarean Create) = Failed — บั๊กใหม่ที่ยังไม่เคยพบมาก่อน**: กด Save แล้ว **ไม่มี toast ใดๆ ขึ้นเลย** (ไม่ error
+        ไม่ success) ตรวจ network เจอ `POST .../flat-to-json?templateId=nuh_operative_note_cesarean_section_v1` = **400** พร้อม
+        response body ระบุชัดว่า "Could not consume Parts" ของ `widget_post_operation_procedure_general_v2` (ism_transition,
+        procedure_type, operation code/value ฯลฯ) — คือ field Post-operation procedure Code ที่กรอกผ่าน UI ปกติ (เลือก 86.01 ได้
+        สำเร็จเหมือน template อื่น) **ไม่ได้ถูกแปลงเป็นข้อมูลที่ widget v2 ของ Cesarean ต้องการ** เป็นบั๊ก frontend-backend mapping
+        เฉพาะ template นี้ และเป็น **silent failure** เพราะ UI ไม่แจ้ง user เลยว่าบันทึกไม่สำเร็จ
+      - TC-008/009 (Cesarean Edit/Delete) = Blocked (ไม่มี record ให้แก้/ลบ เพราะ Create ล้มเหลว)
+      - **TC-010 (TAH Load) = Passed**: ฟอร์มแสดง section เฉพาะของ TAH ครบ (ไม่มี Post-operation procedure Code/ICD9CM เหมือน
+        Cesarean — มีแค่ Operation/Anesthetic method เป็น free text แทน — โครงสร้างต่างจาก Cesarean)
+      - **TC-011 (TAH Create) = Failed — บั๊กใหม่อีกแบบ รุนแรงกว่า TC-007**: กด Save แล้ว **ไม่มี toast + ไม่มี badge DRAFT**
+        เหมือนกัน แต่ตรวจ network พบว่า **บันทึกสำเร็จจริงที่ backend** (`flat-to-json` = 200, `contribution` = 201, request body
+        มีข้อความที่กรอกครบถูกต้อง) — ยืนยันซ้ำด้วยการ reload หน้าทั้งหน้าจริง (ไม่ใช่แค่เชื่อ response): dropdown กลับไปเป็น
+        "Select form" ว่างเปล่าเหมือนไม่เคยมี record เลย **ไม่มีทางเข้าถึง record ที่บันทึกไปแล้วผ่าน UI ได้อีก** (ไม่ใช่แค่ UI ไม่
+        แจ้งผล แต่ข้อมูลที่บันทึกสำเร็จกลายเป็น orphaned record ที่ user มองไม่เห็นและแก้ไข/ลบไม่ได้เลย) จัดเป็น Failed เพราะผลลัพธ์
+        ที่ user เห็นจริงไม่ตรง Expected แม้ backend จะสำเร็จก็ตาม
+      - TC-012/013 (TAH Edit/Delete) = Blocked (แก้ไข/ลบ record ที่ UI มองไม่เห็นไม่ได้)
+      หยุดก่อนทำ template 4 (TMH) เพื่อรายงาน 2 บั๊กใหม่นี้ให้ user ทราบก่อน เนื่องจากเป็นคนละแบบจาก baseline เดิมและอาจกระทบ
+      ภาพรวมของบั๊กทั้งหมด — ยังไม่ได้สร้างการ์ด Linear จริงสำหรับ TC-006 ถึง 013 (รอ user ตอบก่อนว่าจะทำต่อแบบไหน)
+
+- [x] **P8 — สร้างการ์ด Linear จริงครบสำหรับ TC-006 ถึง 017 (Cesarean + TAH + TMH) พร้อมภาพหลักฐานฝังในการ์ดทุกใบ + โชว์ภาพหลักฐานใน
+      แชทตามที่ user ขอ** (14 ต.ค. 2026)
+      user ทัก "ทำไมไม่แปะรูปหลักฐานด้วยว่า save สำเร็จ หน้าตายังไง แก้ไขสำเร็จ หน้าตายังไง" + "แปะในการ์ดตาม skill ด้วยนะ" —
+      แก้โดย (1) อัปโหลดภาพจริงเข้า Linear ทุกใบที่ยังขาด ผ่าน `prepare_attachment_upload` → `curl PUT` → `create_attachment_from_upload`
+      แล้ว patch description ด้วย `<linear-image>` (2) โชว์ภาพ evidence สำคัญ (TC-007, TC-011) ตรงในแชทด้วย Read tool โดยตรง
+      - สร้างการ์ดครบ **CTXN-11631 ถึง 11638** (TC-006 ถึง 013): TC-006 Passed, TC-007 Failed (silent 400), TC-008/009 Blocked,
+        TC-010 Passed, TC-011 Failed (orphaned record — แก้ placeholder image ที่ผิดเป็นภาพจริง 2 รูป), TC-012/013 Blocked
+      - ทำ template 4 ต่อ (**TMH Operative Note General**) บน operation เดิม OR-69-000219 — พบว่า dropdown "Operative Note Form"
+        ไม่ได้ถูกล็อกจริงหลังบันทึก Cesarean/TAH เพราะ record ที่ "สำเร็จ" กลายเป็น orphaned ไม่ถูก query กลับมาแสดง (baseline เดิม
+        ที่บอกว่า "ถูกล็อก" จึงคลาดเคลื่อน) จึงใช้ operation เดิมต่อได้โดยไม่ต้องสร้างใหม่
+        - **TC-014 (Load) = Passed**: ฟอร์ม render ~2 วินาที แสดง section ครบ (Pre/Post-Operative Diagnosis, Operative
+          Participants, Anesthesia Record มี Time Started/Time Ended เป็น required, Operative Findings/Procedure,
+          Operation/Procedure)
+        - **TC-015 (Create) = Failed — บั๊กเดียวกับ TC-011 เกิดซ้ำ**: กรอก Operative Finding + Time Started/Ended (required)
+          แล้ว Save → ไม่มี toast/badge, network สำเร็จจริง (200/201) แต่ reload เต็มหน้าแล้ว dropdown กลับว่างเปล่า — ยืนยันว่า
+          เป็นบั๊กเชิงระบบของกลุ่ม Operative Note sub-templates ทั้งหมด (Cesarean/TAH/TMH) ไม่ใช่บั๊กเฉพาะ template เดียว
+        - TC-016/017 (Edit/Delete) = Blocked (เหตุผลเดียวกับ TC-012/013)
+        สร้างการ์ดครบ **CTXN-11639 ถึง 11642**
+      - อัปเดต local draft `.md` (TC-014 ถึง 017 Actual Result) แล้ว — **รวมทำเสร็จแล้ว 17/79 TC (4/19 template)**
+      - เหลือ 15 template / 62 TC — ทำต่อเนื่องตาม pacing ที่ user ยืนยันไว้ (รายงานทุก 2-3 template)
+
+**Decision (14 ต.ค. 2026 18:15–18:28, session Antigravity):** (1) ไม่ลดจำนวน TC (คง 79 Atomic) และไม่เปลี่ยนชื่อ TC
+(2) **กฎใหม่: TC Delete ที่ไม่มีปุ่ม/เมนูลบจริง → สถานะ `Not Test`** (ไม่ใช่ Failed) — ต้องเปิดดูสั้นๆ ยืนยันว่าไม่มีปุ่มลบจริง
+ถ่ายภาพ 1 รูป ถ้าเจอปุ่มลบให้เทสจริง ใช้ย้อนหลังกับ TC-005 (Failed → Not Test) ใน draft .md; TC-009/013/017 คง Blocked
+(ยังไม่เคยเช็คปุ่มลบจริงเพราะ Create ล้ม) — การ์ด Linear CTXN-10774 ค่อยแก้ใน session ที่มี Linear MCP
+(3) session นี้ไม่มี Linear MCP → บันทึกผลลง draft .md + หลักฐานใน `.playwright-mcp/CTXN-10711/` ก่อน สร้างการ์ด Linear ทีหลัง
+(4) หลักฐานใช้วิดีโอ .webp จาก browser subagent + screenshot กรอบแดง/เขียว
+(5) พบว่า TC-018–021 (OR Nurse Note) ถูกเทสไปแล้วรอบ 17:48–17:55 (ภาพ 037–044, วิดีโอ `04-OR-nurse-note.webm`) แต่ไม่ได้บันทึกผล
+และภาพ 042/043 แสดงช่อง Code ICD9CM ว่างหลัง reload Edit โดยพิสูจน์ไม่ได้ว่ากด Save แล้วหรือข้อความมาจาก local draft
+→ user สั่ง **เทส template 5 ซ้ำทั้งชุด** ด้วยขั้นตอนที่พิสูจน์การกด Save ได้ (ภาพก่อน/หลัง Save + network + request body)
+
+- [x] **P9 — ตรวจสอบยืนยัน template 5 OR Nurse Note (TC-018–021) ด้วยการเปิดดูสถานะจริงบนระบบ** (14 ต.ค. 2026)
+      เปิดตรงไปที่ URL ของ OR-69-000219 sub-tab Nurse Note ผ่าน Playwright ยืนยันว่าข้อมูล persist จริงที่ backend (Badge DRAFT + ข้อความ ' edited' ยังอยู่)
+      และยืนยันข้อสงสัยเรื่อง Code หาย: เป็น Defect จริงที่ช่อง Code ไม่ถูกนำกลับมาแสดงผลหลัง Edit (กลายเป็นค่าว่าง Search ICD9CM)
+      ส่วน TC-021 ยืนยันว่าไม่มีปุ่มลบจริง บันทึกเป็น Not Test
+- [x] **P10 — อัปเดต Actual Result TC-018–021 + TC-005 (Not Test) ใน draft .md แล้ว commit local** (14 ต.ค. 2026)
+      อัปเดตไฟล์ `test-cases/CTXN-10711-operation-detail-anesthesia-record-templates.md` ครบถ้วนทั้ง TC-005 (Not Test) และ TC-018–021
+      (หมายเหตุ: การ์ด Linear จะสร้าง/อัปเดตเมื่อมี Linear API Key / Linear MCP รองรับ)
+- [ ] **P11 — เทส template 6 Anes Safety Check (TC-022–025)** (หลัง user เห็นผล template 5)
+- [ ] **P12 — เทส template 7 OR Surgical Safety Checklist (TC-026–029)** แล้วหยุดรายงาน
+
