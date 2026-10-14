@@ -37,7 +37,15 @@ section ดังนั้นใช้เทคนิคของ SBH-2513 **ภ
       Configure OTP เลยตลอดทาง เจอหน้าว่างค้างหลัง redirect ซ้ำเป็นครั้งที่ 4 เช่นกัน อัปโหลด 17 ไฟล์ผ่าน background agent
       อีกตัว (รันพร้อมกับของ P1) แล้วเขียน description ใหม่ทันทีเหมือนกัน — สถานะ "Not Test" รอผล Keycloak ของ account ใหม่
 
-- [ ] **P3 — แนบภาพ Keycloak ที่ user ส่งมาใหม่เข้า CTXN-10495/CTXN-10496** (บล็อกรอผู้ใช้ส่งไฟล์ก่อน — ยังทำไม่ได้ตอนนี้)
+- [x] **P3 — ปิดผล CTXN-10495/CTXN-10496 ด้วยหลักฐาน Keycloak ของ account ใหม่จาก user** (14 ต.ค. 2026)
+      user ส่งภาพ Keycloak Role mapping ของทั้ง 2 account ใหม่มาให้ (ยังเป็นภาพ paste ในแชท ไม่ใช่ไฟล์ที่เข้าถึงได้ — เหมือนรอบ
+      ก่อน จึงยังแนบไฟล์จริงเข้าการ์ดไม่ได้ อธิบายเป็นข้อความแทนเหมือนเดิม): `qa-up-50187577` (TC-001) และ `qa-otp-50398633`
+      (TC-002) ผลตรงกันทั้งคู่ — มีแค่ 6 role มาตรฐานของ Keycloak เอง ไม่มี `FHIRCortexReadWrite`, `postgrest_emr_read_write`,
+      `EHRBaseUser` เลยสักตัว ยืนยันครั้งที่ 2 ด้วย account คนละตัวว่าเป็นปัญหาระดับ mechanism จริง (รวมยืนยันข้าม 2 TC + 4
+      account แล้วว่าไม่มี baseline-access role ใดๆ ถูก grant ให้ account ที่สร้างผ่าน Cortex เลย)
+      อัปเดตทั้งสองการ์ด: แก้ heading "Actual Result" เป็น "— Fail" ตรงๆ, แก้บรรทัดสรุปขั้นผ่าน/ไม่ผ่าน, เติมรายละเอียด Step 5-6
+      เป็น Fail พร้อมผล role list เต็ม, เปลี่ยนสถานะการ์ดจาก "Not Test" เป็น **"Failed"** ทั้งคู่ — ปิดผล TC-001/TC-002 รอบ
+      รื้อใหม่สมบูรณ์แล้ว
 
 - [ ] **P4 — ร่าง + สร้าง TC ใหม่ 3 รายการใน Linear ต่อจาก TC-054 (ใช้ skill `linear-testcase-writer`)**:
       - TC-055 (HPY, CTXN-10491): ตรวจสอบการ login ซ้ำด้วย password ใหม่ที่เพิ่งเปลี่ยน (ต่อจาก Update Password สำเร็จ)
