@@ -11,5 +11,12 @@ export default buildConfig({
     /SBH-2471-.*\.spec\.ts$/, // ป้ายปลายเตียงแสดงอายุ + HN — **สร้างผู้ป่วย AUTO 4 ราย + Visit ER + Triage แล้วปิด Visit ที่การเงิน** (ผู้ใช้อนุญาต 7 ต.ค. 2026 · dev-x ยังเป็น template ป้ายเดิม)
     /SBH-2462-.*\.spec\.ts$/, // ประวัติ Disposition — **สร้างผู้ป่วย AUTO 2 ราย + Visit ER + Triage + Disposition (ลงนาม) แล้วปิด Visit ที่การเงิน** (ผู้ใช้อนุญาต 8 ต.ค. 2026 · dev-x ยังไม่มี API ประวัติ)
     /SBH-2373-.*\.spec\.ts$/, // บันทึก Form Triage + ER Physician Note — **สร้างผู้ป่วย AUTO 1 ราย + Visit ER + Triage + Physician Note แล้วปิด Visit ที่การเงิน** (ผู้ใช้อนุญาต 12 ต.ค. 2026)
+    /SBH-2482-.*\.spec\.ts$/, // Timeline แสดงความรุนแรง ESI — **สร้างผู้ป่วย AUTO 1 ราย + Visit ER + Triage ESI 3 + คัดกรองซ้ำ ESI 2 แล้วปิด Visit ที่การเงิน** (ผู้ใช้อนุญาต 12 ต.ค. 2026 หลังผ่านบน dev-x)
+    /SBH-1699-.*\.spec\.ts$/, // บั๊กสร้าง HN ใหม่ที่ ER — **สร้างผู้ป่วย AUTO 1 ราย + Visit ER สิทธิ UC ทิ้ง Visit ไว้** (ผู้ใช้อนุญาต 14 ต.ค. 2026)
+    /SBH-1329-.*\.spec\.ts$/, // เวลารอคอยตามระดับความรุนแรง — **ปรับตั้งค่าเวลารอตรวจ ESI 2 / 3 ชั่วคราวแล้วคืนค่า + สร้างผู้ป่วย AUTO 2 ราย + Visit ER + Triage ทิ้ง Visit ไว้** (ผู้ใช้อนุญาต 14 ต.ค. 2026)
+    /SBH-1057-.*\.spec\.ts$/, // หน้า Create new triage patient — **สร้างผู้ป่วย AUTO 1 ราย + Visit ER + Triage ESI 4 · เปิด Visit ใหม่ให้ Mock HN 6904230 (ไม่ Triage) ทิ้ง Visit ไว้ทั้ง 2** (ผู้ใช้อนุญาต 14 ต.ค. 2026)
+    /SBH-1684-.*\.spec\.ts$/, // เรียงคิว ER ตาม Zone — **สร้างผู้ป่วย AUTO 16 ราย (แดง 6 · เหลือง 4 · เขียว 3 · ห้องสังเกตอาการ 3) + Visit ER + Triage ทิ้ง Visit ไว้** (ผู้ใช้อนุญาต 14 ต.ค. 2026) — รันทีละเทสด้วย --grep @SBH-1864 / @SBH-1868 / @SBH-1870
+    /SBH-2085-.*\.spec\.ts$/, // บั๊กเปิด Visit จากคลินิกมา ER — **สร้างผู้ป่วย AUTO 1 ราย + Visit OPD + Encounter ER + Triage ESI 3 แล้วปิด Visit ที่การเงิน** (ผู้ใช้อนุญาต 14 ต.ค. 2026)
+    /SBH-1017-.*\.spec\.ts$/, // สร้าง Dummy HN ที่หน้าคัดกรอง ER — **สร้างผู้ป่วยระบุตัวตนไม่ได้ 1 ราย + Visit ER สิทธิ UC ทิ้ง Visit ไว้** (ผู้ใช้อนุญาต 14 ต.ค. 2026)
   ],
 });

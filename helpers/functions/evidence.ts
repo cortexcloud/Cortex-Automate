@@ -148,8 +148,10 @@ function isFullyInViewport(el: Element) {
 async function clearMarks(page: Page) {
   if (!marked.has(page)) return;
   marked.delete(page);
-  // หน้าอาจเปลี่ยน/ปิดไปแล้ว — กรอบหายไปกับหน้าเดิมอยู่แล้ว
-  await page.evaluate(() => document.querySelectorAll('[data-evidence-mark]').forEach((box) => box.remove())).catch(() => undefined);
+  // หน้าอาจเปลี่ยน/ปิดไปแล้ว — กรอบหายไปกับหน้าเดิมอยู่แล้ว · กรอบของ element ใน iframe (เช่น เวชระเบียน) ถูกวาดใน iframe นั้น → ลบทุก frame
+  await Promise.all(
+    page.frames().map((frame) => frame.evaluate(() => document.querySelectorAll('[data-evidence-mark]').forEach((box) => box.remove())).catch(() => undefined)),
+  );
 }
 
 async function attachScreenshot(page: Page, step: TestStepInfo, name: string) {

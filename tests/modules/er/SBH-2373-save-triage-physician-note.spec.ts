@@ -16,6 +16,9 @@ import { VITALS_NORMAL, boardEncounter, fillTriage, gotoVisit, saveTriageForm } 
 // ระบบ: SBH Prod (ผู้ใช้สั่ง + อนุญาตสร้างผู้ป่วย 1 ราย 12 ต.ค. 2026): npm run card:prod -- --headed --grep @SBH-2373
 //        SBH Prod ณ 12 ต.ค. 2026 ฟอร์มยังบันทึกผ่าน /ehrbase โดยตรง (ยังไม่ใช่เส้นทาง clinical-form-legacy ของ V2.9.0) · dev-x ผู้ใช้เทสมือผ่านแล้ว 1 ต.ค. 2026
 // SBH2373_VERIFY=<HN>,<VN>,<EN>,<รหัส Dx> = ตรวจขั้นสุดท้ายซ้ำกับผู้ป่วยที่บันทึกไว้แล้วในรอบก่อน (อ่านอย่างเดียว ไม่สร้างข้อมูล)
+// เทสที่ 2 คัดกรองซ้ำ (Re-Triage) — ผู้ใช้ให้เช็คเพิ่ม 14 ต.ค. 2026 ว่าบั๊กไม่กระทบการบันทึกคัดกรองซ้ำ (ผู้ป่วย AUTO อีก 1 ราย ปิด Visit ท้ายเทส)
+//   tag แยก @retriage-2373 ไม่ให้ --grep @SBH-2373 รันทั้ง 2 เทส: npx playwright test -c playwright.sbh-prod.cards.config.ts --headed --grep @retriage-2373
+//   SBH2373_RETRIAGE_VERIFY=<HN>,<VN>,<EN> = ตรวจขั้น 4 ซ้ำกับผู้ป่วยที่คัดกรองซ้ำไว้แล้ว (อ่านอย่างเดียว)
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 
@@ -191,6 +194,99 @@ test.describe(`SBH-2373 บันทึก Form Triage และ ER Physician No
           await markEvidence(expected(main.getByRole('heading', { name: 'ER Physician Note' })), expected(diagnosis));
           await holdForClip(page, 2_500);
         });
+      });
+    },
+  );
+
+  test(
+    'ผู้ป่วย AUTO ใหม่: Triage ครั้งแรก ESI 3 แล้วคัดกรองซ้ำ (Re-Triage) ESI 2 — บันทึกได้ ไม่ถูกปฏิเสธ (Super_User)',
+    { tag: ['@retriage-2373'], annotation: [linear('SBH-2373')] },
+    async ({ page }) => {
+      const saves = trackFormSaves(page);
+      const main = page.getByRole('main');
+      const form = triageForm(page);
+      const summary = main.getByText('Clinical Summary', { exact: true });
+      const summaryLevel = (level: number) => main.getByText(new RegExp(`Triage Level\\s*ESI ${level}`)).filter({ visible: true }).first();
+      const history = form.getByRole('listitem').filter({ hasText: /โดย/ });
+      const verifyOnly = (process.env.SBH2373_RETRIAGE_VERIFY ?? '').split(',').filter(Boolean);
+      let visit!: ErVisit;
+
+      if (verifyOnly.length) {
+        const [hn, vn, en] = verifyOnly;
+        expect(en, 'SBH2373_RETRIAGE_VERIFY ต้องมี HN,VN,EN').toBeTruthy();
+        visit = { hn, vn, en };
+        test.info().annotations.push({ type: 'ตรวจซ้ำ (อ่านอย่างเดียว)', description: `HN ${hn} · ${vn} · ${en} — Triage ESI 3 + คัดกรองซ้ำ ESI 2 ไว้ในรอบก่อน` });
+      } else {
+        await checkStep(page, 'ขั้น 1 Login ด้วย User1 ลงทะเบียนผู้ป่วยใหม่ แล้วเปิด Visit ER', async () => {
+          await gotoErDashboard(page);
+          const patient = newTestPatient('ReTri2373');
+          visit = await registerAndOpenErVisit(page, patient);
+          const state = 'SBH-2373 Re-Triage · เปิด Visit ER สิทธิ UC + Triage ESI 3 + คัดกรองซ้ำ ESI 2 (เทสการ์ด ปิด Visit ท้ายเทส)';
+          if (SYSTEM === 'sbh-prod') recordMockPatient('SBH-2373', patient, visit, state);
+          else console.log(`    ผู้ป่วย: ${patient.firstName} ${patient.familyName} · HN ${visit.hn} · ${visit.vn} · ${visit.en}`);
+          test.info().annotations.push({ type: 'ผู้ป่วย', description: `${patient.firstName} ${patient.familyName} · HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}` });
+          await expectTriageFormOpen(page, visit);
+          await dismissToast(page, 'สร้าง Visit สำเร็จ');
+          await markEvidence(...[`HN ${visit.hn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first())));
+          await holdForClip(page);
+        });
+
+        await checkStep(page, 'ขั้น 2 บันทึก Triage ครั้งแรก ESI 3 — ต้องบันทึกได้', async () => {
+          await fillTriage(page, visit, { level: 3, vitals: VITALS_NORMAL });
+          await markEvidence(filled(form.getByRole('button', { name: ESI_BUTTON[3] })), clicked(saveButton(page)));
+          await holdForClip(page);
+          await snapEvidence(page, 'ก่อนกด — บันทึก Triage ครั้งแรก ESI 3');
+          const before = saves.length;
+          await saveTriageForm(page, visit);
+          await expect(summary, 'บันทึก Triage แล้วหน้าต้องเปลี่ยนเป็น Overview ของ Visit').toBeVisible({ timeout: 60_000 });
+          expectFormSavesOk(saves, before, 'Triage ครั้งแรก');
+          await expect(page.getByText('clinical form access denied')).toHaveCount(0);
+          await expect(summaryLevel(3), 'Clinical Summary ต้องแสดง ESI 3').toBeVisible({ timeout: 30_000 });
+          await markEvidence(expected(summaryLevel(3)));
+          await holdForClip(page, 1_500);
+        });
+
+        await checkStep(page, 'ขั้น 3 กด คัดกรองซ้ำ เลือก ESI 2 แล้วกด บันทึก — ต้องบันทึกได้ ไม่ถูกปฏิเสธ', async () => {
+          await dismissToast(page, 'กรอกข้อมูล คัดกรอง ER สำเร็จ');
+          const redo = form.getByRole('button', { name: 'redo คัดกรองซ้ำ' });
+          await expect(redo).toBeVisible({ timeout: 45_000 });
+          await markEvidence(expected(summaryLevel(3)), clicked(redo));
+          await holdForClip(page);
+          await snapEvidence(page, 'ก่อนกด — ปุ่ม คัดกรองซ้ำ');
+          await redo.click();
+          await expect(form.getByRole('heading', { name: 'การคัดกรองครั้งใหม่' })).toBeVisible();
+          await fillTriage(page, visit, { level: 2, vitals: VITALS_NORMAL });
+          await markEvidence(filled(form.getByRole('button', { name: ESI_BUTTON[2] })), clicked(saveButton(page)));
+          await holdForClip(page);
+          await snapEvidence(page, 'ก่อนกด — บันทึก คัดกรองซ้ำ ESI 2');
+          const before = saves.length;
+          await saveTriageForm(page, visit);
+          expectFormSavesOk(saves, before, 'คัดกรองซ้ำ (Re-Triage)');
+          await expect(page.getByText('clinical form access denied')).toHaveCount(0);
+          const toast = page.getByText('กรอกข้อมูล คัดกรอง ER สำเร็จ', { exact: true }).first();
+          if (await toast.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false)) {
+            await markEvidence(alerted(toast));
+            await snapEvidence(page, 'หลังกด — แจ้งเตือน บันทึก คัดกรองซ้ำ');
+          }
+          // หลังบันทึก SBH Prod เปิดแผง ER Physician Note ค้างข้างขวา และฟอร์มคัดกรองเลื่อนอยู่ท้ายฟอร์ม (Clinical Summary ไม่อยู่บนจอ — 14 ต.ค. 2026)
+          // → ดูระดับจากแถบหัวของ Visit · ค่าใน Clinical Summary + ประวัติการคัดกรอง ตรวจหลังโหลดหน้าใหม่ในขั้น 4
+          const headerEsi = page.getByText('ESI 2', { exact: true }).filter({ visible: true }).first();
+          await expect(headerEsi, 'แถบหัวของ Visit ต้องเปลี่ยนเป็น ESI 2').toBeVisible({ timeout: 30_000 });
+          await dismissToast(page, 'กรอกข้อมูล คัดกรอง ER สำเร็จ');
+          await markEvidence(expected(headerEsi));
+          await holdForClip(page, 2_000);
+        });
+      }
+
+      await checkStep(page, 'ขั้น 4 โหลดหน้าผู้ป่วยใหม่ — ผลคัดกรองซ้ำยังอยู่ (ESI 2 · ประวัติการคัดกรอง 2 รอบ)', async () => {
+        // SBH Prod โหลดข้อมูล Encounter ไม่สำเร็จเป็นพักๆ → เปิดหน้าใหม่จนกว่าจะขึ้น
+        await expect(async () => {
+          await gotoVisit(page, visit);
+          await expect(summaryLevel(2)).toBeVisible({ timeout: 30_000 });
+          await expect(history).toHaveCount(2, { timeout: 10_000 });
+        }, 'โหลดหน้าใหม่แล้ว Clinical Summary ต้องเป็น ESI 2 และประวัติการคัดกรองมี 2 รอบ').toPass({ timeout: 150_000 });
+        await markEvidence(expected(summaryLevel(2)), expected(history.first()), expected(history.last()));
+        await holdForClip(page, 2_500);
       });
     },
   );

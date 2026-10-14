@@ -91,7 +91,7 @@ export async function openTriagePage(page: Page) {
 }
 
 /** "ผู้ป่วยใหม่" → กรอกเฉพาะช่องบังคับ → ลงทะเบียน → ระบบเปิด modal "เปิด Visit ER" ให้เองพร้อม HN ใหม่ */
-export async function registerNewPatient(page: Page, patient: NewPatient): Promise<{ hn: string; dialog: Locator }> {
+export async function registerNewPatient(page: Page, patient: NewPatient, beforeSubmit?: (submit: Locator) => Promise<void>): Promise<{ hn: string; dialog: Locator }> {
   await page.locator('label').filter({ hasText: 'ผู้ป่วยใหม่' }).click();
   await page.getByRole('textbox', { name: '* เลขบัตรประชาชน', exact: true }).fill(patient.citizenId);
   await page.getByRole('textbox', { name: '* ชื่อ', exact: true }).fill(patient.firstName);
@@ -104,8 +104,11 @@ export async function registerNewPatient(page: Page, patient: NewPatient): Promi
   await birthDate.press('Tab');
   await expect(birthDate).toHaveValue(patient.birthDate);
 
+  const submit = page.getByRole('button', { name: 'ลงทะเบียนผู้ป่วย' });
+  // ไว้เก็บภาพ "ก่อนกด" ตอนกรอกครบแล้ว (SBH-1699)
+  if (beforeSubmit) await beforeSubmit(submit);
   const registered = waitForApi(page, 'POST', '/cortex-api/patients/er-registration');
-  await page.getByRole('button', { name: 'ลงทะเบียนผู้ป่วย' }).click();
+  await submit.click();
   const res = await registered;
   await expectOk(res, 'ลงทะเบียนผู้ป่วยใหม่ที่ ER');
   const body = (await res.json()) as { patient?: { data?: { hn?: string } } };

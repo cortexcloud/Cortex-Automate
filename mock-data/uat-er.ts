@@ -125,6 +125,8 @@ export async function registerAndOpenErVisit(page: Page, patient: NewPatient): P
   const { hn, dialog } = await registerMockPatient(page, patient);
   if (dialog) return confirmUcVisit(page, hn, dialog);
   await page.reload();
+  // ระบบช้าตอนที่ modal ไม่ขึ้น (dev-x 12 ต.ค. 2026: โหลดหน้าใหม่เกิน 20 วินาที) → รอหน้าคัดกรองโหลดเสร็จก่อนค้น HN
+  await expect(page.getByRole('heading', { name: '1. ข้อมูลผู้ป่วย' })).toBeVisible({ timeout: 60_000 });
   return confirmUcVisit(page, hn, await selectExistingPatient(page, hn));
 }
 
@@ -132,7 +134,7 @@ export async function registerAndOpenErVisit(page: Page, patient: NewPatient): P
  * ลงทะเบียนผู้ป่วยใหม่ที่หน้าคัดกรอง ER (อยู่หน้านั้นแล้ว) → HN + modal เปิด Visit
  * SBH Prod: ลงทะเบียนสำเร็จแล้วบางครั้ง modal เปิด Visit ไม่ขึ้น (6 ต.ค. 2026) → คืน HN อย่างเดียว ให้ผู้เรียกทำต่อกับ HN นี้ ไม่ลงทะเบียนซ้ำ
  */
-export async function registerMockPatient(page: Page, patient: NewPatient): Promise<{ hn: string; dialog?: Locator }> {
+export async function registerMockPatient(page: Page, patient: NewPatient, beforeSubmit?: (submit: Locator) => Promise<void>): Promise<{ hn: string; dialog?: Locator }> {
   let hn: string | undefined;
   const capture = async (res: Response) => {
     if (res.request().method() !== 'POST' || !new URL(res.url()).pathname.endsWith('/cortex-api/patients/er-registration') || !res.ok()) return;
@@ -140,7 +142,7 @@ export async function registerMockPatient(page: Page, patient: NewPatient): Prom
   };
   page.on('response', capture);
   try {
-    return await registerNewPatient(page, patient);
+    return await registerNewPatient(page, patient, beforeSubmit);
   } catch (error) {
     if (!hn) throw error;
     console.log(`[${SYSTEM}] ลงทะเบียน ${patient.firstName} ${patient.familyName} ได้ HN ${hn} แล้ว แต่ modal เปิด Visit ไม่ขึ้น — ทำต่อกับ HN นี้`);
@@ -447,7 +449,9 @@ export async function recordDrugAllergy(page: Page, drugSearch = 'paracetamol'):
  */
 export async function openOpdVisit(page: Page): Promise<{ vn: string; en: string; clinic: string; doctor: string }> {
   const main = page.getByRole('main');
-  await openCareMenu(page, 'จัดการ Visit', main.getByText(/^รายการเข้ารับบริการ/));
+  // เปิดจากปุ่ม "Visit ใหม่" ของเวชระเบียนมาแล้ว (แผงจัดการ Visit เปิดอยู่) → ไม่ต้องกดเมนูซ้ำ
+  const panel = main.getByText(/^รายการเข้ารับบริการ/);
+  if (!(await panel.isVisible())) await openCareMenu(page, 'จัดการ Visit', panel);
 
   const clinic = main.locator('.ant-select').filter({ hasText: /^คลินิก$/ }).getByRole('combobox');
   await clinic.fill(OPD_CLINIC.search);
@@ -507,7 +511,13 @@ export async function scheduleWalkInRequest(page: Page, hn: string): Promise<{ d
   let rounds = 0;
   await expect(async () => {
     if (rounds++) await page.reload();
-    await main.getByRole('tab', { name: /คำขอ Walk-in/ }).click();
+    // SBH Prod 14 ต.ค. 2026: ชื่อแท็บแสดงเป็นคีย์ "walk-in-request" (คำแปลไม่โหลด) + คำขอวันนั้น 50 รายการแบ่งหน้า → ค้นด้วย HN ก่อน
+    await main.getByRole('tab', { name: /คำขอ Walk-in|walk-in-request/ }).click();
+    const search = main.getByPlaceholder('ค้นหา HN');
+    if (await search.count()) {
+      await search.fill(hn);
+      await search.press('Enter');
+    }
     await expect(schedule).toBeVisible({ timeout: 20_000 });
   }, `ต้องเห็นคำขอ Walk-in ของ HN ${hn} ในแท็บ "คำขอ Walk-in"`).toPass({ timeout: 150_000 });
   await schedule.click();
@@ -530,12 +540,21 @@ export async function scheduleWalkInRequest(page: Page, hn: string): Promise<{ d
   await expect(radios.first(), `แพทย์ ${doctor} ไม่มีตารางตรวจวันนี้`).toBeVisible();
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
   const pad = (n: number) => String(n).padStart(2, '0');
-  let slot = `${pad(hour)}:00 - ${pad(hour + 1)}:00`;
-  const current = dialog.getByText(slot, { exact: true });
-  if (await current.count()) await current.click();
-  if (!(await dialog.getByRole('radio', { checked: true }).count())) {
-    await radios.first().check();
-    slot = 'ช่วงแรกของตาราง';
+  // ช่วงที่เต็มแล้ว ("มีนัดอยู่ 10/10 คน") เลือกไม่ได้ (SBH Prod 14 ต.ค. 2026: ดร. วิชัย เต็ม 07:00–17:00) → ไล่จากชั่วโมงปัจจุบันหาช่วงแรกที่ยังว่าง
+  let slot = '';
+  for (let h = hour; h < 24 && !slot; h++) {
+    const label = `${pad(h)}:00 - ${pad(h + 1)}:00`;
+    const radio = dialog.getByRole('radio', { name: new RegExp(`^${label}`) }).first();
+    if ((await radio.count()) && (await radio.isEnabled())) {
+      await radio.check();
+      slot = label;
+    }
+  }
+  if (!slot) {
+    const free = dialog.getByRole('radio', { disabled: false });
+    await expect(free.first(), `แพทย์ ${doctor} ไม่มีช่วงว่างวันนี้ (เต็มทุกช่วง)`).toBeAttached();
+    await free.first().check();
+    slot = 'ช่วงว่างแรกของตาราง';
   }
   // ไม่พิมพ์บัตรคิว (ไม่ให้มีหน้าต่างพิมพ์ค้างระหว่างรันสคริปต์)
   await dialog.getByRole('checkbox', { name: 'Print บัตรคิวอัตโนมัติ' }).uncheck();

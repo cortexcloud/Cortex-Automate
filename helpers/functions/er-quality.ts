@@ -81,6 +81,10 @@ export interface BoardEncounter {
   latestStatusCode: string;
   arrivedAt: string;
   startedTreatmentAt: string | null;
+  /** เวลาบันทึก Triage ครั้งแรก (คัดกรองซ้ำไม่เปลี่ยน) — ตัวนับเวลารอบนบอร์ดหยุดที่ค่านี้ */
+  triagedAt?: string | null;
+  /** เกณฑ์เวลารอของระดับที่ Triage (จากตั้งค่าเวลารอตรวจ) — ยังไม่ Triage / ไม่จำกัด = null */
+  waitTimeLimitSeconds?: number | null;
 }
 
 // ---------- วันที่ ----------

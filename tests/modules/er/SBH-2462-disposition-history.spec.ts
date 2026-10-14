@@ -39,7 +39,9 @@ import { VITALS_NORMAL, fillTriage, gotoVisit, openPatientAs, saveTriageForm } f
 // แปลงจากชุด Manual: EXE SBH-2486 → SC-001 (SBH-2488) TC-001–002 (SBH-2490–2491) · SC-002 (SBH-2489) TC-003 (SBH-2492) · 2 เทสตาม flow (R9):
 //   1) ผู้ป่วยรายที่ 1: User A บันทึกฉบับร่าง → รอเกิน 1 นาที → ลงนาม → ประวัติมีทั้ง Save Draft และ Save Final
 //   2) ผู้ป่วยรายที่ 2: User A บันทึกฉบับร่าง → User B แก้แล้วลงนาม → ประวัติแยกรายการ แสดงชื่อของแต่ละคน
-// TC-003 (Modal รายละเอียดการแก้ไข — v1.1) ยังไม่มีบนระบบ (8 ต.ค. 2026 ไม่มีบรรทัด แก้ไข N รายการ / ลิงก์ ดูรายละเอียด) → ไม่ได้ทดสอบ ตามหมายเหตุของ TC
+//   3) ผู้ป่วยรายที่ 3 (เฉพาะ dev-x): User A บันทึกฉบับร่าง → แก้ 3 ช่อง → บันทึกฉบับร่างอีกครั้ง → ดูรายการล่าสุดในประวัติ (TC-003 ขั้น 1–4)
+// TC-003 (Modal รายละเอียดการแก้ไข — v1.1) ยังไม่มีบนระบบ (8 / 12 ต.ค. 2026 ไม่มีบรรทัด แก้ไข N รายการ / ลิงก์ ดูรายละเอียด) → Not Test ตามหมายเหตุของ TC
+//   เทสที่ 3 เล่นขั้น 1–4 เก็บหลักฐานจากหน้าจอ · ส่วน v1.1 ขึ้นระบบเมื่อไร เทสจะพังพร้อม dump ให้เขียนขั้น 5–7 เพิ่ม
 // ข้อควรรู้จากชุด EXE: Save Draft = ปุ่ม บันทึกฉบับร่าง · Save Final = ปุ่ม ลงนาม (R20) · ชื่อปุ่มใน TC มาจาก mockup (ประวัติการบันทึกและลงนาม) ของจริงคือ ดูประวัติ Disposition
 //   · dev รวม บันทึกฉบับร่าง + ลงนาม ของผู้ใช้เดียวกันที่ห่างกันไม่เกิน 30 วินาทีเป็นรายการ ลงนาม เดียว → TC-001 ต้องรอ
 // User A = Super_User (R6) · User B = Doctor เปิดในหน้าต่างแยก (session ของตัวเอง) แทนการ Logout / Login — คลิปของ User B แยกไฟล์ video-Doctor.webm
@@ -112,6 +114,42 @@ async function fillDispositionForm(page: Page, text: string): Promise<FilledForm
   await clinical.fill(text);
   await finding.fill(text);
   return { status: status.locator('xpath=ancestor::label[1]'), method: method.locator('xpath=ancestor::label[1]'), diagnosis, clinical, finding };
+}
+
+/**
+ * ช่อง `โรงพยาบาลปลายทาง` (ขึ้นเมื่อวิธีการจำหน่าย = By Transfer · ไม่บังคับ): ช่องค้นหา → เลือกตัวเลือกแรกที่เจอ · ช่องพิมพ์ → พิมพ์ชื่อ
+ * คืนช่อง (ไว้ตีกรอบ) + ค่าที่ระบุ · dump HTML ของช่องไว้ที่ .cache/ (ยังไม่เคยสำรวจช่องนี้ละเอียด)
+ */
+async function fillReferHospital(page: Page): Promise<{ field: Locator; value: string }> {
+  const main = page.getByRole('main');
+  const label = main.getByText('โรงพยาบาลปลายทาง', { exact: true }).first();
+  await expect(label, 'เลือก By Transfer แล้วต้องมีช่อง โรงพยาบาลปลายทาง').toBeVisible();
+  const input = label.locator('xpath=following::input[1]');
+  await expect(input).toBeAttached();
+  fs.mkdirSync('.cache', { recursive: true });
+  fs.writeFileSync('.cache/sbh-2462-tc003-hospital.html', await label.locator('xpath=ancestor::*[3]').evaluate((el) => el.outerHTML));
+  const isSelect = await input.evaluate((el) => el.getAttribute('role') === 'combobox' || /ant-select/.test(el.className));
+  if (!isSelect) {
+    const value = 'โรงพยาบาลทดสอบ automate';
+    await input.fill(value);
+    return { field: input, value };
+  }
+  const select = input.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ant-select ")][1]');
+  const option = page.locator('.ant-select-dropdown:visible .ant-select-item-option').first();
+  let found = false;
+  for (const keyword of ['โรงพยาบาล', 'สระบุรี', '']) {
+    await select.click({ force: true });
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Delete');
+    if (keyword) await page.keyboard.type(keyword, { delay: 60 });
+    found = await option.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true, () => false);
+    if (found) break;
+  }
+  expect(found, 'ช่อง โรงพยาบาลปลายทาง ต้องมีตัวเลือกให้เลือก').toBe(true);
+  const value = ((await option.getAttribute('title')) ?? (await option.innerText())).trim();
+  await option.click({ timeout: 4_000 }).catch(() => option.click({ force: true }));
+  await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0);
+  return { field: select, value };
 }
 
 interface HistoryView {
@@ -564,6 +602,123 @@ test.describe(`SBH-2462 ประวัติ Disposition ของ ER — Save 
       // ปิดหลังจบ step — ภาพหลักฐานของ step ถ่ายตอนจบ ต้องยังเห็น popover + ตารางเทียบ
       await hideCompareTable(page);
       await closeDispositionHistory(page);
+    },
+  );
+
+  // ---------------------------------------------------------------------------------------------
+  // TC-003 เป็นส่วน v1.1 (บรรทัด แก้ไข N รายการ + ลิงก์ ดูรายละเอียด) — เล่นขั้น 1–4 จริงเพื่อดูจากหน้าจอว่าส่วนนี้ขึ้นระบบหรือยัง
+  //   ยังไม่มี = จบเทสพร้อม annotation "Not Test" (หมายเหตุของ TC) · มีแล้ว = เทสพังพร้อม dump ของ popover ให้เขียนขั้น 5–7 เพิ่ม
+  test(
+    'ผู้ป่วยรายที่ 3: User A บันทึกฉบับร่าง แก้ 3 ช่อง แล้วบันทึกฉบับร่างอีกครั้ง — รายการล่าสุดในประวัติมีบรรทัด แก้ไข 3 รายการ หรือยัง (Super_User)',
+    { tag: ['@SBH-2462', '@SBH-2492'], annotation: [linear('SBH-2462'), linear('SBH-2486')] },
+    async ({ page }) => {
+      test.skip(SYSTEM === 'sbh-prod', 'SBH Prod: ผู้ใช้อนุญาตสร้างผู้ป่วยของการ์ดนี้ 2 ราย (R43) — ผู้ป่วยรายที่ 3 ของ TC-003 สร้างเฉพาะ dev-x');
+      const authorization = trackAuthorization(page);
+      const main = page.getByRole('main');
+      const TEXT_BEFORE = 'ทดสอบ automate SBH-2462 TC-003 (ก่อนแก้ไข)';
+      const TEXT_AFTER = 'ทดสอบ automate SBH-2462 TC-003 (หลังแก้ไข — ข้อความยาวที่แก้ในขั้นที่ 2)';
+      let visit!: ErVisit;
+      let userA!: { name: string; username: string };
+      let first!: ErDischargeSummary;
+      let firstSavedAt = 0;
+      let second!: ErDischargeSummary;
+      let hospital = '';
+
+      await checkStep(page, 'TC-003 (SBH-2492) ขั้น 1 User A เปิดผู้ป่วยรายที่ 3 ทำ Disposition แล้วกด บันทึกฉบับร่าง', async () => {
+        await gotoErDashboard(page);
+        visit = await openTriagedVisit(page, 'P3', 'ผู้ป่วยรายที่ 3');
+        await expectVisitHeader(page, visit);
+        userA = account(authorization());
+        test.info().annotations.push({ type: 'User A', description: `${userA.username} — ${userA.name}` });
+        await markEvidence(...visitHeaderMarks(page, visit), ...(await accountMarks(page, userA.name)));
+        await holdForClip(page);
+        await snapEvidence(page, 'User A เปิดผู้ป่วยรายที่ 3');
+        first = await draftAsUserA(page, 'ผู้ป่วยรายที่ 3', TEXT_BEFORE);
+        firstSavedAt = Date.now();
+      });
+
+      await checkStep(page, 'TC-003 (SBH-2492) ขั้น 2 แก้ข้อมูลในฟอร์ม 3 ช่อง', async () => {
+        // เว้นจากการบันทึกครั้งแรกเกิน 30 วินาที (dev รวมรายการของผู้ใช้เดียวกันที่ห่างกันไม่เกิน 30 วินาที — กันรายการครั้งที่ 2 ถูกรวม)
+        await waitSince(page, firstSavedAt, 35, 'TC-003 ขั้น 2: เว้นจากการบันทึกฉบับร่างครั้งแรกเกิน 30 วินาที');
+        const method = main.getByRole('radio', { name: 'By Transfer', exact: true });
+        await method.check();
+        const chosen = await fillReferHospital(page);
+        hospital = chosen.value;
+        const { clinical } = dispositionTextBoxes(page);
+        await clinical.fill(TEXT_AFTER);
+        test.info().annotations.push({
+          type: 'ค่าก่อน → หลังแก้ (ขั้นที่ 2)',
+          description: `วิธีการจำหน่าย: With Approval → By Transfer · โรงพยาบาลปลายทาง: (ว่าง) → ${hospital} · ข้อมูลทางคลินิกและการดำเนินโรค: "${TEXT_BEFORE}" → "${TEXT_AFTER}"`,
+        });
+        await markEvidence(filled(method.locator('xpath=ancestor::label[1]')), filled(chosen.field));
+        await holdForClip(page);
+        await snapEvidence(page, 'กรอก — แก้ วิธีการจำหน่าย + โรงพยาบาลปลายทาง');
+        await markEvidence(filled(clinical));
+        await holdForClip(page);
+      });
+
+      await checkStep(page, 'TC-003 (SBH-2492) ขั้น 3 กด บันทึกฉบับร่าง อีกครั้ง', async () => {
+        const save = page.getByTestId('er-disposition-save-draft');
+        await markEvidence(clicked(save));
+        await holdForClip(page);
+        await snapEvidence(page, 'ก่อนกด — ปุ่ม บันทึกฉบับร่าง ครั้งที่ 2');
+        second = await saveDispositionDraft(page);
+        const toast = page.getByText('บันทึกการจำหน่ายผู้ป่วย ER แล้ว').last();
+        await expect(toast).toBeVisible();
+        test.info().annotations.push({ type: 'เวลาที่ทำจริง', description: `บันทึกฉบับร่างครั้งที่ 1 ${first.updatedAt} · ครั้งที่ 2 ${second.updatedAt}` });
+        await markEvidence(alerted(toast), expected(main.getByText(/แก้ไขล่าสุดโดย/).first()));
+        await holdForClip(page);
+      });
+
+      let detailLines = 0;
+      let detailLinks = 0;
+      await checkStep(page, 'TC-003 (SBH-2492) ขั้น 4 กดปุ่มไอคอนประวัติ แล้วดูรายการล่าสุด', async () => {
+        const button = dispositionHistoryButton(page);
+        await markEvidence(clicked(button));
+        await holdForClip(page);
+        await snapEvidence(page, 'ก่อนกด — ปุ่มไอคอน ดูประวัติ Disposition (ผู้ป่วยรายที่ 3)');
+        const view = await viewHistory(page, authorization, visit, `ประวัติ Disposition ของผู้ป่วยรายที่ 3 — HN ${visit.hn} · ${visit.en}`);
+        await holdForClip(page, 2_500);
+        const latest = findEntry(view, 'SAVED_DRAFT', second.updatedAt);
+        const previous = findEntry(view, 'SAVED_DRAFT', first.updatedAt);
+        const entry = latest.index >= 0 ? latest.entry : dispositionHistoryEntries(view.popover).first();
+        detailLines = await view.popover.getByText(/แก้ไข\s*\d+\s*รายการ/).count();
+        detailLinks = await view.popover.getByText('ดูรายละเอียด', { exact: true }).count();
+        const entryText = (await entry.innerText()).replace(/\s+/g, ' ').trim();
+        const html = await view.popover.evaluate((el) => el.outerHTML);
+        fs.mkdirSync('.cache', { recursive: true });
+        fs.writeFileSync('.cache/sbh-2462-tc003-popover.html', html);
+        await test.info().attach('popover ประวัติ Disposition (HTML)', { body: html, contentType: 'text/html' });
+        const snapshot = (found: ReturnType<typeof findEntry>) => found.record?.snapshot;
+        const table: CompareRow[] = [
+          { label: 'รายการล่าสุดบนหน้าจอ', values: [entryText, latest.record ? describeDispositionHistoryRow(expectedDispositionHistoryRow(latest.record)) : '(API ไม่มีรายการของการบันทึกครั้งที่ 2)'], same: latest.index >= 0 },
+          { label: 'วิธีการจำหน่าย (รหัสใน API)', values: [`ฉบับก่อน ${snapshot(previous)?.dischargeTypeCode ?? '-'}`, `ฉบับล่าสุด ${snapshot(latest)?.dischargeTypeCode ?? '-'}`], same: true },
+          { label: 'ข้อมูลทางคลินิกฯ (API)', values: [`ฉบับก่อน: ${snapshot(previous)?.clinicInformation ?? '-'}`, `ฉบับล่าสุด: ${snapshot(latest)?.clinicInformation ?? '-'}`], same: true },
+          { label: 'บรรทัด แก้ไข 3 รายการ', values: [detailLines ? `มี ${detailLines} จุด` : 'ไม่มี', 'Expected: มี (ส่วน v1.1)'], same: detailLines > 0 },
+          { label: 'ลิงก์ ดูรายละเอียด', values: [detailLinks ? `มี ${detailLinks} จุด` : 'ไม่มี', 'Expected: มี (ส่วน v1.1)'], same: detailLinks > 0 },
+        ];
+        await showCompareTable(page, 'TC-003 รายการล่าสุดหลังแก้ 3 ช่อง — มีส่วนรายละเอียดการแก้ไข (v1.1) หรือยัง', ['บนหน้าจอ / ฉบับก่อน', 'API / ฉบับล่าสุด / Expected'], table, { side: 'left' });
+        await markEvidence(expected(entry));
+        await holdForClip(page, 4_000);
+        // ขั้น 1–3 ต้องเกิดจริง: มีรายการของการบันทึกครั้งที่ 2 แยกจากครั้งแรก และฉบับล่าสุดเก็บค่าที่แก้
+        expect(view.rows.map(describeDispositionHistoryRow), 'รายการบนหน้าจอต้องตรงกับประวัติของ Encounter นี้จาก API ทุกรายการ').toEqual(view.records.map((record) => describeDispositionHistoryRow(expectedDispositionHistoryRow(record))));
+        expect(latest.index, `ประวัติต้องมีรายการ บันทึกฉบับร่าง ของครั้งที่ 2 (${second.updatedAt}) — ที่มี: ${view.rows.map(describeDispositionHistoryRow).join(' | ')}`).toBeGreaterThanOrEqual(0);
+        expect(previous.index, 'การบันทึกฉบับร่าง 2 ครั้งต้องเป็นคนละรายการ').not.toBe(latest.index);
+        expect(snapshot(latest)?.clinicInformation, 'ฉบับล่าสุดต้องเก็บข้อความที่แก้ในขั้นที่ 2').toBe(TEXT_AFTER);
+        expect(snapshot(latest)?.dischargeTypeCode, 'ฉบับล่าสุดต้องเก็บวิธีการจำหน่ายที่เปลี่ยนในขั้นที่ 2').not.toBe(snapshot(previous)?.dischargeTypeCode);
+      });
+      // ปิดหลังจบ step — ภาพหลักฐานของ step ถ่ายตอนจบ ต้องยังเห็น popover + ตารางเทียบ
+      await hideCompareTable(page);
+      await closeDispositionHistory(page);
+
+      if (detailLines || detailLinks) {
+        throw new Error(`TC-003: popover มีส่วนรายละเอียดการแก้ไขแล้ว (แก้ไข N รายการ ${detailLines} จุด · ดูรายละเอียด ${detailLinks} จุด) — ส่วน v1.1 ขึ้นระบบแล้ว ต้องเขียนขั้น 5–7 เพิ่ม (dump: .cache/sbh-2462-tc003-popover.html)`);
+      }
+      test.info().annotations.push({
+        type: 'TC-003 (SBH-2492)',
+        description: 'Not Test — เล่นขั้น 1–4 แล้ว รายการล่าสุดในประวัติยังไม่มีบรรทัด แก้ไข N รายการ และลิงก์ ดูรายละเอียด (ส่วน v1.1 ยังไม่ขึ้นระบบ) จึงทำขั้น 5–7 ไม่ได้ ตามหมายเหตุของ TC',
+      });
+      console.log('    TC-003 (SBH-2492): Not Test — ยังไม่มีบรรทัด แก้ไข N รายการ / ลิงก์ ดูรายละเอียด');
     },
   );
 });
