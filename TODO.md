@@ -88,6 +88,19 @@ section ดังนั้นใช้เทคนิคของ SBH-2513 **ภ
       coder/kiosk เป็น **client role ของ cortex ไม่ใช่ realm role** ตรงตาม Expected Result ข้อ 4 ครบถ้วน
       อัปโหลดหลักฐาน 9 ภาพ+1 วิดีโอผ่าน background agent, เขียน Actual Result สไตล์ heading+inline-image, ปิดสถานะเป็น **Passed**
 
+- [x] **P5.5 — ตรวจเพิ่ม (user ถามหลัง P5): assign role แล้ว login จริงเห็น app กี่ตัว (14 ต.ค. 2026)**
+      นอกเหนือ Expected Result เดิมของ TC-018 (ไม่บังคับ) — reset password + login เป็น `testcreate01` (role cashier/coder/
+      kiosk) ครั้งแรกเจอ**หน้าขาวว่างเปล่าค้างอีกครั้ง** (เหมือนที่เคยเจอใน TC-001/TC-002 มาก่อน, root innerHTML=0 แม้รอนาน+reload)
+      user ชี้ทางแก้: เป็นปัญหา **performance ของระบบ ไม่ใช่บั๊ก** — ให้ `goto()` ไปหน้า `/cortex/apps` ตรง ๆ พร้อมเพิ่ม delay
+      ลองแล้วได้ผลจริง (รอ 15s + `waitUntil:'networkidle'`) → หน้า render ปกติ เห็น "ยินดีต้อนรับสู่ Cortex" + grid 9 app:
+      เวชระเบียน, ศูนย์จัดการเตียง, ผู้ป่วยนอก, ส่งต่อผู้ป่วย, การเงิน, เบิกจ่าย, รายงาน, ผู้ดูแลระบบ, การจัดการเอกสาร
+      **สรุป**: ไขปริศนา "หน้าขาว" ที่เคยบันทึกไว้ว่า "ไม่ยืนยัน" ใน TC-001/TC-002 ได้แล้ว — เป็น navigation/timing issue ไม่ใช่
+      บั๊กจริง บันทึก pattern แก้ไว้ถาวรใน `agent-app-testing` SKILL.md (section "บทเรียนจริง 14 ต.ค. 2026") ให้ login flow
+      script ในอนาคตใช้ `/cortex/apps` + delay เป็นมาตรฐานแทนรอที่หน้า bare OAuth redirect — แนบภาพ/วิดีโอเพิ่มเติม 3 ไฟล์
+      เข้า CTXN-10512 เป็นหลักฐานเสริม (ไม่กระทบสถานะ Passed เดิมของ TC-018 เพราะเป็นคนละ scope จาก Expected Result)
+      **ยังไม่ได้ทำ**: ย้อนไปแก้ note ใน TC-001/TC-002 ว่าหน้าขาวที่เคยเจอน่าจะอธิบายได้ด้วยสาเหตุเดียวกันนี้ — รอ user confirm
+      ว่าต้องการให้ย้อนไปอัปเดตการ์ดเก่าด้วยไหม
+
 - [x] **P6 — ทดสอบ TC-021 (CTXN-10515) เสร็จสมบูรณ์ — Passed 2/2 ข้อ (14 ต.ค. 2026)**
       user สร้าง role `qa-new-role` ใน Keycloak ที่ Clients → cortex → Roles (client role ของ cortex ตรงตามที่ยืนยันจาก TC-018)
       จากนั้นทดสอบฝั่ง Cortex: เปิดแท็บบทบาทการใช้งานของ `testcreate01` (มี cashier/coder/kiosk จาก TC-018 อยู่แล้ว) →

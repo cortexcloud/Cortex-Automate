@@ -113,6 +113,19 @@ COR-1724 เก็บแค่ screenshot ให้ 65/67 TC เพราะก�
 "สร้างสำเร็จ แต่ระบบแจ้งข้อความผิด" ซึ่งเป็นบั๊กคนละแบบและร้ายแรงกว่าที่เข้าใจตอนแรกมาก (แอดมินจริงจะเข้าใจผิดว่าไม่มีอะไรเกิดขึ้น
 แล้วอาจกดสร้างซ้ำเรื่อย ๆ) กว่าจะจับได้ต้องเปิดไปเช็คหน้ารายการ user เองหลังจากนั้น
 
+### บทเรียนจริง (COR-1724, 14 ต.ค. 2026) — หน้าขาวว่างเปล่าหลัง login คือปัญหา navigation/timing ไม่ใช่บั๊กจริง
+
+เคยเจอซ้ำหลายรอบ (TC-001, TC-002, TC-018): หลัง OAuth redirect กลับมาที่ `https://dev-x.cortexcloud.co/cortex#state=...`
+สำเร็จ (URL ถูกต้อง, ไม่มี console error) หน้าเว็บกลับเป็นจอขาวค้าง ไม่ render อะไรเลย (`document.getElementById('root').innerHTML`
+= 0) ตอนแรกสงสัยว่าเป็นบั๊กจริงหรือ artifact ของ automated browser เพราะหา root cause ไม่เจอ (ลอง reload/รอนานขึ้นก็ไม่ช่วย)
+
+ผู้ใช้ชี้ทางแก้: **เป็นปัญหา performance ของระบบที่โหลดช้า ไม่ใช่บั๊ก** — วิธีแก้คือหลัง login เสร็จ ให้ `goto()`
+ไปที่ `https://dev-x.cortexcloud.co/cortex/apps` ตรง ๆ (ไม่ใช่รอที่หน้า bare redirect landing) พร้อมเพิ่ม delay ให้มากขึ้น
+(ลองแล้วได้ผลด้วย wait 15s ก่อน navigate + `waitUntil: 'networkidle'` ตอน goto) — root เปลี่ยนจาก 0 เป็นมีเนื้อหาจริงทันที
+(เห็นหน้า "ยินดีต้อนรับสู่ Cortex / กรุณาเลือก App" พร้อม grid ไอคอน app) **สรุปใช้เป็น pattern มาตรฐานต่อไป**: หลัง login
+flow (ไม่ว่าจะผ่าน required action กี่ขั้น) ให้ปิดท้ายด้วยการ `goto('https://dev-x.cortexcloud.co/cortex/apps', { waitUntil:
+'networkidle', timeout: 60000 })` เสมอ แทนที่จะเชื่อแค่ URL ที่ลอยมาเฉย ๆ จาก OAuth redirect ว่าหน้าพร้อมแล้ว
+
 ## รายงานผลกลับ
 
 - background agent จะแจ้งผ่าน task notification เมื่อเสร็จ — ไม่ poll เช็คเอง
@@ -136,7 +149,12 @@ prevention ไม่ทำงานที่ backend, error message ผิดต
 
 ## Skill update log
 
-`2026-10-14` — เพิ่ม 2 section ใหม่ตามที่ user ขอหลังทดสอบ COR-1724 รอบ TC-001/TC-002: (1) "รูปแบบ flow การทดสอบ: atomic
+`2026-10-14` (รอบ 2) — เพิ่ม "บทเรียนจริง (14 ต.ค. 2026)" ใต้หัวข้อ "กฎยืนยันผลจริง": หน้าขาวว่างเปล่าหลัง login ที่เคยสงสัย
+ว่าเป็นบั๊ก (เจอซ้ำใน TC-001/TC-002/TC-018) แท้จริงคือปัญหา performance/timing — user ชี้ทางแก้ให้ `goto()` ไปที่
+`/cortex/apps` ตรง ๆ พร้อมเพิ่ม delay แทนที่จะรอเฉย ๆ ที่หน้า bare OAuth redirect landing ได้ผลจริง (root เปลี่ยนจาก 0
+เป็น render หน้า app grid ปกติ) — บันทึกเป็น pattern มาตรฐานให้ login flow script ในอนาคตใช้ต่อ
+
+`2026-10-14` (รอบ 1) — เพิ่ม 2 section ใหม่ตามที่ user ขอหลังทดสอบ COR-1724 รอบ TC-001/TC-002: (1) "รูปแบบ flow การทดสอบ: atomic
 vs flow เดียวต่อเนื่อง" — เมื่อเป็นโหมด flow-style (ตาม gate ใหม่ใน `linear-testcase-writer`) ต้องอัดวิดีโอเดียวต่อเนื่อง
 ตลอด flow ห้ามแยกคลิปย่อยตาม step/script (2) "มาตรฐานการรายงานผลใน Linear (Actual Result)" — อ้างอิงสไตล์จากการ์ด
 SBH-2513 ที่ user ชี้ให้ดู (โปรเจกต์อื่น ใช้แค่สไตล์ตามคำสั่งเจาะจงครั้งเดียว): ใช้ `##` heading ให้ section name เดิมของ
