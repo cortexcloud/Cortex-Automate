@@ -18,11 +18,14 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
    - project, team, priority, state, labels, assignee
    - Clone context จาก requirement ทุกครั้งที่ทำได้
    - ดึง issue จาก Linear ตามที่โปรเจกต์มี: Linear MCP ถ้าต่ออยู่, ไม่เช่นนั้น `LINEAR_API_KEY` / helper ในโปรเจกต์ (เช่น `src/tools/linear.ts`) — ห้ามเดา field ที่ไม่ได้ดึงมาจริง
-2. วิเคราะห์ requirement ตาม **Generation rules**
-3. Resolve ค่าตาม **Resolve test attributes**
-4. สร้างโครงตาม **Naming rules**, **Body rules**, **Label rules**
-5. รัน **Final consistency check** ก่อนส่งคำตอบทุกครั้ง
-6. ทำตาม **Creation behavior** — อย่าสร้างอะไรจริงจนกว่าจะได้รับการยืนยันชัดเจน
+2. **ถาม QA 2 เรื่องนี้ก่อนเริ่มวิเคราะห์เสมอ** (ดูรายละเอียด/ตัวอย่างคำถามที่ **Generation rules → Test granularity: atomic vs flow-style**):
+   - อยากได้ Test Case แบบ **atomic** (ค่าเริ่มต้น, 1 TC = 1 พฤติกรรม) หรือ **flow-style** (รวมหลาย step ต่อเนื่องเข้า TC เดียว)
+   - มี business flow/logic เฉพาะของระบบที่ AC ไม่ได้เขียนตรงๆ แต่อยากให้รู้ก่อนไหม
+3. วิเคราะห์ requirement ตาม **Generation rules**
+4. Resolve ค่าตาม **Resolve test attributes**
+5. สร้างโครงตาม **Naming rules**, **Body rules**, **Label rules**
+6. รัน **Final consistency check** ก่อนส่งคำตอบทุกครั้ง
+7. ทำตาม **Creation behavior** — อย่าสร้างอะไรจริงจนกว่าจะได้รับการยืนยันชัดเจน
 
 ## กฎทั่วไป (บังคับ)
 
@@ -32,7 +35,7 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
 - ห้ามตัด section ที่ต้องมีออก
 - ห้ามเพิ่ม section พิเศษ เว้นแต่ผู้ใช้ขอเอง
 - ห้ามใส่ BDD เว้นแต่ผู้ใช้ขอเอง
-- ห้ามรวมหลาย check ไว้ใน Test Case เดียว (1 Test Case = 1 พฤติกรรมที่ตรวจ)
+- ห้ามรวมหลาย check ไว้ใน Test Case เดียว (1 Test Case = 1 พฤติกรรมที่ตรวจ) — ค่าเริ่มต้นเสมอ ยกเว้น QA เลือกโหมด flow-style ตามที่ถามไว้ในขั้นตอนข้อ 2 (ดู Generation rules → Test granularity)
 - ชื่อ Test Case ต้องเป็น**ภาษาไทยเท่านั้น**
 - เนื้อหาต้องกระชับ ใช้งานได้จริง เน้น execution
 - **รักษา template เดิมไว้เสมอแม้ข้อมูลจะขาด** — ถ้าข้อมูลไม่มี ให้คงหัวข้อ/ฟิลด์ไว้แล้วใส่ `-` แทน
@@ -56,6 +59,22 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
 3. ถ้าไม่เจอ business behavior เลย ห้ามสร้าง `[Required]` EXE/Scenario/Test Case และให้ถาม QA หา user flow, expected result, validation, error handling, หรือ permission/role ที่ต้องเทส
 
 รายงาน requirement gap แยกไว้นอกลำดับชั้น จัดกลุ่มตาม: expected behavior, validation, error handling, permission/role, edge cases
+
+### Test granularity: atomic vs flow-style
+
+ก่อนเริ่มวิเคราะห์ทุกครั้ง ต้องถาม QA ก่อนว่าต้องการ Test Case แบบไหน (ดู ขั้นตอน ข้อ 2):
+
+- **Atomic (ค่าเริ่มต้น)** — 1 Test Case ตรวจ 1 พฤติกรรม/1 การเช็คเท่านั้น (ตามกฎทั่วไปเดิม) เหมาะกับ unit-level behavior ที่ไม่ต่อเนื่องกัน หรือ QA ต้องการ traceability ละเอียดสุดต่อ AC bullet
+- **Flow-style** — รวมหลาย step ที่เป็น **sequential flow เดียวกันจริง** (output ของ step ก่อนหน้า = precondition ของ step ถัดไป, อยู่หน้า/session เดียวกัน) เข้าเป็น Test Case เดียว เหมาะกับ integration/functional test ที่ QA อยากเห็นภาพรวมการใช้งานจริงต่อเนื่อง ไม่ใช่ไล่ assertion ทีละจุด
+  - TC ที่เป็นทางเลือกคู่ขนาน (เช่น login method คนละตัวเลือกในฟอร์มเดียวกัน) หรือวิธีตรวจสอบคนละแบบ (DB vs UI vs API) ยังคงแยก Test Case เสมอ ไม่รวมแม้เลือกโหมด flow-style
+  - Expected Result ยังคงเป็น 1 bullet ต่อ checkpoint (ไม่รวมเป็นประโยคเดียว) เพื่อไม่ให้เสีย traceability ว่า step ไหนคาดผลอะไร
+  - Actual Result รายงานแยกต่อ checkpoint เหมือนเดิม (ถ้า checkpoint ไหน fail ยังรู้ว่าจุดไหนพังโดยไม่ต้องแยก TC)
+
+ถาม QA พร้อมตัวอย่างจริงจาก AC ของการ์ดนี้เสมอ (ไม่ใช่ถามลอยๆ) เพื่อให้ QA ตัดสินใจได้ง่าย เช่น "AC นี้มีหลาย step ต่อเนื่องกัน (สร้าง → ค้นหา → login) อยากแยกเป็น 3 TC หรือรวมเป็น 1 TC flow เดียว?"
+
+ถ้า QA เลือก flow-style ให้ยังใช้ Test Case body template เดิมทุกหัวข้อ (ห้ามเปลี่ยน/ตัด section) เพียงแต่ Test Steps ยาวขึ้นไล่ทุก step ของ flow ต่อเนื่อง
+
+**เรื่อง business flow/logic**: ถามแยกจากเรื่อง granularity เสมอ — เช่น "มี business rule หรือกลไกเฉพาะของระบบที่ไม่ได้เขียนไว้ใน AC ตรงๆ แต่อยากให้ผมรู้ก่อนไหม (เช่น state เริ่มต้นของข้อมูล, ลำดับที่ระบบประมวลผลจริง, เงื่อนไขพิเศษ)" — เพื่อลดการเดา/infer ผิดจาก AC ที่เขียนสั้นเกินไป (สอดคล้องกับกฎ "ห้าม infer/แต่ง/ขยายความเนื้อหาที่ขาดหายไปเอง" ที่มีอยู่แล้ว)
 
 ### Subject-only rules (การ์ดมีแค่หัวเรื่อง)
 
@@ -267,5 +286,7 @@ Use plain text only for TC ID and Scenario ID.
 ## Skill update log
 
 หลังแก้สกิลนี้สำเร็จทุกครั้ง เพิ่ม entry ใหม่ไว้บนสุดของ log นี้ รูปแบบ `YYYY-MM-DD` — สรุปสั้นๆ ว่าแก้กฎ/ขั้นตอนไหน แล้วแจ้งผู้ใช้ด้วยวันที่ + สรุปที่แก้ ห้ามบอกว่าอัปเดตแล้วถ้ายังไม่ได้ save จริง
+
+`2026-10-14` — เพิ่มขั้นตอนถาม QA ก่อนวิเคราะห์ทุกครั้ง (ขั้นตอนข้อ 2 ใหม่): (1) เลือกโหมด **atomic** (ค่าเริ่มต้น เหมือนเดิมทุกประการ) หรือ **flow-style** (รวมหลาย sequential step ที่ output ของ step ก่อนหน้า = precondition ของ step ถัดไป เข้าเป็น TC เดียว — เพิ่ม subsection "Test granularity: atomic vs flow-style" ใต้ Generation rules อธิบายเงื่อนไข/ข้อยกเว้นเต็ม) (2) ถาม business flow/logic เฉพาะของระบบแยกต่างหากเพื่อลดการเดา/infer ผิด — ปรับกฎ "ห้ามรวมหลาย check ไว้ใน TC เดียว" ให้มีข้อยกเว้นเมื่อ QA เลือก flow-style ชัดเจน (เดิมกฎนี้เคยผ่อนปรนแบบ one-off เฉพาะงาน COR-1724 ของโปรเจกต์ Cortex-Automate เท่านั้น บันทึกไว้ตอนนั้นว่า "ใช้เฉพาะงานนี้ก่อน ยังไม่แก้สกิลถาวร" — ผู้ใช้ยืนยันแล้วว่าเปลี่ยนใจให้เป็น default behavior ถาวรของสกิลนี้ทุกโปรเจกต์)
 
 `2026-09-30` — รวม ruleset กับสกิล `linear-execution-test` ที่เคยขัดกัน: บังคับ tag `[Required]`/`[Optional]` ทุก TC เสมอ, Test Level เลือกตาม TC จริงแทนที่จะตายตัวที่ System, Priority เพิ่มเป็น 4 ระดับ (มี Urgent), เปลี่ยนชุด label เป็น `QA Case Type`/`QA Type`/`QA Run`/`QA Execution Type` พร้อมบังคับยืนยัน QA Module/Sub-module ก่อนสร้าง, รับ Scope/Version resolution order และ Environment resolution มาใช้, เพิ่ม section นี้ (Skill update log) — คงไว้ field "อนุมัติโดย" ใน EXE และโน้ต auto-fill ของ Actual Result (ผูกกับ Node 6 Result Reporter) จากเวอร์ชันเดิมของโปรเจกต์นี้ · ไฟล์นี้ต้องเหมือนกันทุกตัวอักษรกับ `~/.claude/skills/linear-testcase-writer/SKILL.md` (global) — แก้ที่หนึ่ง ต้องแก้อีกที่ให้ตรงกันด้วยเสมอ
