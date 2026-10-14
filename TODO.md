@@ -41,6 +41,24 @@ section ดังนั้นใช้เทคนิคของ SBH-2513 **ภ
 
 - [ ] **P7 — ทดสอบ TC-003 เป็นต้นไปตามลำดับ** (ต่อจาก TC-001/TC-002 เดิม) — ใช้ video-flow เดียวต่อเนื่องแบบใหม่ตั้งแต่ต้น
 
+- [x] **P0.5 — ทำ flow-style/รายงานผลใหม่ให้เป็นสกิลถาวร ตามที่ user ขอ** (14 ต.ค. 2026)
+      User ขอให้เอาแนวทาง "flow เดียวต่อเนื่อง + สไตล์รายงานใหม่" ไปทำเป็นสกิลแทนที่จะทำแบบ one-off ต่อไปเรื่อยๆ — ถามสถาปัตยกรรม
+      2 เรื่องก่อนลงมือ (ตามกฎ "ไม่เล็กน้อยต้องถามก่อน"): (1) ขยายสกิลเดิมหรือสร้างใหม่ → user เลือกขยาย `agent-app-testing`
+      (2) gate "atomic vs flow-style" ควรแก้ `linear-testcase-writer` แบบ global (กระทบทุกโปรเจกต์) หรืออยู่แค่สกิลใหม่ → user
+      ยืนยันเปลี่ยนใจจากที่เคยบอกไว้ก่อนหน้า ("ใช้เฉพาะงานนี้ก่อน ยังไม่แก้สกิลถาวร") ให้แก้ global จริงแล้ว
+      แก้ `linear-testcase-writer` ทั้ง global (`~/.claude/skills/`) และ project copy ให้ตรงกันเป๊ะตามกฎเดิมของสกิล (verify
+      ด้วย `diff` แล้วว่า identical): เพิ่มขั้นตอนข้อ 2 ใหม่ (ถาม QA ก่อนวิเคราะห์เสมอ — เลือก atomic/flow-style + ถาม business
+      flow/logic แยกต่างหาก), เพิ่ม subsection "Test granularity: atomic vs flow-style" ใต้ Generation rules, ปรับกฎ "ห้ามรวม
+      หลาย check ไว้ใน TC เดียว" ให้มีข้อยกเว้นเมื่อเลือก flow-style, log ใน Skill update log
+      ขยาย `agent-app-testing` (project-level): เพิ่ม section "รูปแบบ flow การทดสอบ" (วิดีโอเดียวต่อเนื่องเมื่อเป็น flow-style)
+      และ "มาตรฐานการรายงานผลใน Linear" (heading ให้ section name เดิม, สถานะ Pass/Fail ต่อท้าย heading "Actual Result",
+      สรุปขั้นที่ผ่าน/ไม่ผ่านเปิดต้น Actual Result, ฝังรูป/วิดีโอ inline ด้วย `<linear-image>`/`<linear-embed>` tag — อ้างอิง
+      สไตล์จากการ์ด SBH-2513 ที่ user ชี้ให้ดูครั้งเดียว ใช้แค่สไตล์ ไม่เอาข้อมูล/business logic ของโปรเจกต์นั้นมาปน) + เสริม
+      "วิธี brief agent" ให้ชัดว่าต้องดึงข้อเท็จจริงจากการ์ด/ไฟล์ TC เก่าจริง ไม่ใช่แค่จำในเซสชัน
+      **หมายเหตุ**: syntax `<linear-image>`/`<linear-embed>` ยังไม่ได้ยืนยัน 100% ว่า render ถูกต้อง/URL คงทนไหม — ได้ลองฝัง
+      ทดสอบไว้ใน CTXN-10496 แล้ว (ส่วน "[TEST EMBED]" ก่อนหัวข้อ "หมายเหตุ") รอ user เช็คแล้ว confirm ก่อนใช้งานเต็มรูปแบบ
+      (ตรงกับ P0 เดิมด้านบน) — เขียนไว้ในสกิลแล้วว่าถ้าเจอว่า broken ย้อนหลังให้กลับไปใช้ attachment list อย่างเดียวแทน
+
 หมายเหตุ: P4 (TC ใหม่ 3 รายการ), P5, P6, P7 — ตอนกรอกผล "Actual Result" ให้ใช้สไตล์ใหม่ตาม P0/P1/P2 ด้วยทุกใบ (heading +
 สถานะใน heading + รูปฝัง inline) ไม่ใช่แค่ P1/P2 เท่านั้น
 
