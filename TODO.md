@@ -76,7 +76,15 @@ section ดังนั้นใช้เทคนิคของ SBH-2513 **ภ
       Actual Result สไตล์ heading+inline-image ของทั้ง 3 ใบ พร้อมเปลี่ยนสถานะเป็น Passed/Passed/Failed (TC-057 ตัว TC เองคือ
       Failed เพราะ Expected Result ของ TC-057 คือเอกสารยืนยันว่าเกิด mismatch นี้จริง)
 
-- [ ] **P5 — ทดสอบ TC-018 (CTXN-10512)**: assign role หลายตัวจาก Cortex UI → ให้ user ช่วยเช็ค Keycloak Role mapping ว่าตรงกัน
+- [x] **P5 — ทดสอบ TC-018 (CTXN-10512) ฝั่ง Cortex UI เสร็จแล้ว รอ user ยืนยัน Keycloak (14 ต.ค. 2026)**
+      พบว่า `testcreate01` มี 0 role อยู่ก่อนจริง (ไม่ตรง precondition ของการ์ดที่สมมติว่า "มี role อยู่แล้ว") จึงเพิ่ม setup
+      step มอบ role `cashier` ก่อน เพื่อให้การเช็ค "list ไม่แสดง role ที่มีอยู่แล้ว" มีความหมายจริง (กันปัญหา trivial-pass แบบที่
+      เคยเจอกับ TC-015/TC-032 ในรอบทดสอบก่อนหน้า) จากนั้นเปิด modal "กำหนดบทบาท" → ยืนยัน `cashier` ไม่อยู่ในรายการที่เลือกได้
+      อีก → ค้นหา+เลือก coder → ค้นหาใหม่เป็น kiosk+เลือก (tag coder ไม่หาย) → เปลี่ยนหน้า pagination 1→2→1 (tag coder+kiosk
+      ไม่หาย) → ยืนยัน → เปิดแท็บใหม่เช็คจริง ตารางมี cashier+coder+kiosk ครบ **ผลฝั่ง Cortex UI: ผ่านครบ 3/4 ข้อของ Expected
+      Result** เหลือข้อ 4 (Keycloak Role mapping ของ `testcreate01` ต้องมี coder+kiosk และระบุว่าเป็น realm/client role)
+      ที่ต้องรอ user ช่วยเช็คเพราะไม่มีสิทธิ์เข้า Keycloak admin console เอง — อัปโหลดหลักฐาน 9 ภาพ+1 วิดีโอผ่าน background
+      agent เขียน Actual Result สไตล์ heading+inline-image แล้ว ตั้งสถานะการ์ดเป็น **Blocked** ชั่วคราว (รอ Keycloak ไม่ใช่เจอบั๊ก)
 
 - [ ] **P6 — ทดสอบ TC-021 (CTXN-10515)**: ขอให้ user สร้าง role `qa-new-role` ใน Keycloak เอง → เช็คฝั่ง Cortex ว่าค้นหาเจอในรายการกำหนดบทบาท
 
