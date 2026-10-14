@@ -88,7 +88,15 @@ section ดังนั้นใช้เทคนิคของ SBH-2513 **ภ
       coder/kiosk เป็น **client role ของ cortex ไม่ใช่ realm role** ตรงตาม Expected Result ข้อ 4 ครบถ้วน
       อัปโหลดหลักฐาน 9 ภาพ+1 วิดีโอผ่าน background agent, เขียน Actual Result สไตล์ heading+inline-image, ปิดสถานะเป็น **Passed**
 
-- [ ] **P6 — ทดสอบ TC-021 (CTXN-10515)**: ขอให้ user สร้าง role `qa-new-role` ใน Keycloak เอง → เช็คฝั่ง Cortex ว่าค้นหาเจอในรายการกำหนดบทบาท
+- [x] **P6 — ทดสอบ TC-021 (CTXN-10515) เสร็จสมบูรณ์ — Passed 2/2 ข้อ (14 ต.ค. 2026)**
+      user สร้าง role `qa-new-role` ใน Keycloak ที่ Clients → cortex → Roles (client role ของ cortex ตรงตามที่ยืนยันจาก TC-018)
+      จากนั้นทดสอบฝั่ง Cortex: เปิดแท็บบทบาทการใช้งานของ `testcreate01` (มี cashier/coder/kiosk จาก TC-018 อยู่แล้ว) →
+      เปิด modal "กำหนดบทบาท" → ค้นหา "qa-new-role" **เจอทันทีไม่ต้องตั้งค่าเพิ่มใน Cortex** → เลือก+ยืนยัน → เปิดแท็บใหม่
+      ตรวจผลจริง พบ qa-new-role ในตารางสำเร็จ → cleanup นำ role ออกจาก user (dialog ยืนยันระบุชื่อ role ถูกต้อง) กลับสู่
+      สถานะเดิมเรียบร้อย **ผ่านครบ 2/2 ข้อของ Expected Result ยืนยันว่า Keycloak เป็น system of record จริง**
+      (ระหว่างทดสอบเจอปัญหา: รันรอบแรกพังหลัง assign สำเร็จแต่ก่อน cleanup — แก้โดยเขียนสคริปต์ reset แยกต่างหากนำ role
+      ออกก่อน แล้วรันรอบใหม่ end-to-end สะอาดในวิดีโอเดียว) อัปโหลดหลักฐาน 6 ภาพ+1 วิดีโอ เขียน Actual Result สไตล์
+      heading+inline-image ปิดสถานะเป็น **Passed** — ยังเหลือ housekeeping ให้ user ลบ role ทิ้งใน Keycloak เอง (ไม่กระทบผล TC)
 
 - [ ] **P7 — ทดสอบ TC-003 เป็นต้นไปตามลำดับ** (ต่อจาก TC-001/TC-002 เดิม) — ใช้ video-flow เดียวต่อเนื่องแบบใหม่ตั้งแต่ต้น
 
