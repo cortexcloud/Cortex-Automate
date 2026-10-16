@@ -7,7 +7,7 @@ import { labelledBox, triageForm, type VitalSigns } from '../../../helpers/funct
 import { checkStep, expected, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { newTestPatient, type NewPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
-import { SYSTEM, recordMockPatient, registerAndOpenErVisit } from '../../../mock-data/uat-er';
+import { SYSTEM, openErVisitForHn, recordMockPatient, registerAndOpenErVisit } from '../../../mock-data/uat-er';
 import { VITALS_HIGH_MEWS, VITALS_NORMAL, fillTriage, gotoVisit, saveTriageForm } from '../../../mock-data/uat-play';
 
 // SBH-1684 [ER][QUEUE] Priority ER Patient — AC: logic การเรียงคิวแยกตาม Zone ใช้ทั้งหน้า Dashboard และหน้าแสดงรายการ
@@ -133,8 +133,13 @@ async function fetchZones(page: Page, authorization: () => string): Promise<Map<
 /** ลงทะเบียนผู้ป่วย AUTO ใหม่ + เปิด Visit ER สิทธิ UC (เริ่มจาก ER Dashboard) — จบที่ฟอร์มคัดกรองของ Visit นั้น */
 async function openPatient(page: Page, tag: string, key: string): Promise<Patient> {
   await openDashboard(page);
-  const patient: NewPatient = newTestPatient(`${tag}${key.replace(/\W/g, '')}`);
-  const visit = await registerAndOpenErVisit(page, patient).catch(async (error: Error) => {
+  // SBH1684_EXISTING=<key>:<HN>:<นามสกุล> — ผู้ป่วยที่ลงทะเบียนไว้แล้วแต่ยังไม่มี Visit (รอบก่อนหยุดกลางหน้าต่างเปิด Visit) → เปิด Visit ให้ HN นั้น ไม่ลงทะเบียนใหม่
+  const existing = (process.env.SBH1684_EXISTING ?? '').split(',').map((s) => s.split(':')).find(([k]) => k === key);
+  const patient: NewPatient = existing
+    ? { citizenId: '-', firstName: 'AUTO', familyName: existing[2], gender: 'ชาย', birthDate: '15/01/1990' }
+    : newTestPatient(`${tag}${key.replace(/\W/g, '')}`);
+  const open = existing ? openErVisitForHn(page, existing[1]) : registerAndOpenErVisit(page, patient);
+  const visit = await open.catch(async (error: Error) => {
     // SBH Prod: ช่วงเวลาออกตรวจของแพทย์ ER วันนั้นถูกใช้หมด → แพทย์ขึ้น "(Full)" กดยืนยันแล้วระบบไม่ส่งคำสั่ง — ไม่แก้ตารางแพทย์ หยุดพร้อมบอกสาเหตุ
     const full = await openVisitDialog(page).getByText(/\(Full\)|ไม่พบเวลาที่สามารถลงได้/).first().isVisible().catch(() => false);
     if (!full) throw error;
