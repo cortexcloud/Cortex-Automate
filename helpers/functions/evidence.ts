@@ -64,7 +64,31 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
   }
   for (const { target, label } of marks) {
     await target.first().evaluate((el, text) => {
-      const rect = el.getBoundingClientRect();
+      const full = el.getBoundingClientRect();
+      const rect = { left: full.left, top: full.top, right: full.right, bottom: full.bottom, width: full.width, height: full.height };
+      // กรอบของ element ในหน้าจอ ห้ามลากทะลุเข้าไปในตารางเทียบค่าที่สคริปต์วาดซ้อน (SBH-1117 16 ต.ค. 2026 ผู้ใช้ทัก "กรอบมันบังข้อมูล")
+      // → ตัดกรอบให้หยุดที่ขอบตาราง (เฉพาะ element ที่ไม่ได้อยู่ในตารางเอง)
+      const overlay = document.querySelector('[data-compare-overlay]');
+      if (overlay && !overlay.contains(el)) {
+        const o = overlay.getBoundingClientRect();
+        const overlapsY = rect.top < o.bottom && rect.bottom > o.top;
+        const overlapsX = rect.left < o.right && rect.right > o.left;
+        if (overlapsX && overlapsY) {
+          if (rect.left < o.left) rect.right = Math.min(rect.right, o.left - 8);
+          else if (rect.right > o.right) rect.left = Math.max(rect.left, o.right + 8);
+          else if (rect.top < o.top) rect.bottom = Math.min(rect.bottom, o.top - 8);
+          else if (rect.bottom > o.bottom) rect.top = Math.max(rect.top, o.bottom + 8);
+          rect.width = Math.max(0, rect.right - rect.left);
+          rect.height = Math.max(0, rect.bottom - rect.top);
+        }
+      }
+      // element ที่กว้าง / สูงเกินจอ (เช่นแถวตารางที่เลื่อนแนวนอนได้) → ตัดกรอบที่ขอบจอให้เห็นครบ 4 ด้าน
+      rect.left = Math.max(rect.left, 6);
+      rect.top = Math.max(rect.top, 6);
+      rect.right = Math.min(rect.right, window.innerWidth - 6);
+      rect.bottom = Math.min(rect.bottom, window.innerHeight - 6);
+      rect.width = Math.max(0, rect.right - rect.left);
+      rect.height = Math.max(0, rect.bottom - rect.top);
       const box = document.createElement('div');
       box.setAttribute('data-evidence-mark', '');
       Object.assign(box.style, {
@@ -84,12 +108,64 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
       const tag = document.createElement('div');
       tag.setAttribute('data-evidence-mark', '');
       tag.textContent = text;
-      // ป้ายอยู่เหนือมุมขวาของกรอบ (ไม่ทับชื่อช่องที่อยู่มุมซ้าย) — ถ้าชิดขอบบนจอให้ลงไปอยู่ใต้กรอบแทน
-      const above = rect.top - 3 >= 22;
+      // ป้ายต้องไม่ทับข้อความของหน้าจอ / ตารางเทียบค่า / ป้ายอื่น (ผู้ใช้ทัก 16 ต.ค. 2026) → ลองตำแหน่งรอบกรอบตามลำดับ
+      // เหนือขวา → เหนือซ้าย → ใต้ขวา → ใต้ซ้าย → ขวานอกกรอบ → ซ้ายนอกกรอบ · ไม่มีที่ว่างเลยใช้เหนือขวา (แบบเดิม)
+      const tagWidth = text.length * 8 + 14;
+      const tagHeight = 20;
+      const taken = [...document.querySelectorAll('[data-evidence-mark]')].filter((node) => node.textContent).map((node) => node.getBoundingClientRect());
+      const covers = (l: number, t: number) => {
+        const r = { left: l, top: t, right: l + tagWidth, bottom: t + tagHeight };
+        if (r.left < 0 || r.top < 0 || r.right > window.innerWidth || r.bottom > window.innerHeight) return true;
+        const hit = (b: { left: number; top: number; right: number; bottom: number }) => r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+        if (taken.some(hit)) return true;
+        const o = document.querySelector('[data-compare-overlay]')?.getBoundingClientRect();
+        if (o && !document.querySelector('[data-compare-overlay]')?.contains(el) && hit(o)) return true;
+        // ข้อความของหน้าจอใต้ป้าย (เว้นระยะ 4px ไม่ให้ป้ายชิดขอบตัวอักษร): ไล่ text node ของ element ใต้จุดกระจายทั่วป้าย + ตัวแม่ 2 ชั้น
+        const pad = { left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 };
+        const near = (b: DOMRect) => pad.left < b.right && pad.right > b.left && pad.top < b.bottom && pad.bottom > b.top;
+        // ช่องกรอก / select: เว้นแค่ 1px (เว้น 4px แล้วตำแหน่งข้างตัวเลือกของ dropdown ถูกตัดทิ้งหมด ป้ายไปตกที่ตำแหน่งสำรองซึ่งทับไอคอนในช่อง)
+        const touches = (b: DOMRect) => r.left - 1 < b.right && r.right + 1 > b.left && r.top - 1 < b.bottom && r.bottom + 1 > b.top;
+        const xs = [pad.left, (pad.left + pad.right) / 2, pad.right];
+        const ys = [pad.top, (pad.top + pad.bottom) / 2, pad.bottom];
+        const seen = new Set<Element>();
+        for (const x of xs)
+          for (const y of ys) {
+            let under = document.elementFromPoint(Math.min(Math.max(x, 0), window.innerWidth - 1), Math.min(Math.max(y, 0), window.innerHeight - 1));
+            for (let depth = 0; under && depth < 3; depth++, under = under.parentElement) {
+              if (seen.has(under)) continue;
+              seen.add(under);
+              // ค่าที่พิมพ์ในช่องกรอกไม่ใช่ text node — นับทั้งช่องเป็นข้อความ (ป้าย "กด" เคยทับคำค้นในช่องค้นหา)
+              const fields = [under, ...under.querySelectorAll('input, textarea')].filter(
+                (node): node is HTMLInputElement | HTMLTextAreaElement => (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) && !!(node.value || node.placeholder),
+              );
+              if (fields.some((field) => !el.contains(field) && !field.contains(el) && touches(field.getBoundingClientRect()))) return true;
+              // ช่องกรอก / select ของ Ant Design ทั้งกล่อง (มีคำค้น ไอคอนล้างค่า ลูกศร) — ห้ามวางป้ายทับ
+              const control = under.closest('.ant-select, .ant-input-affix-wrapper, .ant-picker, input, textarea');
+              if (control && !el.contains(control) && !control.contains(el) && touches(control.getBoundingClientRect())) return true;
+              const walker = document.createTreeWalker(under, NodeFilter.SHOW_TEXT);
+              for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                if (!node.textContent?.trim() || node.parentElement?.closest('[data-evidence-mark]') || el.contains(node)) continue;
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                if ([...range.getClientRects()].some(near)) return true;
+              }
+            }
+          }
+        return false;
+      };
+      const candidates: [number, number][] = [
+        [rect.right + 3 - tagWidth, rect.top - 3 - tagHeight],
+        [rect.left - 3, rect.top - 3 - tagHeight],
+        [rect.right + 3 - tagWidth, rect.bottom + 3],
+        [rect.left - 3, rect.bottom + 3],
+        [rect.right + 6, rect.top - 3],
+        [rect.left - 6 - tagWidth, rect.top - 3],
+      ];
+      const [tagLeft, tagTop] = candidates.find(([l, t]) => !covers(l, t)) ?? [Math.max(0, rect.right + 3 - tagWidth), Math.max(0, rect.top - 3 - tagHeight)];
       Object.assign(tag.style, {
         position: 'fixed',
-        right: `${Math.max(0, window.innerWidth - rect.right - 3)}px`,
-        top: above ? `${rect.top - 3 - 20}px` : `${rect.bottom + 3}px`,
+        left: `${tagLeft}px`,
+        top: `${tagTop}px`,
         padding: '1px 6px',
         background: '#ff4d4f',
         color: '#fff',
@@ -174,21 +250,21 @@ export interface CompareRow {
 /**
  * แสดงตารางเทียบค่า (เช่น ค่าบนหน้าจอ / ค่าจากหน้าอ้างอิง / ค่าจาก API) ซ้อนครึ่งขวาของหน้าเดิม ให้ภาพหลักฐานและคลิปเห็นทั้งหน้าจอจริง (ครึ่งซ้าย) และผลเทียบพร้อมกัน
  * หัวตารางบอกชัดว่าเป็นตารางที่สคริปต์ทดสอบสร้าง ไม่ใช่หน้าจอของระบบ · แสดงก่อน expect เพื่อให้ภาพ Error เห็นแถวที่ไม่ตรง · ลบด้วย hideCompareTable()
- * `side: 'left'` = ซ้อนครึ่งซ้ายแทน (สิ่งที่ต้องเห็นคู่กับตารางอยู่ฝั่งขวาของจอ เช่น popover ใต้ปุ่มมุมขวาบน) · `width` = ความกว้าง (เช่น '530px' ให้พ้นหน้าต่างกลางจอ) ·
- * `top` = ระยะจากขอบบน (ตั้งต้น '84px' · เช่น '520px' ให้พ้นหัวคอลัมน์ของบอร์ด ER)
+ * `side: 'bottom'` = ครึ่งล่างเต็มความกว้าง (หน้ารายการ — ไม่บังคอลัมน์ที่เป็น Expected) · `side: 'left'` = ซ้อนครึ่งซ้ายแทน (สิ่งที่ต้องเห็นคู่กับตารางอยู่ฝั่งขวาของจอ เช่น popover ใต้ปุ่มมุมขวาบน) · `width` = ความกว้าง (เช่น '530px' ให้พ้นหน้าต่างกลางจอ) ·
+ * `top` = ระยะจากขอบบน (ตั้งต้น '84px' · เช่น '520px' ให้พ้นหัวคอลัมน์ของบอร์ด ER · ไม่ใช้กับ 'bottom')
  */
-export async function showCompareTable(page: Page, title: string, columns: string[], rows: CompareRow[], options: { side?: 'left' | 'right'; width?: string; top?: string } = {}): Promise<Locator> {
+export async function showCompareTable(page: Page, title: string, columns: string[], rows: CompareRow[], options: { side?: 'left' | 'right' | 'bottom'; width?: string; top?: string } = {}): Promise<Locator> {
   await page.evaluate(
     ({ title, columns, rows, side, width, top }) => {
       document.querySelector('[data-compare-overlay]')?.remove();
       const overlay = document.createElement('div');
       overlay.setAttribute('data-compare-overlay', '');
+      // 'bottom' = เต็มความกว้างครึ่งล่างของจอ — หน้ารายการที่ Expected อยู่หลายคอลัมน์ (ซ้อนครึ่งขวาแล้วบังคอลัมน์ผู้ส่ง / สถานะ — SBH-1117)
+      const place: Record<string, string> =
+        side === 'bottom' ? { left: '12px', right: '12px', bottom: '12px', maxHeight: '46vh' } : { [side]: '12px', top, width, maxHeight: `calc(100vh - ${top} - 16px)` };
       Object.assign(overlay.style, {
         position: 'fixed',
-        [side]: '12px',
-        top,
-        width,
-        maxHeight: `calc(100vh - ${top} - 16px)`,
+        ...place,
         overflow: 'auto',
         background: '#fff',
         border: '2px solid #1f6f43',

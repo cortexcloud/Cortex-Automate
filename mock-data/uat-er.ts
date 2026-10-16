@@ -582,9 +582,15 @@ export async function checkInOpdVisit(page: Page, visit: ErVisit): Promise<strin
   const status = page.getByRole('main').locator('.ant-select[class*="status-select"]').filter({ visible: true }).first();
   await expect(status).toHaveText(/^(รอเช็คอิน|เช็คอิน)$/, { timeout: 60_000 });
   if ((await status.textContent()) === 'เช็คอิน') return 'เช็คอินอยู่แล้ว';
-  await status.click();
+  // หน้า Visit OPD เปิดแผงตั้งต้น (OPD Note / Order) ตามหลัง → คลิกช่องสถานะช่วงนั้นแล้ว dropdown ไม่เปิด (dev-x 16 ต.ค. 2026) → กดซ้ำจนตัวเลือกขึ้น
+  const checkInOption = openOptions(page).filter({ hasText: /^เช็คอิน$/ });
+  await expect(async () => {
+    await page.keyboard.press('Escape');
+    await status.click();
+    await expect(checkInOption).toBeVisible({ timeout: 5_000 });
+  }, 'เปิดตัวเลือกของช่องสถานะ Visit').toPass({ timeout: 60_000 });
   const checkedIn = graphqlMutation(page, 'CheckInEncounterStatus');
-  await openOptions(page).filter({ hasText: /^เช็คอิน$/ }).click();
+  await checkInOption.click();
   const res = await checkedIn;
   await expectOk(res, 'เช็คอิน Visit OPD');
   const body = (await res.json()) as { data?: { checkInEncounterStatus?: { accepted?: boolean; queue?: { qDisplay?: string } | null } }; errors?: { message: string }[] };

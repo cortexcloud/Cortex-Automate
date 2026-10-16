@@ -491,8 +491,11 @@ export interface ConsultTarget {
   doctor?: { search: string; name: RegExp };
 }
 
-/** ฟอร์ม Consult (เมนูขวา): ขอปรึกษาไปยังคลินิก และ/หรือ แพทย์ → บันทึก → คืนชื่อปลายทางที่เลือก */
-export async function requestConsult(page: Page, problem: string, to: ConsultTarget = { clinic: 'อายุรกรรม' }): Promise<string> {
+/**
+ * ฟอร์ม Consult (เมนูขวา): ขอปรึกษาไปยังคลินิก และ/หรือ แพทย์ → บันทึก → คืนชื่อปลายทางที่เลือก
+ * `source` = sourceType ที่คำขอต้องได้ (ตั้งต้น 'er' · Visit OPD ส่ง `null` = ไม่ตรวจ แค่จด — SBH-1117)
+ */
+export async function requestConsult(page: Page, problem: string, to: ConsultTarget = { clinic: 'อายุรกรรม' }, source: string | null = 'er'): Promise<string> {
   const main = page.getByRole('main');
   await careMenu(page, 'Consult', main.getByRole('heading', { name: 'Consult', exact: true }));
   const targets: string[] = [];
@@ -520,17 +523,29 @@ export async function requestConsult(page: Page, problem: string, to: ConsultTar
       chosen = (await option.innerText()).trim();
       await pick(option);
       // ค่าที่เลือกแสดงต่อจากป้ายชื่อช่องในเนื้อหาของ main (รายการตัวเลือกอยู่นอก main)
-      await expect(main, 'ช่อง "แพทย์ขอปรึกษา" ต้องแสดงแพทย์ที่เลือก').toContainText(new RegExp(`แพทย์ขอปรึกษา[\\s\\S]{0,40}${doctor.name.source}`), { timeout: 4_000 });
+      // ตัดตัวยึดต้น / ท้ายของชื่อออก (ชื่อที่ผู้เรียกยึด ^ $ ไว้กันชื่อคล้ายกัน — ต่อเป็น pattern ของทั้ง main แล้วไม่ตรง)
+      const nameSource = doctor.name.source.replace(/^\(\^\|\\s\)|^\^|\$$/g, '');
+      await expect(main, 'ช่อง "แพทย์ขอปรึกษา" ต้องแสดงแพทย์ที่เลือก').toContainText(new RegExp(`แพทย์ขอปรึกษา[\\s\\S]{0,40}${nameSource}`), { timeout: 4_000 });
     }).toPass({ timeout: 60_000 });
     targets.push(chosen);
   }
-  await main.locator('[contenteditable="true"]').last().fill(problem);
+  // ช่อง Consult Problem = editor ถัดจากป้าย "Consult Problem" — หน้า Visit OPD มี editor ของแผงอื่น (OPD Note "Note to Nurse" / Order "Note to nurse")
+  // editor ตัวสุดท้ายของ main จึงไม่ใช่ช่องนี้ (SBH-1117 dev-x 16 ต.ค. 2026 ข้อความไปลง Note to Nurse) · ไม่มีป้ายนี้ (ฟอร์มของ ER) ใช้ editor ตัวสุดท้ายแบบเดิม
+  const problemLabel = main.getByText('Consult Problem', { exact: true }).filter({ visible: true });
+  const problemBox = (await problemLabel.count())
+    ? problemLabel.last().locator('xpath=following::*[@contenteditable="true"][1]')
+    : main.locator('[contenteditable="true"]').last();
+  await problemBox.scrollIntoViewIfNeeded();
+  await problemBox.fill(problem);
+  await expect(problemBox).toContainText(problem);
   const saved = nextMutation(page, /mutation CreateConsultRequest/);
   await main.getByRole('button', { name: 'save บันทึก' }).filter({ visible: true }).last().click();
   const res = await saved;
   await expectOk(res, 'บันทึกคำขอ Consult');
   const body = (await res.json()) as { data?: { createConsultRequest?: { sourceType?: string } }; errors?: { message: string }[] };
-  expect(body.data?.createConsultRequest?.sourceType, `คำขอ Consult ต้องมาจาก ER: ${JSON.stringify(body).slice(0, 300)}`).toBe('er');
+  expect(body.errors, `บันทึกคำขอ Consult ไม่สำเร็จ: ${JSON.stringify(body).slice(0, 300)}`).toBeUndefined();
+  if (source) expect(body.data?.createConsultRequest?.sourceType, `คำขอ Consult ต้องมาจาก ${source}: ${JSON.stringify(body).slice(0, 300)}`).toBe(source);
+  else console.log(`    คำขอ Consult: sourceType ${body.data?.createConsultRequest?.sourceType ?? '-'}`);
   return targets.join(' / ');
 }
 

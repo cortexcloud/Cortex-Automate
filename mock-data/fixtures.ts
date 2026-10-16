@@ -27,7 +27,9 @@ export const test = base.extend({
 /** ดักไฟล์ของแอปใน context นี้ (โหลดไม่ผ่านลองใหม่ + เก็บลงเครื่อง) — context ที่เทสสร้างเอง (หน้าต่างของอีกบัญชี) ต้องเรียกเอง */
 export async function cacheAppAssets(context: BrowserContext) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
-  await context.route(/\/cortex\/assets\/[^/?]+\.(js|css)$/, async (route) => {
+  // + ไฟล์แอปเวชระเบียน (iframe /reception/embedded/*) `/reception/assets/index-<hash>.js` 8 MB `no-store` โหลดใหม่ทุกครั้งที่เปลี่ยนหน้า (dev-x 14 ต.ค. 2026)
+  //   ไฟล์ในโฟลเดอร์ย่อยที่ชื่อไม่มี hash (เช่น `reception/assets/better/form-renderer.js`) ไม่ cache — deploy ใหม่แล้วชื่อเดิม
+  await context.route(/\/(cortex|reception)\/assets\/[^/?]+\.(js|css)$/, async (route) => {
     const name = path.basename(new URL(route.request().url()).pathname);
     const file = path.join(CACHE_DIR, name);
     const contentType = CONTENT_TYPE[path.extname(name)];

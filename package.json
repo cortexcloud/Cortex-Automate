@@ -11,6 +11,7 @@
     "test:module:er": "playwright test tests/modules/er",
     "test:module:activity": "playwright test tests/modules/activity",
     "test:module:opd": "playwright test tests/modules/opd",
+    "test:module:registration": "playwright test tests/modules/registration",
     "test:e2e": "playwright test tests/E2E",
     "report": "playwright show-report",
     "codegen": "playwright codegen --channel=chrome --viewport-size=1920,1080 --load-storage=.auth/Super_User.json https://dev-x.cortexcloud.co/cortex/apps",
