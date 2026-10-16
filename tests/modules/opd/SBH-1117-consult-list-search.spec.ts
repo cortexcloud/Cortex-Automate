@@ -57,6 +57,18 @@ test.describe('SBH-1117 รายการปรึกษาแพทย์ ค�
           },
         );
 
+      // ตัวกรองของทุกคำขอ ConsultRequests (ไว้ดูว่าหน้าเว็บส่งอะไรเมื่อค้น) — แนบท้ายเทส
+      const requests: string[] = [];
+      const logRequests = (p: Page, who: string) =>
+        p.on('request', (req) => {
+          const post = req.postData() ?? '';
+          if (!/query ConsultRequests\(/.test(post)) return;
+          const line = `${who} ${new Date().toISOString().slice(11, 19)} ${JSON.stringify(JSON.parse(post).variables?.filter)}`;
+          requests.push(line);
+          if (process.env.SBH1117_DEBUG) console.log(`    ${line}`);
+        });
+      logRequests(page, 'Super_User');
+
       let [hn, vn, en, fullName] = (process.env.SBH1117_VISIT ?? '').split(',');
       if (!hn) {
         const patient = newTestPatient('Consult1117');
@@ -103,7 +115,8 @@ test.describe('SBH-1117 รายการปรึกษาแพทย์ ค�
         const { option, texts } = await typePatientName(p, query, fullName);
         await markEvidence(filled(consultNameSearch(p)), expected(option));
         await snapEvidence(p, `${tab} — dropdown ชื่อผู้ป่วย`);
-        const withHn = texts.filter((t) => /\d{6,}/.test(t));
+        // ชื่อผู้ป่วย AUTO มีตัวเลขอยู่ในนามสกุล → ตรวจเฉพาะเลข HN ของผู้ป่วย / คำว่า HN
+        const withHn = texts.filter((t) => t.includes(hn) || /\bHN\b/.test(t));
         const filtered = waitConsultRequests(p, (f) => f.hn === hn);
         await option.click();
         const { filter } = await filtered;
@@ -125,18 +138,21 @@ test.describe('SBH-1117 รายการปรึกษาแพทย์ ค�
       const checkRequesterSearch = async (p: Page, tab: string) => {
         const cleared = waitConsultRequests(p, (f) => !f.hn && !f.dateFrom);
         await consultClear(p).click();
-        await cleared;
-        const filtered = waitConsultRequests(p, (f) => Object.entries(f).some(([k, v]) => k !== 'targetPractitionerIds' && Array.isArray(v) && v.includes(REQUESTER_ID)));
+        const before = (await cleared).filter;
+        // ช่องของตัวกรองที่เพิ่มหลังเลือกแพทย์ (ไม่เดาชื่อช่อง — เทียบกับคำขอหลังกด Clear)
+        const changed = (f: Record<string, unknown>) => Object.keys(f).filter((k) => JSON.stringify(f[k]) !== JSON.stringify(before[k]));
+        const filtered = waitConsultRequests(p, (f) => !f.hn && changed(f).length > 0);
         const chosen = await chooseDoctorFilter(p, requesterFilter(p), REQUESTER.search, REQUESTER.name);
         const { res, filter } = await filtered;
         await expect(consultRows(p).first()).toBeVisible({ timeout: 30_000 });
         const rows = await readConsultRows(p);
         const body = (await res.json()) as { data?: { consultRequests?: { data: { hn: string }[]; metadata: { totalCount: number } } } };
         const total = body.data?.consultRequests?.metadata.totalCount ?? 0;
-        const key = Object.entries(filter).find(([k, v]) => k !== 'targetPractitionerIds' && Array.isArray(v) && (v as number[]).includes(REQUESTER_ID))?.[0];
+        const keys = changed(filter);
+        const key = keys.join(', ');
         const ours = rows.some((r) => r.hn === hn);
         await showCompareTable(p, `${tab} — ค้นแพทย์ผู้ร้องขอ "${chosen}"`, ['หน้าจอ / คำขอ', 'ที่ควรเป็น'], [
-          { label: 'ตัวกรองที่ส่ง', values: [`${key}: [${REQUESTER_ID}]`, 'แพทย์ผู้ร้องขอ = นาย ทดสอบ มานะ (practitioner 1)'], same: !!key },
+          { label: 'ตัวกรองที่ส่ง', values: [keys.map((k) => `${k}: ${JSON.stringify(filter[k])}`).join(' · '), `แพทย์ผู้ร้องขอ = นาย ทดสอบ มานะ (practitioner ${REQUESTER_ID})`], same: keys.length > 0 },
           { label: 'ผู้ส่งของทุกแถว', values: [[...new Set(rows.map((r) => r.sender))].join(' · '), 'นาย ทดสอบ มานะ'], same: rows.length > 0 && rows.every((r) => REQUESTER.name.test(r.sender)) },
           { label: 'จำนวน', values: [`หน้านี้ ${rows.length} · ทั้งหมด ${total}`, '≥ 1'], same: total > 0 },
           { label: `รายการของ HN ${hn}`, values: [ours ? 'อยู่ในหน้าแรก' : 'ไม่อยู่ในหน้าแรก (ดูจำนวนทั้งหมด)', 'มี'], same: true },
@@ -159,6 +175,7 @@ test.describe('SBH-1117 รายการปรึกษาแพทย์ ค�
 
       // รับ Consult (แพทย์ผู้รับ Consult · Doctor ในหน้าต่างแยก)
       const pageB = await openPatientAs(browser, 'Doctor', hn);
+      logRequests(pageB, 'Doctor');
       try {
         await selectOpdUnit(pageB);
         await gotoConsultList(pageB);
@@ -171,6 +188,7 @@ test.describe('SBH-1117 รายการปรึกษาแพทย์ ค�
         await pageB.context().close();
       }
 
+      await test.info().attach('ตัวกรองของคำขอ ConsultRequests ทั้งหมด', { body: requests.join('\n'), contentType: 'text/plain' });
       expect(failures, 'ขั้นที่ไม่ผ่าน').toEqual([]);
     },
   );

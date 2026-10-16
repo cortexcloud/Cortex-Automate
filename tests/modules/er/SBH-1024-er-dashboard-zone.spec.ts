@@ -10,8 +10,9 @@ import { VITALS_NORMAL, fillTriage, gotoVisit } from '../../../mock-data/uat-pla
 
 // SBH-1024 [ER][Triage] ER Dashboard / Manage Queue — ชุด EXE SBH-1788 (VERSION 2.7.0) ยึด Note to QA: Dashboard · แยกผู้ป่วยตาม Zone · Zone ปรับตาม ESI · Time Count
 // TC-001 SBH-1792 คอลัมน์ Zone ครบ · TC-002 SBH-1793 ผู้ป่วยอยู่ถูกคอลัมน์ · TC-003 SBH-1794 เปลี่ยน ESI แล้วย้ายคอลัมน์ · TC-004 SBH-1795 Time Count ตามค่าใน Setting
-// เทส 1 (อ่านอย่างเดียว — ไม่กดปุ่มที่เขียนข้อมูล): TC-001 → TC-002 → TC-004 กับผู้ป่วยที่อยู่บนบอร์ดตอนรัน
-// เทส 2 (เขียนข้อมูล): TC-003 คัดกรองซ้ำผู้ป่วย AUTO ที่ระบุใน SBH1024_RETRIAGE=<HN>,<VN>,<EN> ให้เป็น ESI 3 (ผู้ใช้เลือกใช้ผู้ป่วย AUTO ของ SBH-1684 · 15 ต.ค. 2026) · ทิ้ง Visit ไว้
+// เทส 1 (อ่านอย่างเดียว): TC-001 คอลัมน์ Zone — แยกไว้ให้รันบน Prod ได้เดี่ยวๆ (`--grep @SBH-1792` · ผู้ใช้สั่ง 16 ต.ค. 2026)
+// เทส 2 (อ่านอย่างเดียว — ไม่กดปุ่มที่เขียนข้อมูล): TC-002 → TC-004 กับผู้ป่วยที่อยู่บนบอร์ดตอนรัน
+// เทส 3 (เขียนข้อมูล): TC-003 คัดกรองซ้ำผู้ป่วย AUTO ที่ระบุใน SBH1024_RETRIAGE=<HN>,<VN>,<EN> ให้เป็น ESI 3 (ผู้ใช้เลือกใช้ผู้ป่วย AUTO ของ SBH-1684 · 15 ต.ค. 2026) · ทิ้ง Visit ไว้
 // รัน (dev-x):    npx playwright test --headed --grep "@SBH-1792" --output=test-results-sbh-1024  ·  SBH1024_RETRIAGE=<HN>,<VN>,<EN> npx playwright test --headed --grep "@SBH-1794" --output=test-results-sbh-1024
 // รัน (SBH Prod): เติม -c playwright.sbh-prod.cards.config.ts
 
@@ -77,7 +78,13 @@ async function readBoard(page: Page) {
     (els, names) =>
       els
         .filter((el) => names.includes(el.textContent!.trim()))
-        .map((el) => ({ name: el.textContent!.trim(), x: el.getBoundingClientRect().x, badge: Number(((el.parentElement as HTMLElement).innerText.replace(el.textContent!, '').match(/\d+/) ?? ['-1'])[0]) })),
+        .map((el) => {
+          // badge จำนวนอยู่ในแถบหัวคอลัมน์ชั้นที่สูงกว่า <strong> — ไล่ขึ้นจนเจอตัวเลขในแถบ (ไม่เกิน 4 ชั้น)
+          let bar: HTMLElement | null = el.parentElement;
+          let count: RegExpMatchArray | null = null;
+          for (let i = 0; bar && i < 4 && !count; i++, bar = bar.parentElement) count = bar.innerText.replace(el.textContent!, '').match(/^\s*\D{0,3}(\d+)\s*$/);
+          return { name: el.textContent!.trim(), x: el.getBoundingClientRect().x, badge: count ? Number(count[1]) : -1 };
+        }),
     [...COLUMNS] as string[],
   );
   const cards = await page.getByText(/^HN: \d+$/).evaluateAll((els) => els.map((el) => ({ hn: el.textContent!.replace('HN: ', ''), x: el.getBoundingClientRect().x })));
@@ -109,6 +116,21 @@ function waitSeconds(text: string): number | null {
 const mmss = (s: number | null) => (s == null ? '-' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
 const name = (e: BoardEncounter) => `${e.patient?.firstName ?? ''} ${e.patient?.familyName ?? ''}`.trim();
 
+/** จดคำสั่งที่เขียนข้อมูล (PUT / PATCH / DELETE / graphql mutation) ไว้ยืนยันว่าเทสอ่านอย่างเดียว */
+function watchMutations(page: Page): string[] {
+  const mutations: string[] = [];
+  page.on('request', (req) => {
+    const body = req.postData() ?? '';
+    if (['PUT', 'PATCH', 'DELETE'].includes(req.method()) || (req.method() === 'POST' && /\bmutation\b/.test(body))) mutations.push(`${req.method()} ${new URL(req.url()).pathname}`);
+  });
+  return mutations;
+}
+
+function expectNoMutations(mutations: string[]) {
+  test.info().annotations.push({ type: 'คำสั่งเขียนข้อมูล', description: mutations.length ? mutations.join(' · ') : 'ไม่มี' });
+  expect(mutations, 'เทสอ่านอย่างเดียวต้องไม่ยิงคำสั่งเขียนข้อมูล').toEqual([]);
+}
+
 test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zone + Time Count (${SYSTEM})`, () => {
   test.describe.configure({ timeout: 900_000 });
 
@@ -117,19 +139,13 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
   });
 
   test(
-    'ER Dashboard: คอลัมน์ Zone ครบ · ผู้ป่วยอยู่ถูกคอลัมน์ · Time Count ตามค่าใน Setting — อ่านอย่างเดียว (Super_User)',
-    { tag: ['@SBH-1024', '@SBH-1792', '@SBH-1793', '@SBH-1795'], annotation: [linear('SBH-1792'), linear('SBH-1793'), linear('SBH-1795')] },
+    'ER Dashboard: คอลัมน์ Zone ครบตามที่กำหนด — อ่านอย่างเดียว (Super_User)',
+    { tag: ['@SBH-1024', '@SBH-1792'], annotation: [linear('SBH-1792')] },
     async ({ page }) => {
       const authorization = trackAuthorization(page);
-      const mutations: string[] = [];
-      page.on('request', (req) => {
-        const body = req.postData() ?? '';
-        if (['PUT', 'PATCH', 'DELETE'].includes(req.method()) || (req.method() === 'POST' && /\bmutation\b/.test(body))) mutations.push(`${req.method()} ${new URL(req.url()).pathname}`);
-      });
+      const mutations = watchMutations(page);
       let zones = new Map<number, string>();
-      let board: BoardEncounter[] = [];
 
-      // ─── TC-001
       await checkStep(page, `${TC1} ขั้น 1-2 เปิดหน้า ER Dashboard โดยไม่มี error`, async () => {
         await gotoErDashboard(page);
         zones = await fetchZones(page, authorization);
@@ -138,19 +154,42 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
         await holdForClip(page);
       });
 
-      await checkStep(page, `${TC1} ขั้น 3-4 คอลัมน์ Zone บนกระดานครบ: รอคัดกรอง · โซนแดง · โซนเหลือง · ห้องสังเกตอาการ`, async () => {
+      await checkStep(page, `${TC1} ขั้น 3-4 คอลัมน์ Zone บนกระดานครบ และตรงกับ Zone ที่ตั้งค่าไว้`, async () => {
         const { headers } = await readBoard(page);
         const shown = headers.map((h) => h.name);
-        test.info().annotations.push({ type: TC1, description: `คอลัมน์บนบอร์ด (ซ้าย → ขวา): ${shown.join(' · ')} · โซนที่ตั้งค่าไว้ (API): ${[...zones.values()].join(' · ')}` });
-        const rows: CompareRow[] = REQUIRED.map((col) => ({ label: col === 'คัดกรอง' ? 'รอคัดกรอง' : col, values: ['ต้องมี', shown.includes(col) ? `มี (badge ${headers.find((h) => h.name === col)?.badge})` : 'ไม่มี'], same: shown.includes(col) }));
-        for (const extra of shown.filter((c) => !REQUIRED.includes(c))) rows.push({ label: extra, values: ['(นอก TC)', `มี (badge ${headers.find((h) => h.name === extra)?.badge})`], same: true });
+        const configured = [...zones.values()].map((z) => (z === 'ห้องคัดกรอง ER' ? 'คัดกรอง' : z));
+        test.info().annotations.push({ type: TC1, description: `คอลัมน์บนบอร์ด (ซ้าย → ขวา): ${shown.join(' · ')} · โซนที่ตั้งค่าไว้ (API /er/triage/zones): ${[...zones.values()].join(' · ')}` });
+        const badge = (col: string) => headers.find((h) => h.name === col)?.badge;
+        const rows: CompareRow[] = REQUIRED.map((col) => ({
+          label: col === 'คัดกรอง' ? 'รอคัดกรอง' : col,
+          values: ['ต้องมี', configured.includes(col) ? 'มี' : 'ไม่มี', shown.includes(col) ? `มี (${badge(col)} ราย)` : 'ไม่มี'],
+          same: shown.includes(col) && configured.includes(col),
+        }));
+        for (const extra of [...new Set([...configured, ...shown])].filter((c) => !REQUIRED.includes(c))) {
+          rows.push({ label: extra, values: ['(นอก TC)', configured.includes(extra) ? 'มี' : 'ไม่มี', shown.includes(extra) ? `มี (${badge(extra)} ราย)` : 'ไม่แสดง'], same: true });
+        }
         await page.evaluate(() => window.scrollTo(0, 0));
         await markEvidence(...shown.map((c) => expected(columnBar(page, c))));
-        await showCompareTable(page, `${TC1} คอลัมน์ Zone บน ER Dashboard`, ['Expected', 'บนกระดาน'], rows, { width: '520px' });
-        await holdForClip(page, 2_000);
-        expect(REQUIRED.filter((c) => !shown.includes(c)), 'คอลัมน์ Zone ที่ต้องมี').toEqual([]);
+        // ตารางไว้ครึ่งล่าง ให้หัวคอลัมน์ทุกตัว (Expected) อยู่นอกตาราง
+        await showCompareTable(page, `${TC1} คอลัมน์ Zone บน ER Dashboard`, ['Expected', 'Zone ที่ตั้งค่าไว้', 'บนกระดาน'], rows, { width: '640px', top: '560px' });
+        await holdForClip(page, 2_500);
+        expect(REQUIRED.filter((c) => !shown.includes(c)), 'คอลัมน์ Zone ที่ต้องมีบนกระดาน').toEqual([]);
+        expect(REQUIRED.filter((c) => !configured.includes(c)), 'คอลัมน์ที่ต้องมีต้องตรงกับ Zone ที่ตั้งค่าไว้').toEqual([]);
       });
       await hideCompareTable(page);
+      expectNoMutations(mutations);
+    },
+  );
+
+  test(
+    'ER Dashboard: ผู้ป่วยอยู่ถูกคอลัมน์ · Time Count ตามค่าใน Setting — อ่านอย่างเดียว (Super_User)',
+    { tag: ['@SBH-1024', '@SBH-1793', '@SBH-1795'], annotation: [linear('SBH-1793'), linear('SBH-1795')] },
+    async ({ page }) => {
+      const authorization = trackAuthorization(page);
+      const mutations = watchMutations(page);
+      let board: BoardEncounter[] = [];
+      await gotoErDashboard(page);
+      const zones = await fetchZones(page, authorization);
 
       // ─── TC-002
       let listRows: { en: string; text: string }[] = [];
@@ -259,9 +298,7 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
         expect(rows.filter((r) => !r.same).map((r) => r.label), 'ตัวนับต้องเดินและเตือนตรงกับ Setting').toEqual([]);
       });
       await hideCompareTable(page);
-
-      test.info().annotations.push({ type: 'คำสั่งเขียนข้อมูล', description: mutations.length ? mutations.join(' · ') : 'ไม่มี' });
-      expect(mutations, 'เทสอ่านอย่างเดียวต้องไม่ยิงคำสั่งเขียนข้อมูล').toEqual([]);
+      expectNoMutations(mutations);
     },
   );
 

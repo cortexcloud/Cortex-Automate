@@ -21,7 +21,8 @@ export const consultNameSearch = (page: Page) => page.getByRole('main').getByPla
 /** ช่องตัวกรองลำดับที่ n ของแถบตัวกรอง (ดูลำดับด้านบน) */
 export const consultFilter = (page: Page, index: number) => page.getByRole('main').locator('.ant-select').nth(index);
 export const requesterFilter = (page: Page) => consultFilter(page, 4);
-export const consultRows = (page: Page) => page.getByRole('main').locator('tr.ant-table-row');
+// ตารางมีชุดแถวซ่อนซ้ำ (ตารางของคอลัมน์ตรึง) → ใช้เฉพาะแถวที่มองเห็น
+export const consultRows = (page: Page) => page.getByRole('main').locator('tr.ant-table-row').filter({ visible: true });
 export const consultClear = (page: Page) => page.getByRole('main').getByRole('button', { name: /Clear/ });
 
 /** รอคำตอบของ query ConsultRequests ที่ตัวกรองตรงเงื่อนไข (คืน response + ตัวกรองที่ส่ง) */

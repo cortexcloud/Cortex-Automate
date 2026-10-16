@@ -21,7 +21,7 @@ type Encounter = ErDashboardEncounter & { patient?: Patient; triageLevel?: numbe
 const GROUPS: Record<string, { label: string; match: (patient: Patient) => boolean }> = {
   'uat-er': {
     label: 'ผู้ป่วย Mock ที่สคริปต์สร้าง (ชื่อ UAT นามสกุล ER<ข้อ>-<ลำดับ>)',
-    match: (p) => p.firstName === 'UAT' && /^(ER\d{2}|RED|YELLOW|GREEN|OBS)-\d+$/.test(p.familyName ?? ''), // รวมชุดผู้ป่วยตามโซน (UAT-ER-zones.spec.ts)
+    match: (p) => p.firstName === 'UAT' && /^(ER\d{2}|RED|YELLOW|GREEN|OBS|ORDER)-\d+$/.test(p.familyName ?? ''), // รวมชุดผู้ป่วยตามโซน (UAT-ER-zones.spec.ts)
   },
   test: { label: 'ผู้ป่วยทดสอบทั้งหมด (ชื่อขึ้นต้น UAT / AUTO / คนไข้)', match: (p) => /^(UAT|AUTO|คนไข้)/.test(p.firstName) },
   all: { label: 'ทุกรายที่ค้างบนหน้า ER', match: () => true },

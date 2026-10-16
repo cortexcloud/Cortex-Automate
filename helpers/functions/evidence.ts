@@ -174,20 +174,21 @@ export interface CompareRow {
 /**
  * แสดงตารางเทียบค่า (เช่น ค่าบนหน้าจอ / ค่าจากหน้าอ้างอิง / ค่าจาก API) ซ้อนครึ่งขวาของหน้าเดิม ให้ภาพหลักฐานและคลิปเห็นทั้งหน้าจอจริง (ครึ่งซ้าย) และผลเทียบพร้อมกัน
  * หัวตารางบอกชัดว่าเป็นตารางที่สคริปต์ทดสอบสร้าง ไม่ใช่หน้าจอของระบบ · แสดงก่อน expect เพื่อให้ภาพ Error เห็นแถวที่ไม่ตรง · ลบด้วย hideCompareTable()
- * `side: 'left'` = ซ้อนครึ่งซ้ายแทน (สิ่งที่ต้องเห็นคู่กับตารางอยู่ฝั่งขวาของจอ เช่น popover ใต้ปุ่มมุมขวาบน) · `width` = ความกว้าง (เช่น '530px' ให้พ้นหน้าต่างกลางจอ)
+ * `side: 'left'` = ซ้อนครึ่งซ้ายแทน (สิ่งที่ต้องเห็นคู่กับตารางอยู่ฝั่งขวาของจอ เช่น popover ใต้ปุ่มมุมขวาบน) · `width` = ความกว้าง (เช่น '530px' ให้พ้นหน้าต่างกลางจอ) ·
+ * `top` = ระยะจากขอบบน (ตั้งต้น '84px' · เช่น '520px' ให้พ้นหัวคอลัมน์ของบอร์ด ER)
  */
-export async function showCompareTable(page: Page, title: string, columns: string[], rows: CompareRow[], options: { side?: 'left' | 'right'; width?: string } = {}): Promise<Locator> {
+export async function showCompareTable(page: Page, title: string, columns: string[], rows: CompareRow[], options: { side?: 'left' | 'right'; width?: string; top?: string } = {}): Promise<Locator> {
   await page.evaluate(
-    ({ title, columns, rows, side, width }) => {
+    ({ title, columns, rows, side, width, top }) => {
       document.querySelector('[data-compare-overlay]')?.remove();
       const overlay = document.createElement('div');
       overlay.setAttribute('data-compare-overlay', '');
       Object.assign(overlay.style, {
         position: 'fixed',
         [side]: '12px',
-        top: '84px',
+        top,
         width,
-        maxHeight: 'calc(100vh - 100px)',
+        maxHeight: `calc(100vh - ${top} - 16px)`,
         overflow: 'auto',
         background: '#fff',
         border: '2px solid #1f6f43',
@@ -227,7 +228,7 @@ export async function showCompareTable(page: Page, title: string, columns: strin
       overlay.append(head, caption, table);
       document.body.appendChild(overlay);
     },
-    { title, columns, rows, side: options.side ?? 'right', width: options.width ?? 'calc(50vw - 24px)' },
+    { title, columns, rows, side: options.side ?? 'right', width: options.width ?? 'calc(50vw - 24px)', top: options.top ?? '84px' },
   );
   return page.locator('[data-compare-overlay]');
 }
