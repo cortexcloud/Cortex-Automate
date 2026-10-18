@@ -1,4 +1,5 @@
 import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
+import { ADDRESS_BLOCKS, fillAddress, SARABURI_PAKPHRIAO, textField } from './reception-address';
 import type { NewPatient } from './test-data';
 
 // เวชระเบียน (Reception) — เนื้อหาเป็น iframe `/reception/embedded/<route>` ใต้หน้า /cortex/reception/<route> · ฟอร์มเป็น Radix UI จับด้วย data-testid
@@ -74,6 +75,16 @@ export async function fillNewPatientForm(page: Page, patient: NewPatient) {
     await dialog.getByRole('option', { name: TEST_ADDRESS.match }).first().click();
     await f.getByTestId('address-form-current').getByTestId('copy-address-form-button').click();
     await expect(f.getByTestId('address.currentAddressLine')).toHaveValue(TEST_ADDRESS.line);
+    return;
+  }
+  // ที่อยู่แบบแยกช่อง (dev-x): ช่องบังคับขึ้นกับ config ของประเภทการยืนยันตัวตน — 16 ต.ค. 2026 เลขบัตรประชาชนบังคับบ้านเลขที่ + หมู่ + จ/อ/ต ทั้งทะเบียนบ้านและปัจจุบัน → กรอกทุกครั้ง
+  const houseNo = textField(f, ADDRESS_BLOCKS.official, 'houseNo');
+  if (await houseNo.count()) {
+    const address = { houseNo: '99/1', villageNo: '1', location: SARABURI_PAKPHRIAO };
+    await fillAddress(f, ADDRESS_BLOCKS.official, address);
+    await f.getByTestId('address-form-current').getByTestId('copy-address-form-button').click().catch(() => undefined);
+    const copied = await expect(textField(f, ADDRESS_BLOCKS.current, 'houseNo')).toHaveValue(address.houseNo, { timeout: 3_000 }).then(() => true, () => false);
+    if (!copied) await fillAddress(f, ADDRESS_BLOCKS.current, address);
   }
 }
 
