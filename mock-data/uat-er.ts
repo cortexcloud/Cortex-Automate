@@ -238,10 +238,11 @@ export function dxForSet(seq: number): string {
 }
 
 /** บันทึก ER Physician Note ด้วย Diagnosis `dx` (ตั้งต้น K30) → คืนข้อความ Dx ที่เลือกจริง เช่น "K30 - Functional dyspepsia" */
-export async function savePhysicianNote(page: Page, dx = 'K30'): Promise<string> {
-  const main = page.getByRole('main');
+export async function savePhysicianNote(page: Page, dx = 'K30', options: { panel?: Locator } = {}): Promise<string> {
+  // `panel` = บันทึกในแผงที่เปิดอยู่แล้ว (เช่น แผงขวาของหน้า Overview — SBH-2436) ไม่กดเมนูขวาเปิดเป็นแท็บใหม่
+  const main = options.panel ?? page.getByRole('main');
   const illness = main.locator('textarea[placeholder="ประวัติเจ็บป่วยปัจจุบัน"]');
-  await openCareMenu(page, 'ER Physician Note', main.getByRole('heading', { name: 'ER Physician Note' }));
+  if (!options.panel) await openCareMenu(page, 'ER Physician Note', main.getByRole('heading', { name: 'ER Physician Note' }));
   await expect(illness).toBeVisible();
 
   for (const [name, value] of Object.entries(VITALS)) await main.getByRole('spinbutton', { name }).last().fill(value);
