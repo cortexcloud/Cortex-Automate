@@ -210,7 +210,7 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
         await test.info().attach(`${TC2} ผู้ป่วยบนกระดาน`, { body: JSON.stringify(active.map((e) => ({ hn: e.hn, name: name(e), esi: e.triageLevel, system: want.get(e.hn), board: seen.get(e.hn) })), null, 2), contentType: 'application/json' });
         await page.evaluate(() => window.scrollTo(0, 0));
         await markEvidence(...headers.map((h) => expected(columnBar(page, h.name))));
-        await showCompareTable(page, `${TC2} จำนวนผู้ป่วยต่อคอลัมน์ — Zone ในระบบ (API) / บนกระดาน`, ['Zone ในระบบ', 'บนกระดาน'], rows, { width: '620px' });
+        await showCompareTable(page, `${TC2} จำนวนผู้ป่วยต่อคอลัมน์ — Zone ในระบบ (API) / บนกระดาน`, ['Zone ในระบบ', 'บนกระดาน'], rows, { side: 'bottom' });
         await holdForClip(page, 2_500);
         test.info().annotations.push({ type: TC2, description: `ผู้ป่วย ${active.length} ราย · ผิดคอลัมน์ ${wrong.length} · ซ้ำ ${dup.length}` });
         expect([...wrong, ...dup], 'ผู้ป่วยที่อยู่ผิดคอลัมน์ / ซ้ำ').toEqual([]);
@@ -228,8 +228,9 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
           const got = listRows.filter((r) => r.text.includes(z)).map((r) => r.en).sort();
           return { label: z, values: [`${want.length} ราย`, `${got.length} ราย`], same: want.join() === got.join() };
         });
-        await markEvidence(...listRows.slice(0, 6).map((r) => expected(page.getByRole('main').locator(`tr.ant-table-row[data-row-key="${r.en}"]`))));
-        await showCompareTable(page, `${TC2} หน้ารายการ — จำนวนแถวต่อโซน`, ['Zone ในระบบ (ผู้ป่วยปัจจุบันใน ER)', 'หน้ารายการ'], rows, { width: '620px' });
+        // กรอบเดียวรอบตารางทั้งหมด — กรอบรายแถวทำให้ป้ายไปทับคอลัมน์เวลารอ (R59)
+        await markEvidence(expected(page.getByRole('main').locator('.ant-table-tbody').first()));
+        await showCompareTable(page, `${TC2} หน้ารายการ — จำนวนแถวต่อโซน`, ['Zone ในระบบ (ผู้ป่วยปัจจุบันใน ER)', 'หน้ารายการ'], rows, { side: 'bottom' });
         await holdForClip(page, 2_000);
         expect(rows.filter((r) => !r.same).map((r) => r.label), 'แถวในหน้ารายการต้องอยู่โซนตรงกับระบบ').toEqual([]);
       });
@@ -245,7 +246,8 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
         await page.goto('/cortex/setting/admin/er-triage-wait-time-targets');
         const fields = page.getByRole('spinbutton');
         await expect(fields.first()).toBeVisible({ timeout: 45_000 });
-        await markEvidence(...(await fields.all()).map((f) => expected(f)));
+        // กรอบทั้งแถว (ชื่อระดับ + สวิตช์ไม่จำกัดเวลา + ช่องนาที) — ป้ายไม่ทับสวิตช์ (R59)
+        await markEvidence(...(await fields.all()).map((f) => expected(f.locator('xpath=ancestor::*[.//strong][1]'))));
         await holdForClip(page, 1_500);
       });
 
@@ -292,7 +294,8 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
           };
         });
         await page.evaluate(() => window.scrollTo(0, 0));
-        await showCompareTable(page, `${TC4} Time Count บนการ์ด (อ่าน 2 ครั้งห่าง ${elapsed} วินาที)`, ['เป้าหมายใน Setting', 'เวลารอ (ครั้งที่ 1 → 2)', 'คาดจาก Setting', 'บนการ์ด'], rows, { width: '900px' });
+        await showCompareTable(page, `${TC4} Time Count บนการ์ด (อ่าน 2 ครั้งห่าง ${elapsed} วินาที)`, ['เป้าหมายใน Setting', 'เวลารอ (ครั้งที่ 1 → 2)', 'คาดจาก Setting', 'บนการ์ด'], rows, { side: 'bottom' });
+        await snapEvidence(page, `${TC4} ตารางเทียบ Time Count`);
         await holdForClip(page, 3_000);
         await test.info().attach(`${TC4} Time Count`, { body: JSON.stringify(rows, null, 2), contentType: 'application/json' });
         expect(rows.filter((r) => !r.same).map((r) => r.label), 'ตัวนับต้องเดินและเตือนตรงกับ Setting').toEqual([]);
@@ -312,9 +315,16 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
       const authorization = trackAuthorization(page);
       const form = triageForm(page);
       let zones = new Map<number, string>();
-      let before = '';
+      // SBH1024_VERIFY_BEFORE=<คอลัมน์เดิม> = คัดกรองซ้ำไปแล้ว → ข้ามขั้น 1-3 ตรวจขั้น 4 + หน้ารายการซ้ำแบบอ่านอย่างเดียว (ไม่คัดกรองซ้ำอีกรอบ)
+      const verifyBefore = process.env.SBH1024_VERIFY_BEFORE;
+      let before = verifyBefore ?? '';
+      if (verifyBefore) {
+        await gotoErDashboard(page);
+        zones = await fetchZones(page, authorization);
+        test.info().annotations.push({ type: TC3, description: `ตรวจซ้ำแบบอ่านอย่างเดียว — คัดกรองซ้ำไปแล้วในรอบก่อน · คอลัมน์เดิม ${verifyBefore}` });
+      }
 
-      await checkStep(page, `${TC3} ขั้น 1 จดคอลัมน์ Zone เดิมของผู้ป่วยบน ER Dashboard`, async () => {
+      if (!verifyBefore) await checkStep(page, `${TC3} ขั้น 1 จดคอลัมน์ Zone เดิมของผู้ป่วยบน ER Dashboard`, async () => {
         await gotoErDashboard(page);
         zones = await fetchZones(page, authorization);
         const e = (await fetchBoard(page, authorization)).find((x) => x.en === en);
@@ -331,7 +341,7 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
         await holdForClip(page);
       });
 
-      await checkStep(page, `${TC3} ขั้น 2-3 คัดกรองซ้ำ เปลี่ยนเป็น ESI ${RETRIAGE_LEVEL} แล้วบันทึก`, async () => {
+      if (!verifyBefore) await checkStep(page, `${TC3} ขั้น 2-3 คัดกรองซ้ำ เปลี่ยนเป็น ESI ${RETRIAGE_LEVEL} แล้วบันทึก`, async () => {
         await gotoVisit(page, visit);
         const redo = form.getByRole('button', { name: 'redo คัดกรองซ้ำ' });
         await expect(redo).toBeVisible({ timeout: 45_000 });
@@ -365,16 +375,18 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
           placedCols = (await readBoard(page)).placed.filter((p) => p.hn === hn).map((p) => p.column);
           expect(placedCols, 'การ์ดต้องอยู่คอลัมน์ใหม่คอลัมน์เดียว').toEqual([after]);
         }).toPass({ timeout: 90_000 });
+        // คอลัมน์ที่ไม่มีผู้ป่วยเหลือ (เช่น โซนเขียว) ถูกซ่อนจากบอร์ด — ไม่มีหัวคอลัมน์ให้ตีกรอบ
+        const beforeShown = (await columnBar(page, before).count()) > 0;
         const rows: CompareRow[] = [
-          { label: 'คอลัมน์เดิม', values: [before, placedCols.includes(before) ? 'ยังอยู่' : 'ไม่อยู่แล้ว'], same: !placedCols.includes(before) },
+          { label: 'คอลัมน์เดิม', values: [before, placedCols.includes(before) ? 'ยังอยู่' : beforeShown ? 'ไม่อยู่แล้ว' : 'ไม่อยู่แล้ว (คอลัมน์ซ่อนเพราะไม่มีผู้ป่วยเหลือ)'], same: !placedCols.includes(before) },
           { label: 'คอลัมน์ใหม่', values: [after, placedCols.join(' + ') || '(ไม่พบการ์ด)'], same: placedCols.length === 1 && placedCols[0] === after && after !== before },
         ];
         test.info().annotations.push({ type: TC3, description: `หลัง: HN ${hn} ESI ${RETRIAGE_LEVEL} · ${after} · บนจอ ${placedCols.join(' + ')}` });
         await page.evaluate(() => window.scrollTo(0, 0));
-        await markEvidence(expected(columnBar(page, before)), expected(columnBar(page, after)));
+        await markEvidence(...(beforeShown ? [expected(columnBar(page, before))] : []), expected(columnBar(page, after)));
         await snapEvidence(page, `${TC3} หัวคอลัมน์เดิม + ใหม่`);
         await markEvidence(expected(cardOf(page, hn)));
-        await showCompareTable(page, `${TC3} คอลัมน์ของ HN ${hn} หลังเปลี่ยน ESI`, ['ระบบ (API)', 'บนกระดาน'], rows, { side: after === 'ห้องสังเกตอาการ ER' ? 'left' : 'right', width: '520px' });
+        await showCompareTable(page, `${TC3} คอลัมน์ของ HN ${hn} หลังเปลี่ยน ESI`, ['ระบบ (API)', 'บนกระดาน'], rows, { side: 'bottom' });
         await holdForClip(page, 2_500);
         expect(rows.filter((r) => !r.same).map((r) => r.label)).toEqual([]);
       });

@@ -13,7 +13,8 @@ import { envName } from '../utils/env';
 export const SYSTEM = (envName() ?? 'dev-x') as 'dev-x' | 'sbh-prod';
 
 /** สิทธิที่ใช้เปิด Visit ER ให้ผู้ป่วย Mock (ชื่อเต็มตามตัวเลือกใน modal เปิด Visit — เหมือนกันทั้ง 2 ระบบ) */
-export const COVERAGE_UC = 'H03 - สิทธิ UC';
+// env MOCK_COVERAGE เปลี่ยนสิทธิได้ เช่น 'H35 - UC ER คุณภาพ' (ชื่อเต็มตามตัวเลือกใน modal บน SBH Prod)
+export const COVERAGE_UC = process.env.MOCK_COVERAGE || 'H03 - สิทธิ UC';
 
 /**
  * ค่าที่ต่างกันต่อระบบ — รหัสของ SBH Prod มาจากชีต "Mock-Data ER" (LAB0000001 / IMG0000194 สั่งและส่งคำสั่งได้จริง 3 ต.ค. 2026)
@@ -597,4 +598,33 @@ export async function checkInOpdVisit(page: Page, visit: ErVisit): Promise<strin
   expect(body.data?.checkInEncounterStatus?.accepted, `เช็คอินไม่สำเร็จ: ${body.errors?.map((e) => e.message).join(' · ') ?? JSON.stringify(body).slice(0, 300)}`).toBe(true);
   await expect(status).toHaveText('เช็คอิน');
   return body.data?.checkInEncounterStatus?.queue?.qDisplay ?? '-';
+}
+
+/**
+ * สร้างใบยาที่ห้องยา (SBH Prod 16 ต.ค. 2026): `/cortex/pharmacy/select-location` → ห้องยา + ช่องบริการ → `ส่ง`
+ * → แท็บ "Order รอยืนยัน" แถว `HN <HN>` → คลิกชื่อผู้ป่วย (หน้าผู้ป่วย preset=pharmacyCreatePrescription) → ปุ่ม `สร้างใบยา`
+ * (ไม่ใช้ "ตัดสต็อกติดลบและสร้างใบยา" — กระทบสต็อกจริง) → `POST /cortex-api/opd/prescriptions` → {prescriptionId}
+ */
+export async function createPrescription(page: Page, hn: string, room = { name: 'ห้องยาชั้น 1', counter: '1' }): Promise<string> {
+  const main = page.getByRole('main');
+  await page.goto('/cortex/pharmacy/select-location');
+  await main.getByRole('combobox').first().click();
+  await openOptions(page).filter({ hasText: room.name }).first().click();
+  await main.getByRole('combobox').nth(1).click();
+  // dropdown ห้องยายังค้างอยู่ตอนเปิดตัวที่ 2 → เลือกตัวเลือกในรายการล่าสุด
+  await openOptions(page).filter({ hasText: new RegExp(`^${room.counter}$`) }).last().click({ force: true });
+  await page.getByRole('button', { name: 'ส่ง' }).click();
+  await page.waitForURL(/\/pharmacy\/opd\/medication-orders/, { timeout: 60_000 });
+  const row = main.getByRole('row').filter({ hasText: `HN ${hn}` }).first();
+  await expect(row, `ผู้ป่วย HN ${hn} ต้องอยู่แท็บ "Order รอยืนยัน" ของ${room.name}`).toBeVisible({ timeout: 60_000 });
+  await row.locator('td').nth(4).click();
+  const create = page.getByRole('button', { name: 'สร้างใบยา', exact: true });
+  await expect(create).toBeVisible({ timeout: 60_000 });
+  const created = waitForApi(page, 'POST', '/cortex-api/opd/prescriptions', 60_000);
+  await create.click();
+  const res = await created;
+  await expectOk(res, 'สร้างใบยา');
+  const body = (await res.json()) as { prescriptionId?: string; warnings?: unknown[] };
+  if (!body.prescriptionId) throw new Error(`ไม่ได้เลขใบยา: ${JSON.stringify(body).slice(0, 300)}`);
+  return body.prescriptionId;
 }

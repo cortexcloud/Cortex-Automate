@@ -54,3 +54,72 @@ export async function closeVisitAtCashier(page: Page, hn: string, vn: string, be
   await expect(unlock).toBeVisible();
   return { result: 'closed', outstanding };
 }
+
+/** เข้าหน้าบัญชีของ Visit ที่การเงิน (/cortex/cashier/patients/<HN>/accounts/<VN>/charge-items) */
+export async function gotoCashierAccount(page: Page, hn: string, vn: string) {
+  const main = page.getByRole('main');
+  await expect(async () => {
+    await page.goto(`/cortex/cashier/patients/${hn}/accounts/${vn}/charge-items`);
+    await expect(main.getByText(vn, { exact: true }).first()).toBeVisible({ timeout: 45_000 });
+  }, `เปิดหน้าบัญชี ${vn}`).toPass({ timeout: 150_000 });
+}
+
+/**
+ * ปิดสิทธิ UC ด้วยเลข End Point แบบระบุเอง (SBH Prod 16 ต.ค. 2026): ปุ่ม `ระบุเลข End Point` → dialog "ปิดสิทธิ UC"
+ * → radio `ระบุเลข End Point ด้วยตนเอง` → `* ประเภทบัตร` (60 / 61 / 62) · `* Terminal ID` · `* Trace` · `* End Point` → `ยืนยัน`
+ * → `POST /cortex-api/end-point/from-close-coverage` 204 (body: edcTerminalId / edcInvoiceNo = Trace / endPoint / txCode / isManual)
+ */
+export async function closeCoverageWithEndpoint(page: Page, input: { endPoint: string; terminalId: string; trace: string; cardType: string }) {
+  await page.getByRole('button', { name: 'ระบุเลข End Point' }).click();
+  const dialog = page.getByRole('dialog', { name: /^ปิดสิทธิ/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('radio', { name: 'ระบุเลข End Point ด้วยตนเอง' }).check();
+  await dialog.getByRole('combobox', { name: /ประเภทบัตร/ }).click();
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: new RegExp(`^${input.cardType} - `) }).first().click();
+  await dialog.getByRole('textbox', { name: '* Terminal ID' }).fill(input.terminalId);
+  await dialog.getByRole('textbox', { name: '* Trace' }).fill(input.trace);
+  await dialog.getByRole('textbox', { name: '* End Point' }).fill(input.endPoint);
+  const saved = waitForApi(page, 'POST', '/cortex-api/end-point/from-close-coverage', 60_000);
+  await dialog.getByRole('button', { name: 'ยืนยัน' }).click();
+  await expectOk(await saved, 'ปิดสิทธิด้วย End Point');
+  await expect(dialog).toBeHidden();
+}
+
+/**
+ * สร้างใบแจ้งหนี้ทั้งหมด แล้วชำระเงินสดเต็มจำนวน (SBH Prod 16 ต.ค. 2026):
+ * `สร้างใบแจ้งหนี้ทั้งหมด` → dialog ยืนยัน → `POST /cortex-api/patient-invoices` 201 {id} → ระบบเปิด dialog "ชำระเงิน" เอง
+ * (วิธีชำระเงินอาจว่าง → เลือก `เงินสด` · จำนวนเงินที่ได้รับ = ยอดที่ต้องชำระ · เล่มที่ / เลขที่ เติมมาให้) → `จ่าย` → dialog "ยืนยันการพิมพ์ใบเสร็จ" → `ยืนยัน`
+ * → `POST /cortex-api/invoice-payment-intents` 201 {latestStatusCode: succeeded, receiptId} · การสั่งพิมพ์ใบเสร็จ (`…/physical-print`) ตอบ 500 ได้ ไม่กระทบการชำระ
+ */
+export async function payAllInCash(page: Page): Promise<{ invoiceId: string; receiptId: string; amount: number }> {
+  const opts = page.locator('.ant-select-dropdown:visible .ant-select-item-option');
+  const invoiced = waitForApi(page, 'POST', '/cortex-api/patient-invoices', 60_000);
+  await page.getByRole('button', { name: /สร้างใบแจ้งหนี้ทั้งหมด/ }).click();
+  const confirm = page.getByRole('dialog', { name: /ยืนยันการสร้างใบแจ้งหนี้/ });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: 'ยืนยัน' }).click();
+  const invoiceRes = await invoiced;
+  await expectOk(invoiceRes, 'สร้างใบแจ้งหนี้');
+  const invoiceId = ((await invoiceRes.json()) as { id: string }).id;
+
+  const dialog = page.getByRole('dialog', { name: /^ชำระเงิน/ });
+  await expect(dialog).toBeVisible({ timeout: 30_000 });
+  const method = dialog.getByRole('combobox', { name: /วิธีการชำระเงิน/ });
+  if (!(await dialog.getByText('เงินสด', { exact: true }).count())) {
+    await method.click();
+    await opts.filter({ hasText: /^เงินสด$/ }).first().click();
+  }
+  const due = (await dialog.innerText()).match(/จำนวนเงินที่ต้องชำระ\s*([\d,.]+)/)?.[1]?.replace(/,/g, '') ?? '';
+  const received = dialog.getByRole('spinbutton', { name: '* จำนวนเงินที่ได้รับ' });
+  if (due) await received.fill(due);
+  const paid = waitForApi(page, 'POST', '/cortex-api/invoice-payment-intents', 60_000);
+  await dialog.getByRole('button', { name: 'จ่าย' }).click();
+  const receipt = page.getByRole('dialog', { name: /ยืนยันการพิมพ์ใบเสร็จ/ });
+  await expect(receipt).toBeVisible({ timeout: 20_000 });
+  await receipt.getByRole('button', { name: /^ยืนยัน/ }).click();
+  const paidRes = await paid;
+  await expectOk(paidRes, 'ชำระเงิน');
+  const body = (await paidRes.json()) as { latestStatusCode?: string; receiptId?: string };
+  expect(body.latestStatusCode, `ชำระเงินไม่สำเร็จ: ${JSON.stringify(body)}`).toBe('succeeded');
+  return { invoiceId, receiptId: body.receiptId ?? '', amount: Number(due) };
+}

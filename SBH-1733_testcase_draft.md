@@ -1,6 +1,9 @@
 # Draft Test Structure — SBH-1733
 
-> สถานะ: **Draft (2026-10-16)** — ยังไม่สร้างใน Linear · รอผู้ใช้ยืนยัน Environment / QA Module / Sub-module แล้ว review ร่างเต็ม รอ "สร้างได้"
+> สถานะ: **สร้างใน Linear แล้ว (2026-10-16)**
+> - EXE SBH-2700 → HPY SBH-2701 (TC 001–006 = SBH-2703–2708) · UHP SBH-2702 (TC 007–008 = SBH-2709–2710)
+> - Env: Dev-X / SBH Prod · QA Module : Pharmacy · QA Sub-module / Feature : Prescription
+> - ตอนสร้าง TC-001 / 002 เพิ่มขั้นเตรียมยา A (Refill) + ยา B (ยาปกติ) ใน Order เดียวกัน และเกณฑ์ไม่ผ่าน ตามแผนที่คุยกับผู้ใช้
 > - ใส่เฉพาะ TC ที่จะทดสอบจริง · ชื่อ TC ไม่มี `[Required]` นำหน้า · วงเล็บท้ายชื่อบอกหน้าที่ต้องดู
 > - ตอนสร้างจริง body ของ TC ใช้รูปแบบ SBH-1972 (TC ID / Case Type / Test Type → Test Step → Expected Result → Test Result แยก env)
 
@@ -27,7 +30,7 @@ Sub-Issue: CTXN-8990 (Design Task — Triage ยังไม่มี Figma) · 
 ## EXE - CT - 2.7.0
 
 Status: Ready for Testing · Assignee: Suchat Chancherngsilapakul · Project: UAT#3 Cashier, Pharmacy, Queue
-Labels: 🐷 VERSION 2.7.0, 🍄 Improvement, For OPD Biz Sim - SBH, SBH - UAT D4 Pharmacy, `<QA Module — รอยืนยัน>`, `<QA Sub-module — รอยืนยัน>`, QA Run : Cycle Test
+Labels: 🐷 VERSION 2.7.0, 🍄 Improvement, For OPD Biz Sim - SBH, SBH - UAT D4 Pharmacy, QA Module : Pharmacy, QA Sub-module / Feature : Prescription, QA Run : Cycle Test
 
 ```
 ข้อมูลรอบทดสอบ
@@ -35,7 +38,7 @@ Labels: 🐷 VERSION 2.7.0, 🍄 Improvement, For OPD Biz Sim - SBH, SBH - UAT D
 - Scope / Version: 2.7.0
 - Module: Pharmacy
 - Requirement ที่อ้างอิง: SBH-1733 — [Pharmacy][ใบยา] เพิ่ม Label แสดงการเป็น Order Refill ในหน้าใบยา
-- Environment: <รอ QA ยืนยัน>
+- Environment: Dev-X / SBH Prod
 - อนุมัติโดย: -
 
 ขอบเขตการทดสอบ
@@ -52,7 +55,7 @@ Labels: 🐷 VERSION 2.7.0, 🍄 Improvement, For OPD Biz Sim - SBH, SBH - UAT D
 
 ## TS-SBH-1733-HPY - แสดง Label Refill และรูปแบบจำนวนยาเหมือน CPOE ในหน้าใบยาของห้องยา
 
-Status: Ready for Testing · Labels: requirement labels + QA Module + QA Sub-module + QA Case : Happy
+Status: Ready for Testing · Labels: requirement labels + QA Module : Pharmacy + QA Sub-module / Feature : Prescription + QA Case : Happy
 
 ```
 ข้อมูลอ้างอิง
@@ -79,7 +82,7 @@ Status: Ready for Testing · Labels: requirement labels + QA Module + QA Sub-mod
 
 ### TC-SBH-1733-001 - แสดง Label Refill บนรายการยาที่แพทย์สั่งเป็น Refill (หน้าสร้างใบยา ห้องยา)
 
-Status: Not Run · Labels: requirement labels + QA Module + QA Sub-module + QA Case : Happy + QA Type : UIUX + QA Execution Type: Manual
+Status: Not Run · Labels: requirement labels + QA Module : Pharmacy + QA Sub-module / Feature : Prescription + QA Case : Happy + QA Type : UIUX + QA Execution Type: Manual
 
 ```
 ข้อมูลอ้างอิง
@@ -292,7 +295,7 @@ Actual Result
 
 ## TS-SBH-1733-UHP - ไม่แสดง Label Refill ผิดที่ และไม่ใช้คอลัมน์ Refill แบบเดิม
 
-Status: Ready for Testing · Labels: requirement labels + QA Module + QA Sub-module + QA Case : Unhappy
+Status: Ready for Testing · Labels: requirement labels + QA Module : Pharmacy + QA Sub-module / Feature : Prescription + QA Case : Unhappy
 
 ```
 ข้อมูลอ้างอิง
@@ -318,7 +321,7 @@ Status: Ready for Testing · Labels: requirement labels + QA Module + QA Sub-mod
 
 ### TC-SBH-1733-007 - ตรวจสอบยาที่ไม่ใช่ Refill ไม่แสดง Label Refill (หน้าสร้างใบยา ห้องยา)
 
-Status: Not Run · Labels: requirement labels + QA Module + QA Sub-module + QA Case : Unhappy + QA Type : UIUX + QA Execution Type: Manual
+Status: Not Run · Labels: requirement labels + QA Module : Pharmacy + QA Sub-module / Feature : Prescription + QA Case : Unhappy + QA Type : UIUX + QA Execution Type: Manual
 
 ```
 ข้อมูลอ้างอิง

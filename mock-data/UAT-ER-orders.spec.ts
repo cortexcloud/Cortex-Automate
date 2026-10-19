@@ -1,19 +1,21 @@
 import type { Page } from '@playwright/test';
-import { closeVisitAtCashier } from '../helpers/functions/cashier';
+import { closeCoverageWithEndpoint, closeVisitAtCashier, gotoCashierAccount, payAllInCash } from '../helpers/functions/cashier';
 import { dismissToast, expectTriageFormOpen, gotoErDashboard, type ErVisit } from '../helpers/functions/er';
 import { trackAuthorization } from '../helpers/functions/er-report';
 import { triageForm } from '../helpers/functions/er-triage';
 import { checkStep } from '../helpers/functions/evidence';
 import type { NewPatient } from '../helpers/functions/test-data';
 import { expect, test } from './fixtures';
-import { SETTINGS, SYSTEM, dxForSet, nextPrefixedPatient, recordMockPatient, registerAndOpenErVisit, savePhysicianNote, submitOrders } from './uat-er';
-import { VITALS_NORMAL, addMedicineToCart, boardEncounter, careMenu, fillTriage, gotoVisit, mockPatient, saveTriageForm } from './uat-play';
+import { COVERAGE_UC, SETTINGS, SYSTEM, createPrescription, dxForSet, nextPrefixedPatient, recordMockPatient, registerAndOpenErVisit, savePhysicianNote, submitOrders } from './uat-er';
+import { openDisposition } from '../helpers/functions/er-disposition';
+import { VITALS_NORMAL, addMedicineToCart, boardEncounter, careMenu, draftDischarge, fillTriage, gotoVisit, mockPatient, saveTriageForm, signDischarge } from './uat-play';
 
 // Mock Data: ผู้ป่วย ER 1 ราย สิทธิ UC → คัดกรอง ESI 3 → ER Physician Note (มี Dx — R21) → Order ยา + Lab + Imaging + หัตถการ (Activity) → ปิด Visit ที่หน้าการเงิน (R32)
 // ผู้ใช้ขอ 16 ต.ค. 2026 · ชื่อ "UAT" นามสกุล ORDER-<ลำดับ> (รันซ้ำเลขเพิ่มเอง · UAT_SEQ กำหนดเลขได้)
 // SBH Prod: npx playwright test -c playwright.sbh-prod.config.ts UAT-ER-orders --headed
 // dev-x:    npx playwright test -c playwright.mock.config.ts UAT-ER-orders --headed
-// MOCK_RESUME=1 + MOCK_RESUME_FROM=triage|note|order|activity|close — ทำขั้นที่ค้างต่อกับผู้ป่วย ORDER รายล่าสุดใน created-patients.md
+// MOCK_DISPOSITION=1 — ทำ Disposition (With Approval + กดปุ่มลงนาม) ก่อนปิด Visit (ผู้ใช้ขอ 16 ต.ค. 2026 ลำดับ Note → Order → Disposition → ปิด Visit)
+// MOCK_RESUME=1 + MOCK_RESUME_FROM=triage|note|order|activity|disposition|close — ทำขั้นที่ค้างต่อกับผู้ป่วย ORDER รายล่าสุดใน created-patients.md
 
 const LABEL = 'ORDER';
 /** ยาที่สั่ง — dev-x ใช้เฉพาะ med0000005–8 (R25) · SBH Prod ใช้รหัสเดียวกับสคริปต์เล่น UAT-ER-01 (สั่งได้จริง 3 ต.ค. 2026) */
@@ -25,7 +27,15 @@ const MED_CODE = SYSTEM === 'dev-x' ? 'med0000005' : 'MED0000260';
 const ACTIVITY_CODE = process.env.MOCK_ACTIVITY || (SYSTEM === 'dev-x' ? '89.52' : 'ACT0000062');
 
 const RESUME = process.env.MOCK_RESUME === '1';
-const STEPS = ['triage', 'note', 'order', 'activity', 'close'] as const;
+const DISPOSITION = process.env.MOCK_DISPOSITION === '1';
+/** MOCK_NO_ACTIVITY=1 ไม่สั่งหัตถการ · MOCK_NO_CLOSE=1 ไม่ปิด Visit (ทิ้งไว้ทำขั้นห้องยา / ชำระเงินต่อ) */
+const NO_ACTIVITY = process.env.MOCK_NO_ACTIVITY === '1';
+const NO_CLOSE = process.env.MOCK_NO_CLOSE === '1';
+/** MOCK_RX=1 สร้างใบยาที่ห้องยาชั้น 1 หลัง Disposition (ผู้ใช้ขอ 16 ต.ค. 2026) */
+const RX = process.env.MOCK_RX === '1';
+/** MOCK_ENDPOINT=<เลข> ปิดสิทธิ UC ด้วย End Point (บัตร 60 · Terminal ID / Trace = เลขเดียวกัน — ผู้ใช้กำหนด) แล้วชำระเงินสดยอดที่เหลือ ก่อนปิด Visit */
+const ENDPOINT = process.env.MOCK_ENDPOINT ?? '';
+const STEPS = ['triage', 'note', 'order', 'activity', 'disposition', 'rx', 'pay', 'close'] as const;
 const FROM = RESUME ? STEPS.indexOf((process.env.MOCK_RESUME_FROM ?? 'triage') as (typeof STEPS)[number]) : 0;
 const runs = (step: (typeof STEPS)[number]) => STEPS.indexOf(step) >= FROM;
 
@@ -73,7 +83,7 @@ test(`Mock Data ผู้ป่วย ER สิทธิ UC + Order ยา / Lab
     });
     progress(`✓ ลงทะเบียน ${patient.firstName} ${patient.familyName} HN ${visit.hn} + เปิด Visit ER ${visit.en} (สิทธิ UC)`);
   }
-  done.push('เปิด Visit ER สิทธิ UC');
+  done.push(`เปิด Visit ER สิทธิ ${COVERAGE_UC}`);
 
   if (runs('triage')) {
     const ok = await attempt(page, problems, 'คัดกรอง ESI 3 พร้อมสัญญาณชีพ → โซนเหลือง', async () => {
@@ -111,12 +121,48 @@ test(`Mock Data ผู้ป่วย ER สิทธิ UC + Order ยา / Lab
     if (ok) done.push(`Order ยา ${MED_CODE} + ${codes.join(' + ')}`);
   }
 
-  if (runs('activity')) {
+  if (!NO_ACTIVITY && runs('activity')) {
     const ok = await attempt(page, problems, `สั่งหัตถการ ${ACTIVITY_CODE} แล้วส่งคำสั่ง`, () => submitOrders(page, [ACTIVITY_CODE], { resume: true }));
     if (ok) done.push(`หัตถการ ${ACTIVITY_CODE}`);
   }
 
-  if (runs('close')) {
+  if (DISPOSITION && runs('disposition')) {
+    // ลงนามแล้วยังสั่ง Order เพิ่มไม่ได้ทุกกรณี → ทำหลัง Order ครบ (ผู้ใช้เลือกลำดับนี้) · วิธีจำหน่ายตามตัวเลือกในฟอร์ม (R19) · Finalize = ปุ่มลงนาม (R20)
+    if (problems.length) {
+      progress('ข้าม Disposition — มีขั้นก่อนหน้าไม่สำเร็จ');
+    } else {
+      const ok = await attempt(page, problems, 'Disposition: Improved + With Approval → บันทึกฉบับร่าง → กดปุ่มลงนาม', async () => {
+        await openDisposition(page);
+        const status = await draftDischarge(page, 'With Approval');
+        expect(status, 'บันทึกฉบับร่างแล้วสถานะต้องเป็น DRAFT').toBe('DRAFT');
+        await signDischarge(page);
+      });
+      if (ok) done.push('Disposition With Approval ลงนามแล้ว');
+    }
+  }
+
+  if (RX && runs('rx')) {
+    if (problems.length) progress('ข้ามการสร้างใบยา — มีขั้นก่อนหน้าไม่สำเร็จ');
+    else {
+      let rx = '';
+      if (await attempt(page, problems, 'ห้องยา: สร้างใบยา', async () => void (rx = await createPrescription(page, visit.hn)))) done.push(`ใบยา ${rx}`);
+    }
+  }
+
+  if (ENDPOINT && runs('pay')) {
+    if (problems.length) progress('ข้ามการชำระเงิน — มีขั้นก่อนหน้าไม่สำเร็จ');
+    else {
+      await attempt(page, problems, `การเงิน: ปิดสิทธิด้วย End Point ${ENDPOINT} แล้วชำระเงินสด`, async () => {
+        await gotoCashierAccount(page, visit.hn, visit.vn);
+        await closeCoverageWithEndpoint(page, { endPoint: ENDPOINT, terminalId: ENDPOINT, trace: ENDPOINT, cardType: '60' });
+        done.push(`ปิดสิทธิ End Point ${ENDPOINT}`);
+        const paid = await payAllInCash(page);
+        done.push(`ชำระเงินสด ${paid.amount.toFixed(2)} (${paid.invoiceId} · ใบเสร็จ ${paid.receiptId})`);
+      });
+    }
+  }
+
+  if (!NO_CLOSE && runs('close')) {
     if (problems.length) {
       progress('ข้ามการปิด Visit — มีขั้นก่อนหน้าไม่สำเร็จ (ทำขั้นที่ค้างต่อด้วย MOCK_RESUME แล้วค่อยปิด)');
     } else {
