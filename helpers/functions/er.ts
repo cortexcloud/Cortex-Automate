@@ -88,13 +88,22 @@ export async function openTriagePage(page: Page) {
 }
 
 /** "ผู้ป่วยใหม่" → กรอกเฉพาะช่องบังคับ → ลงทะเบียน → ระบบเปิด modal "เปิด Visit ER" ให้เองพร้อม HN ใหม่ */
-export async function registerNewPatient(page: Page, patient: NewPatient): Promise<{ hn: string; dialog: Locator }> {
+export async function registerNewPatient(
+  page: Page,
+  patient: NewPatient,
+): Promise<{ hn: string; namePrefix?: string; dialog: Locator }> {
   await page.locator('label').filter({ hasText: 'ผู้ป่วยใหม่' }).click();
   await page.getByRole('textbox', { name: '* เลขบัตรประชาชน', exact: true }).fill(patient.citizenId);
   await page.getByRole('textbox', { name: '* ชื่อ', exact: true }).fill(patient.firstName);
   await page.getByRole('textbox', { name: '* นามสกุล', exact: true }).fill(patient.familyName);
   await page.getByRole('combobox', { name: '* เพศ', exact: true }).click();
   await antOption(page, patient.gender).click();
+  if (patient.namePrefix) {
+    // เลือกหลังเพศ — ระบบอาจเติมคำนำหน้าให้ตอนเลือกเพศ (บางครั้งไม่เติม หรือค้างจากคนก่อนในฟอร์มเดิม)
+    const prefix = page.getByRole('combobox', { name: '* คำนำหน้าชื่อ', exact: true });
+    await prefix.click();
+    await antOption(page, patient.namePrefix).click();
+  }
   const birthDate = page.getByRole('textbox', { name: '* วัน/เดือน/ปีเกิด', exact: true });
   await birthDate.fill(patient.birthDate);
   // ห้ามกด Enter: ถ้าช่องบังคับครบแล้ว Enter จะส่งฟอร์มลงทะเบียนทันที (ไม่ได้ผ่านปุ่ม)
@@ -105,13 +114,14 @@ export async function registerNewPatient(page: Page, patient: NewPatient): Promi
   await page.getByRole('button', { name: 'ลงทะเบียนผู้ป่วย' }).click();
   const res = await registered;
   await expectOk(res, 'ลงทะเบียนผู้ป่วยใหม่ที่ ER');
-  const body = (await res.json()) as { patient?: { data?: { hn?: string } } };
+  const body = (await res.json()) as { patient?: { data?: { hn?: string; namePrefix?: { display?: string } } } };
   const hn = body.patient?.data?.hn;
   if (!hn) throw new Error(`ไม่เจอ patient.data.hn ใน response ลงทะเบียน: ${JSON.stringify(body).slice(0, 300)}`);
 
   const dialog = openVisitDialog(page);
   await expect(dialog.getByText(`HN ${hn}`, { exact: true })).toBeVisible();
-  return { hn, dialog };
+  // คำนำหน้าที่ระบบตั้งให้จากเพศ — ลงทะเบียนต่อในฟอร์มเดิมแล้วค่าค้างจากคนก่อน (เจอ 20 ต.ค. 2026)
+  return { hn, namePrefix: body.patient?.data?.namePrefix?.display, dialog };
 }
 
 /**

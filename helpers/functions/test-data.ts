@@ -6,6 +6,8 @@ export interface NewPatient {
   gender: 'ชาย' | 'หญิง';
   /** DD/MM/YYYY เป็น ค.ศ. — พิมพ์ลงช่องวันเกิดได้เลย ไม่ต้องเปิดปฏิทิน */
   birthDate: string;
+  /** ช่อง "คำนำหน้าชื่อ" (บังคับในฟอร์ม) — ไม่ใส่ = ปล่อยให้ระบบเติมจากเพศ ซึ่งบางครั้งไม่เติม/ค้างจากคนก่อน */
+  namePrefix?: string;
 }
 
 /**
@@ -25,8 +27,12 @@ export function newTestPatient(label: string): NewPatient {
 /** ผู้ป่วย mock data ชุด "AIทดสอบ" — ชื่อ `AIทดสอบ<seq>f` / นามสกุล `AIทดสอบ<seq>l` + อายุ ณ วันที่สร้าง */
 export interface AiTestPatient extends NewPatient {
   seq: string;
+  namePrefix: string;
   age: number;
 }
+
+/** คำนำหน้าตามเพศของผู้ป่วย mock data (ผู้ใช้กำหนด 20 ต.ค. 2026) */
+export const PREFIX_BY_GENDER: Record<NewPatient['gender'], string> = { ชาย: 'นาย', หญิง: 'น.ส.' };
 
 export const AI_TEST_PREFIX = 'AIทดสอบ';
 
@@ -65,14 +71,16 @@ export function randomBirthDate(minAge: number, maxAge: number): { birthDate: st
   return { birthDate: `${pad(born.getUTCDate())}/${pad(born.getUTCMonth() + 1)}/${born.getUTCFullYear()}`, age };
 }
 
-/** ผู้ป่วย mock data ใหม่ 1 คนตามลำดับ seq — เลขบัตรสุ่ม (R8) · เพศสุ่ม · อายุสุ่มตามช่วง */
+/** ผู้ป่วย mock data ใหม่ 1 คนตามลำดับ seq — เลขบัตรสุ่ม (R8) · เพศสุ่ม + คำนำหน้าตามเพศ · อายุสุ่มตามช่วง */
 export function aiTestPatient(seq: string, { minAge = 18, maxAge = 80 } = {}): AiTestPatient {
+  const gender = randomGender();
   return {
     seq,
     citizenId: randomThaiId(),
+    namePrefix: PREFIX_BY_GENDER[gender],
     firstName: `${AI_TEST_PREFIX}${seq}f`,
     familyName: `${AI_TEST_PREFIX}${seq}l`,
-    gender: randomGender(),
+    gender,
     ...randomBirthDate(minAge, maxAge),
   };
 }
