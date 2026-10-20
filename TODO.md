@@ -4,7 +4,7 @@
 
 - [x] **P1 — สร้าง skill `qa-bug-writer`** (`~/.claude/skills/qa-bug-writer/SKILL.md`) — เขียนแล้ว: ขั้นตอน, สูตรชื่อ `[Bug][Module][Form] - <ทำอะไร> ใน <ที่ไหน> แล้ว <อาการ>` + ตารางตัวอย่างดี/ไม่ดี, โครง body QA Bug (Actual = ปัญหา/เกิดที่/อาการ/เกิดซ้ำ + หัวข้อ "รายละเอียดสำหรับ dev"), สไตล์ภาษา, ห้ามเดาสาเหตุ, ตารางสรุปการ์ดแม่, checklist · ตรวจสอบ: frontmatter name/description ครบ, อยู่นอก repo (global) จึงไม่ commit
 - [x] **P1 — เพิ่ม section "สไตล์การเขียน content" ใน `linear-testcase-writer`** — เพิ่ม section ก่อน Final consistency check (อะไร + ที่ไหน + อาการ, technical ตามหลัง/แยกหัวข้อ dev, ห้ามเดาสาเหตุ, ตัวอย่าง ❌/✅, ชี้ไป `qa-bug-writer`) + 1 ข้อใน checklist + log 2026-10-20 · ตรวจสอบ: `diff` global กับ `.claude/skills/` = เหมือนกัน
-- [ ] **P2 — เขียน 6 การ์ด bug ใหม่ (NUH-3253–3258)** — ชื่อ + Actual Result ตามสไตล์ใหม่ คงรูป/วิดีโอ/steps/severity/labels, ทำ NUH-3253 ก่อนแล้ว `get_issue` ตรวจ, ปรับตารางใน NUH-3088
+- [x] **P2 — เขียน 6 การ์ด bug ใหม่ (NUH-3253–3258)** — เปลี่ยนชื่อเป็น "ทำอะไร ใน ที่ไหน แล้ว อาการ", Actual Result เป็น ปัญหา/เกิดที่/อาการ/เกิดซ้ำ/ข้อสังเกต, ย้าย status code/endpoint ออกจาก Description ไปหัวข้อ "รายละเอียดสำหรับ dev", caption รูป + Severity + Expected เป็นภาษาผู้ใช้ — คงรูป/วิดีโอ/steps/severity/labels เดิม · NUH-3088 ตารางเปลี่ยนคอลัมน์เป็น "เกิดที่ / อาการที่ผู้ใช้เห็น" และตัดประโยคเดาสาเหตุ ("อาจมีสาเหตุร่วมกัน" → "ต้องให้ dev ตรวจ") · ตรวจสอบ: response ของทุก save แสดงเนื้อหาใหม่ครบ (NUH-3253 ทำก่อน 1 ใบแล้วค่อยทำที่เหลือ)
 - [ ] **P3 — (รอ user ยืนยัน) เพิ่มกฎใช้ `qa-bug-writer` ใน `~/.claude/CLAUDE.md`**
 
 ## CTXN-12015 — ทดสอบ Save/Edit/Reload ทุก form (ครบ 29 TC) — 20 ต.ค. 2569
