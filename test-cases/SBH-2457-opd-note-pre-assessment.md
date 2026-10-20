@@ -915,6 +915,13 @@ Actual Result
 | 15 | เอกสารแนบ "อื่นๆ" + อัปโหลด PDF (upload 201, other-7-69.pdf) | **ไฟล์แนบหาย** | 24a, 24d |
 | 16 | หน้า Setting form ของ SBH — ยังหาไม่เจอ (`/setting/admin/forms/presets` = "ไม่พบหน้าที่ต้องการ") | — | — |
 
+**Setting form (AC 16)** — QA ชี้ทาง: ผู้ดูแลระบบ > แบบฟอร์ม > แบบฟอร์ม → แท็บ "แบบฟอร์ม EMR" → "SBH GENERAL OPD NOTE" (`sbh-general-opd-note`) "เปิด" → `/cortex/setting/admin/forms/presets/11/edit?tab=emr` · คลิป `08-sbh-setting-expand-collapse.webm` · ภาพ 25a–25f
+
+- แต่ละส่วนมี checkbox "จำเป็น" / "ซ่อน" · ค่าเดิม: ติ๊ก "ซ่อน" ที่ Vital signs general, Body metric general, Body chart v2 (ตรงกับ 3 ส่วนที่พับอยู่ตอนเปิด OPD Note SBH) · ไม่มีแถว Note to Nurse ใน preset (แต่ฟอร์มจริงแสดง)
+- เป็น**ค่ากลางของฟอร์ม SBH ทั้งระบบ** ไม่ใช่ต่อ visit — QA อนุญาตให้ "สลับ 1 ส่วนแล้วคืนค่าทันที"
+- ลองติ๊ก "ซ่อน" ที่ Physical examination general → บันทึก (`PUT /cortex-api/clinical-form-presets/11` 200) → เปิด OPD Note SBH ใหม่ (goto ใหม่) → **Physical Examination ยังกางอยู่** (ทดสอบ 1 รอบ) → คืนค่า (PUT 200) → reload หน้า preset ค่าตรงกับค่าเดิมครบ 9 แถว
+- ยังสรุปไม่ได้ว่า "ซ่อน" = Default Collapse (QA ไม่แน่ใจ) — เป็นไปได้ว่าต้องเป็นฟอร์มที่ยังไม่เคยบันทึก หรือมี cache · **ต้องถาม dev/BA ว่า "ซ่อน" หมายถึงอะไร และค่าใหม่มีผลเมื่อไร**
+
 ข้อสังเกตอื่น: ฟอร์มคัดกรองบังคับกรอก Chief Complaint + Present Illness ("กรุณากรอกข้อมูล") (13c) · ระหว่างกรอกหัวฟอร์มขึ้น "อัปเดตไม่ได้" (บันทึก draft) แต่กด "สร้าง" แล้วบันทึกได้ (201) · Underlying Disease ในฟอร์มคัดกรองมี checkbox 3 ช่องที่ไม่มีข้อความกำกับ
 
 ## AC → Test Case
