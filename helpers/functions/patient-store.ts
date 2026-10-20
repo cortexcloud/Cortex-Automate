@@ -11,6 +11,10 @@ export interface StoredPatient extends AiTestPatient {
   env: string;
   /** ISO 8601 */
   createdAt: string;
+  /** ที่อยู่ (ถ้ามี) — ลงทะเบียนจาก ER ไม่มีที่อยู่ จะมีเฉพาะคนที่แก้ข้อมูลทีหลังผ่านเวชระเบียน */
+  address?: string;
+  /** หมายเหตุสิ่งที่ทำกับผู้ป่วยหลังสร้าง */
+  note?: string;
 }
 
 export const PATIENTS_FILE = path.resolve(__dirname, '../../test-data/patients.json');
