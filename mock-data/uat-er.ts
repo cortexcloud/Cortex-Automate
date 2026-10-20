@@ -319,7 +319,8 @@ export async function submitOrders(page: Page, codes: string[], options: { resum
   const sentRow = (code: string) => main.getByRole('row', { name: new RegExp(`^(ส่งแล้ว|กำลังดำเนินการ) \\[${code}\\]`) });
   if (options.resume) {
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => undefined);
-    if ((await Promise.all(codes.map((code) => sentRow(code).count()))).every((n) => n > 0)) return;
+    // codes ว่าง (ส่งเฉพาะยาที่ค้างในตะกร้า) ต้องไปกดส่งคำสั่งต่อ ไม่ออกก่อน
+    if (codes.length && (await Promise.all(codes.map((code) => sentRow(code).count()))).every((n) => n > 0)) return;
   }
 
   for (const code of codes) {
@@ -350,17 +351,18 @@ export async function submitOrders(page: Page, codes: string[], options: { resum
 
   const submit = main.getByRole('button', { name: 'save ส่งคำสั่ง' });
   const imagingForm = page.getByRole('dialog', { name: /แบบฟอร์ม Imaging/ });
-  const signed = graphqlMutation(page, 'SignOPDOrders', 120_000);
+  let signed = graphqlMutation(page, 'SignOPDOrders', 120_000);
   signed.catch(() => undefined); // พังก่อนถึงบรรทัดที่รอ จะได้ไม่มี unhandled rejection
   // รายการรังสีที่มีแบบฟอร์ม: กดส่งครั้งแรกเด้งแบบฟอร์ม (ไม่บังคับกรอกช่องใด) → บันทึก → กดส่งอีกครั้ง
   // กดส่งทันทีหลังเพิ่มรายการ บางครั้งค้างที่ "กำลังตรวจสอบแบบฟอร์ม Imaging" ไม่เด้งอะไร (dev-x 3 ต.ค. 2026) → กดซ้ำ
   // กดส่งแล้วอาจเด้งหน้าต่างเตือน ("Drug Alert" / "Lab Alert" เช่นรายการซ้ำ) ที่ต้องระบุเหตุผลทุกแถวก่อนกด "ยืนยันการสั่งออเดอร์"
   const drugAlert = orderAlert(page);
+  const remaining = page.getByRole('dialog', { name: 'พบยาที่ผู้ป่วยยังใช้ไม่หมด' });
   const shown = (dialog: Locator, name: string) => dialog.waitFor({ state: 'visible', timeout: 10_000 }).then(() => name, () => 'nothing');
   let outcome = 'nothing';
   await submit.click();
   for (let round = 0; round < 8 && outcome !== 'signed'; round++) {
-    outcome = await Promise.race([shown(imagingForm, 'form'), shown(drugAlert, 'alert'), signed.then(() => 'signed', () => 'nothing')]);
+    outcome = await Promise.race([shown(imagingForm, 'form'), shown(drugAlert, 'alert'), shown(remaining, 'remaining'), signed.then(() => 'signed', () => 'nothing')]);
     if (outcome === 'form') {
       const formSaved = waitForApi(page, 'PUT', '/cortex-api/imaging-order-form-compositions');
       await imagingForm.getByRole('button', { name: 'save บันทึก' }).click();
@@ -370,8 +372,29 @@ export async function submitOrders(page: Page, codes: string[], options: { resum
       await submit.click({ timeout: 5_000 }).catch(() => undefined);
     } else if (outcome === 'alert') {
       await confirmOrderAlert(page);
+    } else if (outcome === 'remaining' && (await remaining.isVisible())) {
+      // ผู้ป่วยที่เคยได้ยาตัวเดียวกันและยังใช้ไม่หมด (SBH Prod 19 ต.ค. 2026 — ไม่กดแล้ว SignOPDOrders ตอบ "medication remaining sign review is required")
+      console.log(`    ${(await remaining.innerText()).replace(/\s+/g, ' ').slice(0, 300)}`);
+      // คำสั่งแรกที่ตอบ error มาก่อนหน้าต่างนี้ → รอคำสั่งใหม่ที่ส่งหลังกดยืนยัน
+      await signed.catch(() => undefined);
+      signed = graphqlMutation(page, 'SignOPDOrders', 120_000);
+      signed.catch(() => undefined);
+      await remaining.getByRole('button', { name: 'ยืนยันสั่งต่อ' }).click();
+      await expect(remaining).toBeHidden();
     } else if (outcome === 'nothing') {
       await submit.click({ timeout: 5_000 }).catch(() => undefined);
+    } else if (outcome === 'signed') {
+      // ยาที่ผู้ป่วยยังใช้ไม่หมด: คำสั่งแรกตอบ error "medication remaining sign review is required" แล้วหน้าเว็บเด้งหน้าต่างให้ยืนยัน → กด "ยืนยันสั่งต่อ" = ส่งคำสั่งใหม่
+      const first = (await (await signed).text()).includes('medication remaining sign review is required');
+      if (first) {
+        await expect(remaining).toBeVisible({ timeout: 20_000 });
+        console.log(`    ${(await remaining.innerText()).replace(/\s+/g, ' ').slice(0, 300)}`);
+        signed = graphqlMutation(page, 'SignOPDOrders', 120_000);
+        signed.catch(() => undefined);
+        await remaining.getByRole('button', { name: 'ยืนยันสั่งต่อ' }).click();
+        await expect(remaining).toBeHidden({ timeout: 20_000 });
+        outcome = 'remaining-confirmed';
+      }
     }
   }
   expect(outcome, 'กดส่งคำสั่งแล้วต้องส่งคำสั่งสำเร็จ').toBe('signed');

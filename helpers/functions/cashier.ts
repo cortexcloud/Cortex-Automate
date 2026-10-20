@@ -69,20 +69,41 @@ export async function gotoCashierAccount(page: Page, hn: string, vn: string) {
  * → radio `ระบุเลข End Point ด้วยตนเอง` → `* ประเภทบัตร` (60 / 61 / 62) · `* Terminal ID` · `* Trace` · `* End Point` → `ยืนยัน`
  * → `POST /cortex-api/end-point/from-close-coverage` 204 (body: edcTerminalId / edcInvoiceNo = Trace / endPoint / txCode / isManual)
  */
-export async function closeCoverageWithEndpoint(page: Page, input: { endPoint: string; terminalId: string; trace: string; cardType: string }) {
+export async function closeCoverageWithEndpoint(page: Page, input: { endPoint?: string; terminalId?: string; trace?: string; cardType: string }): Promise<{ endPoint: string; terminalId: string; trace: string }> {
   await page.getByRole('button', { name: 'ระบุเลข End Point' }).click();
   const dialog = page.getByRole('dialog', { name: /^ปิดสิทธิ/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('radio', { name: 'ระบุเลข End Point ด้วยตนเอง' }).check();
   await dialog.getByRole('combobox', { name: /ประเภทบัตร/ }).click();
   await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: new RegExp(`^${input.cardType} - `) }).first().click();
-  await dialog.getByRole('textbox', { name: '* Terminal ID' }).fill(input.terminalId);
-  await dialog.getByRole('textbox', { name: '* Trace' }).fill(input.trace);
-  await dialog.getByRole('textbox', { name: '* End Point' }).fill(input.endPoint);
+  // ผู้ใช้ 19 ต.ค. 2026: "ตอนกดปุ่ม end point ให้สุ่มตัวเลขก่อนถึงจะกดยืนยันได้" (ใช้เลขเดิมซ้ำแล้วปุ่มยืนยันกดไม่ได้)
+  // → ค่าที่ไม่ส่งมา = สุ่ม · หน้าต่างมีปุ่ม "สุ่ม" ให้กดปุ่มนั้นก่อน (ยังไม่เคยเห็นปุ่มนี้ — เผื่อไว้)
+  const randomButton = dialog.getByRole('button', { name: /สุ่ม/ });
+  if (!input.endPoint && (await randomButton.count())) await randomButton.first().click();
+  const values = { terminalId: input.terminalId ?? randomDigits(8), trace: input.trace ?? randomDigits(6), endPoint: input.endPoint ?? randomDigits(9) };
+  for (const [name, value] of [['* Terminal ID', values.terminalId], ['* Trace', values.trace], ['* End Point', values.endPoint]] as const) {
+    const box = dialog.getByRole('textbox', { name });
+    if (input.endPoint || !(await box.inputValue())) await box.fill(value);
+  }
+  const filled = {
+    terminalId: await dialog.getByRole('textbox', { name: '* Terminal ID' }).inputValue(),
+    trace: await dialog.getByRole('textbox', { name: '* Trace' }).inputValue(),
+    endPoint: await dialog.getByRole('textbox', { name: '* End Point' }).inputValue(),
+  };
+  const confirm = dialog.getByRole('button', { name: 'ยืนยัน' });
+  await expect(confirm, `ปุ่มยืนยันปิดสิทธิต้องกดได้ (Terminal ID ${filled.terminalId} · Trace ${filled.trace} · End Point ${filled.endPoint})`).toBeEnabled({ timeout: 10_000 });
   const saved = waitForApi(page, 'POST', '/cortex-api/end-point/from-close-coverage', 60_000);
-  await dialog.getByRole('button', { name: 'ยืนยัน' }).click();
+  await confirm.click();
   await expectOk(await saved, 'ปิดสิทธิด้วย End Point');
   await expect(dialog).toBeHidden();
+  return filled;
+}
+
+/** ตัวเลขสุ่ม n หลัก (หลักแรกไม่เป็น 0) */
+function randomDigits(n: number): string {
+  let s = String(1 + Math.floor(Math.random() * 9));
+  while (s.length < n) s += Math.floor(Math.random() * 10);
+  return s;
 }
 
 /**
@@ -122,4 +143,29 @@ export async function payAllInCash(page: Page): Promise<{ invoiceId: string; rec
   const body = (await paidRes.json()) as { latestStatusCode?: string; receiptId?: string };
   expect(body.latestStatusCode, `ชำระเงินไม่สำเร็จ: ${JSON.stringify(body)}`).toBe('succeeded');
   return { invoiceId, receiptId: body.receiptId ?? '', amount: Number(due) };
+}
+
+/**
+ * เพิ่มรายการค่าใช้จ่ายที่หน้าบัญชีการเงิน (SBH Prod 19 ต.ค. 2026): ปุ่ม `เพิ่มรายการ` → dialog "เพิ่มรายการ"
+ * (`* เลขที่รับบริการ` เลือก EN ของ Visit มาให้ · combobox `ค้นหาด้วยชื่อหรือรหัสรายการ` ค้นได้ทั้งรหัส LAB / IMG / ACT และชื่อ · ราคาต่อหน่วยเติมเอง · จำนวน 1 · สิทธิติ๊กมาให้)
+ * → `ยืนยัน` → `POST /cortex-api/account-charge-items` 201 · หน้าต่างค้างเปิดไว้ให้เพิ่มรายการถัดไป
+ */
+export async function addChargeItems(page: Page, codes: string[]) {
+  const dialog = page.getByRole('dialog', { name: 'เพิ่มรายการ' });
+  const options = page.locator('.ant-select-dropdown:visible .ant-select-item-option');
+  if (!(await dialog.isVisible())) await page.getByRole('button', { name: /เพิ่มรายการ/ }).first().click();
+  await expect(dialog).toBeVisible();
+  for (const code of codes) {
+    const search = dialog.getByRole('combobox', { name: 'ค้นหาด้วยชื่อหรือรหัสรายการ' }).or(dialog.getByRole('combobox', { name: /^[A-Z]{3}\d+ - / })).first();
+    await search.fill(code);
+    await options.filter({ hasText: `${code} - ` }).first().click();
+    await expect(dialog.getByRole('spinbutton', { name: '* ราคาต่อหน่วย' }), `ราคาของ ${code} ต้องเติมมาให้`).not.toHaveValue('');
+    const saved = waitForApi(page, 'POST', '/cortex-api/account-charge-items', 60_000);
+    await dialog.getByRole('button', { name: 'ยืนยัน' }).click();
+    await expectOk(await saved, `เพิ่มรายการ ${code} ที่การเงิน`);
+    // หน้าต่างล้างฟอร์มรอรายการถัดไป
+    await expect(dialog.getByRole('combobox', { name: 'ค้นหาด้วยชื่อหรือรหัสรายการ' })).toBeVisible({ timeout: 15_000 });
+  }
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).toBeHidden();
 }

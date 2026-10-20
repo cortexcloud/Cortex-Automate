@@ -1,12 +1,12 @@
 import type { Page } from '@playwright/test';
-import { closeCoverageWithEndpoint, closeVisitAtCashier, gotoCashierAccount, payAllInCash } from '../helpers/functions/cashier';
-import { dismissToast, expectTriageFormOpen, gotoErDashboard, type ErVisit } from '../helpers/functions/er';
+import { addChargeItems, closeCoverageWithEndpoint, closeVisitAtCashier, gotoCashierAccount, payAllInCash } from '../helpers/functions/cashier';
+import { dismissToast, expectOk, expectTriageFormOpen, gotoErDashboard, type ErVisit } from '../helpers/functions/er';
 import { trackAuthorization } from '../helpers/functions/er-report';
 import { triageForm } from '../helpers/functions/er-triage';
 import { checkStep } from '../helpers/functions/evidence';
 import type { NewPatient } from '../helpers/functions/test-data';
 import { expect, test } from './fixtures';
-import { COVERAGE_UC, SETTINGS, SYSTEM, createPrescription, dxForSet, nextPrefixedPatient, recordMockPatient, registerAndOpenErVisit, savePhysicianNote, submitOrders } from './uat-er';
+import { COVERAGE_UC, SETTINGS, SYSTEM, createPrescription, dxForSet, nextPrefixedPatient, openErVisitForHn, recordMockPatient, registerAndOpenErVisit, savePhysicianNote, submitOrders } from './uat-er';
 import { openDisposition } from '../helpers/functions/er-disposition';
 import { VITALS_NORMAL, addMedicineToCart, boardEncounter, careMenu, draftDischarge, fillTriage, gotoVisit, mockPatient, saveTriageForm, signDischarge } from './uat-play';
 
@@ -17,9 +17,13 @@ import { VITALS_NORMAL, addMedicineToCart, boardEncounter, careMenu, draftDischa
 // MOCK_DISPOSITION=1 — ทำ Disposition (With Approval + กดปุ่มลงนาม) ก่อนปิด Visit (ผู้ใช้ขอ 16 ต.ค. 2026 ลำดับ Note → Order → Disposition → ปิด Visit)
 // MOCK_RESUME=1 + MOCK_RESUME_FROM=triage|note|order|activity|disposition|close — ทำขั้นที่ค้างต่อกับผู้ป่วย ORDER รายล่าสุดใน created-patients.md
 
-const LABEL = 'ORDER';
+const LABEL = process.env.MOCK_HN ? 'HN' : 'ORDER';
 /** ยาที่สั่ง — dev-x ใช้เฉพาะ med0000005–8 (R25) · SBH Prod ใช้รหัสเดียวกับสคริปต์เล่น UAT-ER-01 (สั่งได้จริง 3 ต.ค. 2026) */
 const MED_CODE = SYSTEM === 'dev-x' ? 'med0000005' : 'MED0000260';
+/** MOCK_MEDS=<รหัส,รหัส> ยาที่สั่งจาก ER (ตั้งต้น = MED_CODE ตัวเดียว) */
+const MED_CODES = (process.env.MOCK_MEDS ?? MED_CODE).split(',').filter(Boolean);
+/** MOCK_HN=<HN> ใช้ผู้ป่วยที่มี HN อยู่แล้ว (ไม่ลงทะเบียนใหม่) เปิด Visit ER ให้จากหน้าคัดกรอง — ผู้ใช้ให้รายชื่อ HN มา 19 ต.ค. 2026 */
+const EXISTING_HN = process.env.MOCK_HN ?? '';
 /**
  * หัตถการ — env MOCK_ACTIVITY เปลี่ยนรหัสได้
  * dev-x: 89.52 ECG (การ์ด SBH-1103) · SBH Prod: ACT0000062 Biopsy of parathyroid gland (สั่ง + ส่งได้ 16 ต.ค. 2026 — 89.52 / ACT0005007 ค้นไม่เจอบน Prod)
@@ -35,7 +39,11 @@ const NO_CLOSE = process.env.MOCK_NO_CLOSE === '1';
 const RX = process.env.MOCK_RX === '1';
 /** MOCK_ENDPOINT=<เลข> ปิดสิทธิ UC ด้วย End Point (บัตร 60 · Terminal ID / Trace = เลขเดียวกัน — ผู้ใช้กำหนด) แล้วชำระเงินสดยอดที่เหลือ ก่อนปิด Visit */
 const ENDPOINT = process.env.MOCK_ENDPOINT ?? '';
-const STEPS = ['triage', 'note', 'order', 'activity', 'disposition', 'rx', 'pay', 'close'] as const;
+/** MOCK_CASHIER_ITEMS=<รหัส,รหัส> เพิ่มรายการค่าใช้จ่ายที่หน้าการเงิน (ปุ่ม เพิ่มรายการ) ก่อนชำระเงิน — ผู้ใช้ 19 ต.ค. 2026 ให้ LAB / IMG / Activity เพิ่มที่การเงิน */
+const CASHIER_ITEMS = (process.env.MOCK_CASHIER_ITEMS ?? '').split(',').filter(Boolean);
+/** MOCK_ENDPOINT=random7 = End Point สุ่ม 7 หลัก (Terminal ID / Trace สุ่มตามตัวช่วย) */
+const randomOfLength = (n: number) => Array.from({ length: n }, (_, i) => String(Math.floor(Math.random() * (i ? 10 : 9)) + (i ? 0 : 1))).join('');
+const STEPS = ['triage', 'note', 'order', 'activity', 'disposition', 'rx', 'cashier-items', 'pay', 'close'] as const;
 const FROM = RESUME ? STEPS.indexOf((process.env.MOCK_RESUME_FROM ?? 'triage') as (typeof STEPS)[number]) : 0;
 const runs = (step: (typeof STEPS)[number]) => STEPS.indexOf(step) >= FROM;
 
@@ -70,8 +78,23 @@ test(`Mock Data ผู้ป่วย ER สิทธิ UC + Order ยา / Lab
     const [firstName, familyName] = last.name.split(' ');
     patient = { citizenId: last.citizenId ?? '-', firstName, familyName, gender: 'ชาย', birthDate: '15/01/1990' };
     visit = { hn: last.hn, vn: last.vn, en: last.en };
-    await gotoVisit(page, visit);
+    // ขั้นห้องยา / การเงิน ไม่ใช้หน้า Visit ของ ER
+    if (FROM < STEPS.indexOf('rx')) await gotoVisit(page, visit);
     progress(`ทำต่อกับ ${last.name} HN ${visit.hn} · ${visit.en} ตั้งแต่ขั้น ${STEPS[FROM]}`);
+  } else if (EXISTING_HN) {
+    await gotoErDashboard(page);
+    const res = await page.request.get(`/new-demographic-api/patients?filter[hn][in]=${EXISTING_HN}&perPage=1`, { headers: { authorization: authorization() } });
+    await expectOk(res, `อ่านข้อมูลผู้ป่วย HN ${EXISTING_HN}`);
+    const found = ((await res.json()) as { data: { firstName?: string; familyName?: string; citizenId?: string }[] }).data[0];
+    if (!found) throw new Error(`ไม่พบผู้ป่วย HN ${EXISTING_HN}`);
+    patient = { citizenId: found.citizenId ?? '-', firstName: found.firstName ?? '', familyName: found.familyName ?? '', gender: 'ชาย', birthDate: '-' };
+    visit = await checkStep(page, `เปิด Visit ER สิทธิ ${COVERAGE_UC} ให้ ${patient.firstName} ${patient.familyName} (HN ${EXISTING_HN})`, async () => {
+      const opened = await openErVisitForHn(page, EXISTING_HN);
+      await expectTriageFormOpen(page, opened);
+      await dismissToast(page, 'สร้าง Visit สำเร็จ');
+      return opened;
+    });
+    progress(`✓ เปิด Visit ER ${visit.en} ให้ ${patient.firstName} ${patient.familyName} HN ${visit.hn}`);
   } else {
     await gotoErDashboard(page);
     patient = await nextPrefixedPatient(page, authorization(), `${LABEL}-`);
@@ -102,23 +125,26 @@ test(`Mock Data ผู้ป่วย ER สิทธิ UC + Order ยา / Lab
   }
 
   if (runs('note')) {
-    const dx = dxForSet(Number(patient.familyName.split('-')[1]));
+    // Dx ไม่ซ้ำกัน (R36): ผู้ป่วย Mock ตามเลขลำดับ · ผู้ป่วยที่มี HN ตามเลข HN
+    const dx = dxForSet(EXISTING_HN ? Number(EXISTING_HN) : Number(patient.familyName.split('-')[1]));
     let diagnosis = '';
     const ok = await attempt(page, problems, `แพทย์บันทึก ER Physician Note (Dx ${dx})`, async () => void (diagnosis = await savePhysicianNote(page, dx)));
     if (ok) done.push(`ER Physician Note (Dx ${diagnosis})`);
   }
 
   if (runs('order')) {
-    const codes = [SETTINGS.labCode, SETTINGS.imagingCode];
-    const ok = await attempt(page, problems, `สั่งยา ${MED_CODE} + Lab ${SETTINGS.labCode} + Imaging ${SETTINGS.imagingCode} แล้วส่งคำสั่ง`, async () => {
+    // MOCK_ER_ORDER_CODES=<รหัส,รหัส> กำหนดรายการที่สั่งจาก ER นอกจากยา (ว่าง = สั่งเฉพาะยา — ผู้ใช้ 19 ต.ค. 2026 ให้ LAB / IMG / Activity ไปเพิ่มที่หน้าการเงิน)
+    const codes = process.env.MOCK_ER_ORDER_CODES !== undefined ? process.env.MOCK_ER_ORDER_CODES.split(',').filter(Boolean) : [SETTINGS.labCode, SETTINGS.imagingCode];
+    const list = [...MED_CODES, ...codes].join(' + ');
+    const ok = await attempt(page, problems, `สั่งยา / Order ${list} แล้วส่งคำสั่ง`, async () => {
       await careMenu(page, 'One Day Order', main.getByRole('heading', { name: 'Order', exact: true }));
-      const sentMed = main.getByRole('row', { name: new RegExp(`^(ส่งแล้ว|กำลังดำเนินการ) \\[${MED_CODE}\\]`) });
-      if (!(await sentMed.count())) await addMedicineToCart(page, MED_CODE);
+      const sentMed = (code: string) => main.getByRole('row', { name: new RegExp(`^(ส่งแล้ว|กำลังดำเนินการ) \\[${code}\\]`) });
+      for (const code of MED_CODES) if (!(await sentMed(code).count())) await addMedicineToCart(page, code);
       // ยาที่อยู่ในตะกร้าถูกส่งไปพร้อมรายการอื่นตอนกด "ส่งคำสั่ง"
       await submitOrders(page, codes, { resume: RESUME });
-      await expect(sentMed.first(), `ยา ${MED_CODE} ต้องถูกส่งแล้ว`).toBeVisible({ timeout: 60_000 });
+      for (const code of MED_CODES) await expect(sentMed(code).first(), `ยา ${code} ต้องถูกส่งแล้ว`).toBeVisible({ timeout: 60_000 });
     });
-    if (ok) done.push(`Order ยา ${MED_CODE} + ${codes.join(' + ')}`);
+    if (ok) done.push(`Order ${list}`);
   }
 
   if (!NO_ACTIVITY && runs('activity')) {
@@ -149,13 +175,27 @@ test(`Mock Data ผู้ป่วย ER สิทธิ UC + Order ยา / Lab
     }
   }
 
+  if (CASHIER_ITEMS.length && runs('cashier-items')) {
+    if (problems.length) progress('ข้ามการเพิ่มรายการที่การเงิน — มีขั้นก่อนหน้าไม่สำเร็จ');
+    else {
+      const ok = await attempt(page, problems, `การเงิน: เพิ่มรายการ ${CASHIER_ITEMS.join(' + ')}`, async () => {
+        await gotoCashierAccount(page, visit.hn, visit.vn);
+        await addChargeItems(page, CASHIER_ITEMS);
+      });
+      if (ok) done.push(`เพิ่มรายการที่การเงิน ${CASHIER_ITEMS.join(' + ')}`);
+    }
+  }
+
   if (ENDPOINT && runs('pay')) {
     if (problems.length) progress('ข้ามการชำระเงิน — มีขั้นก่อนหน้าไม่สำเร็จ');
     else {
       await attempt(page, problems, `การเงิน: ปิดสิทธิด้วย End Point ${ENDPOINT} แล้วชำระเงินสด`, async () => {
         await gotoCashierAccount(page, visit.hn, visit.vn);
-        await closeCoverageWithEndpoint(page, { endPoint: ENDPOINT, terminalId: ENDPOINT, trace: ENDPOINT, cardType: '60' });
-        done.push(`ปิดสิทธิ End Point ${ENDPOINT}`);
+        // MOCK_ENDPOINT=random = สุ่มเลขทั้ง 3 ช่อง (ผู้ใช้ 19 ต.ค. 2026: เลขเดิมซ้ำแล้วปุ่มยืนยันกดไม่ได้)
+        const digits = ENDPOINT.match(/^random(\d+)$/)?.[1];
+        const fixed = ENDPOINT === 'random' ? {} : digits ? { endPoint: randomOfLength(Number(digits)) } : { endPoint: ENDPOINT, terminalId: ENDPOINT, trace: ENDPOINT };
+        const ep = await closeCoverageWithEndpoint(page, { cardType: '60', ...fixed });
+        done.push(`ปิดสิทธิ End Point ${ep.endPoint} (Terminal ID ${ep.terminalId} · Trace ${ep.trace})`);
         const paid = await payAllInCash(page);
         done.push(`ชำระเงินสด ${paid.amount.toFixed(2)} (${paid.invoiceId} · ใบเสร็จ ${paid.receiptId})`);
       });

@@ -24,8 +24,12 @@ for (const role of ROLES_IN_USE) {
     // ยังไม่ล็อกอิน → แอปพาไปหน้า /cortex/welcome (ใช้เวลา ~11 วินาที) → ปุ่มพาไปหน้า Sign in ของ Keycloak
     const page = await context.newPage();
     await page.goto('/cortex/apps');
-    await page.getByRole('button', { name: 'ลงชื่อเข้าใช้' }).click({ timeout: 30_000 });
-    await page.locator('#username').fill(username);
+    // SBH Prod (19 ต.ค. 2026) พาไปหน้า Sign in ของ Keycloak ทันที ไม่ผ่านหน้า welcome → กดปุ่มเฉพาะเมื่อหน้า welcome ขึ้นก่อนช่อง username
+    const welcome = page.getByRole('button', { name: 'ลงชื่อเข้าใช้' });
+    const username$ = page.locator('#username');
+    await welcome.or(username$).first().waitFor({ timeout: 60_000 });
+    if (await welcome.isVisible()) await welcome.click();
+    await username$.fill(username);
     // บันทึกขั้นล็อกอินได้ตามปกติแล้ว (R14) แต่ยังใส่รหัสด้วย evaluate —
     // ถ้าใช้ fill()/type() ชื่อ step ในรายงานจะเป็น Fill "<รหัสผ่าน>" ทุกรอบที่ล็อกอิน
     await page.locator('#password').evaluate((el, value) => {
