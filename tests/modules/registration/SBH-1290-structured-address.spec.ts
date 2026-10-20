@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import type { FrameLocator, Locator, Page, Route } from '@playwright/test';
 import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
-import { expect, restartVideo, test } from '../../../helpers/functions/fixtures';
+import { expect, restartVideo, startClip, test } from '../../../helpers/functions/fixtures';
 import { fillNewPatientForm, gotoReception, newPatientButton, receptionFrame, saveNewPatientButton } from '../../../helpers/functions/reception';
 import {
   ADDRESS_BLOCKS,
@@ -18,7 +18,6 @@ import {
   locationBox,
   locationTrigger,
   openListbox,
-  pickLocation,
   postalField,
   readAddress,
   readLocationOptions,
@@ -369,11 +368,27 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
         { tc: 3, name: 'ครอบครัว', blocks: FAMILY_BLOCKS },
         { tc: 4, name: 'ข้อมูลการเกิด', blocks: [B.birth] },
       ];
-      for (const { tc, blocks } of sections) {
+      // 1 คลิปต่อ 1 TC (R61): แต่ละ TC ตรวจ 12 ช่อง + ดอกจันทั้ง 2 ประเภทให้จบในช่วงของตัวเอง — สลับประเภทการยืนยันตัวตนไปมา (ฟอร์มยังไม่กรอกอะไร)
+      const MODES = { cid: 'เลขบัตรประชาชน', passport: 'หนังสือเดินทาง' } as const;
+      let mode: keyof typeof MODES = 'cid';
+      const switchMode = async (tc: number) => {
+        const next = mode === 'cid' ? 'passport' : 'cid';
+        await checkStep(page, `${TC(tc)} เปลี่ยนประเภทการยืนยันตัวตนเป็น ${MODES[next]}`, async () => {
+          await f.getByTestId('identify-form').evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+          const trigger = await chooseIdentityMode(f, MODES[next]);
+          await markEvidence(filled(trigger));
+        });
+        mode = next;
+      };
+      const readModeStars = async (blocks: AddressBlock[]) => {
+        for (const block of blocks) (mode === 'cid' ? cidStars : passportStars).set(block, await readStars(f, block));
+      };
+
+      for (const { tc, name, blocks } of sections) {
+        await startClip(page, `TC-${String(tc).padStart(3, '0')}`);
         for (const block of blocks) {
           await soft(`${TC(tc)} ${block.title}: แสดง field ที่อยู่แยก 12 ช่อง`, async () => {
             await showBlock(f, block);
-            cidStars.set(block, await readStars(f, block));
             await expectTwelveFields(f, block);
             if (block.id === 'birth') {
               // ช่องเดิมแบบรวม ต้องไม่เหลือ
@@ -385,17 +400,10 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
             await holdForClip(page);
           });
         }
-      }
+        await readModeStars(blocks);
+        await switchMode(tc);
+        await readModeStars(blocks);
 
-      await checkStep(page, 'เปลี่ยนประเภทการยืนยันตัวตนเป็น หนังสือเดินทาง (ประเภทที่ config บังคับที่อยู่หลัก)', async () => {
-        await f.getByTestId('identify-form').evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
-        const trigger = await chooseIdentityMode(f, 'หนังสือเดินทาง');
-        await markEvidence(filled(trigger));
-        for (const { blocks } of sections) for (const block of blocks) passportStars.set(block, await readStars(f, block));
-      });
-      test.info().annotations.push({ type: 'ดอกจันบังคับ', description: JSON.stringify({ cid: Object.fromEntries([...cidStars].map(([b, s]) => [b.id, s])), passport: Object.fromEntries([...passportStars].map(([b, s]) => [b.id, s])) }) });
-
-      for (const { tc, name, blocks } of sections) {
         const main = tc === 1;
         await soft(`${TC(tc)} ${name}: เครื่องหมายบังคับกรอก${main ? 'ที่บ้านเลขที่ / หมู่ / ตำบล / อำเภอ / จังหวัด ของที่อยู่หลัก' : ' — ต้องไม่มี'}`, async () => {
           const rows: CompareRow[] = [];
@@ -416,7 +424,9 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
           expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values.join(' / ')}`), main ? 'ที่อยู่หลัก: 5 ช่องต้องมี * · ส่วนอื่นต้องไม่มี' : 'ต้องไม่มีเครื่องหมายบังคับกรอก').toEqual([]);
         }).finally(() => hideCompareTable(page));
       }
+      test.info().annotations.push({ type: 'ดอกจันบังคับ', description: JSON.stringify({ cid: Object.fromEntries([...cidStars].map(([b, s]) => [b.id, s])), passport: Object.fromEntries([...passportStars].map(([b, s]) => [b.id, s])) }) });
 
+      await startClip(page, 'TC-006');
       // TC-006: จังหวัด → อำเภอ → ตำบล ของที่อยู่ (ทะเบียนบ้าน) · รายการเทียบกับ Master Data `thai_address_with_address_details` (API เดียวกับที่หน้าใช้ — ตรวจรหัสขึ้นต้นด้วยรหัสของชั้นบนด้วย)
       const off = B.official;
       await soft(`${TC(6)} ก่อนเลือกจังหวัด: ช่องอำเภอ / ตำบล (ข้อมูลประกอบ)`, async () => {
@@ -513,9 +523,24 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
       const patient = newTestPatient('Addr1290A');
       let hn = process.env.SBH1290_A ?? '';
 
+      // 1 คลิปต่อ 1 TC (R61 · ผู้ใช้เลือก "ผู้ป่วยร่วม แยกคลิปต่อ TC" 18 ต.ค. 2026): คลิป TC-007 = สร้างผู้ป่วย A (กรอกทุก section — ครอบครัว / ข้อมูลการเกิด เป็นข้อมูลของ TC-009 / 010)
+      //   แล้วตรวจที่อยู่ และการติดต่อ บนหน้าแก้ไข · TC อื่นเปิดหน้าข้อมูลผู้ป่วย A ใหม่แล้วเริ่มคลิปของตัวเอง (ลำดับ 007 → 013 → 005 → 009 → 010 → 012 · TC-012 แก้ข้อมูลจึงไว้ท้าย)
+      const clipOf = (tc: number) => `TC-${String(tc).padStart(3, '0')}`;
+      const reopen = async (tc: number, edit = true) => {
+        await openPatient(page, hn);
+        await startClip(page, clipOf(tc));
+        if (edit) await openEdit(page, `${TC(tc)} กด แก้ไขข้อมูลผู้ป่วย → ฟอร์มแก้ไข`);
+      };
+      const readApi = async (label: string) => {
+        const body = await api(`/new-demographic-api/patients/${hn}?include=RelatedPerson`);
+        await test.info().attach(`GET patients/${hn} (${label})`, { body: JSON.stringify(body, null, 2), contentType: 'application/json' });
+        return flattenJson(body);
+      };
+
       if (!hn) {
-        await checkStep(page, 'เวชระเบียน → สร้างผู้ป่วยใหม่ → กรอกข้อมูลส่วนตัวที่บังคับ (เลขบัตรประชาชน)', async () => {
+        await checkStep(page, `${TC(7)} ขั้น 2 เวชระเบียน → สร้างผู้ป่วยใหม่ → กรอกข้อมูลส่วนตัวที่บังคับ (เลขบัตรประชาชน)`, async () => {
           await gotoReception(page);
+          await startClip(page, clipOf(7));
           await fillNewPatientForm(page, patient);
           await markEvidence(filled(f.getByTestId('firstName')), filled(f.getByTestId('familyName')), filled(f.getByTestId('identifyVerification.identify')));
         });
@@ -530,13 +555,26 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
         ];
         for (const { tc, block } of fills) {
           const input = A_ADDRESS[block.id as AddressBlockId]!;
-          const what = tc === 7 ? 'ครบทุก field' : tc === 9 ? 'บ้านเลขที่ + หมู่ + ซอย + จ/อ/ต' : 'บ้านเลขที่ + หมู่ + จ/อ/ต';
-          await checkStep(page, `${TC(tc)} กรอก ${block.title}: ${what}`, () => fillBlock(page, block, input, patient.familyName));
+          const what = tc === 7 ? 'ครบทุก field' : `${tc === 9 ? 'บ้านเลขที่ + หมู่ + ซอย + จ/อ/ต' : 'บ้านเลขที่ + หมู่ + จ/อ/ต'} (ข้อมูลของ ${TC(tc)})`;
+          await checkStep(page, `${TC(7)} ขั้น 3 กรอก ${block.title}: ${what}`, () => fillBlock(page, block, input, patient.familyName));
         }
         hn = await checkStep(page, `${TC(7)} ขั้น 4 กดบันทึก → ได้ HN ใหม่`, () => savePatient(page, `ผู้ป่วย A ${patient.familyName}`));
       } else {
         await openPatient(page, hn);
+        await startClip(page, clipOf(7));
       }
+
+      // TC-007 ขั้น 5: หน้าแก้ไข — ที่อยู่ และการติดต่อ (ทะเบียนบ้าน · ปัจจุบัน · ผู้ติดต่อฉุกเฉิน) แต่ละ field แสดงค่าที่กรอก + API
+      await openEdit(page, `${TC(7)} ขั้น 5 กด แก้ไขข้อมูลผู้ป่วย → ฟอร์มแก้ไข`);
+      // รันซ้ำกับผู้ป่วยเดิมหลัง TC-012: ถนนของทะเบียนบ้านเป็นค่าใหม่แล้ว
+      const officialRoad = async () => ({ ...A_ADDRESS.official!, road: (await textField(f, B.official, 'road').inputValue()) || A_ADDRESS.official!.road });
+      const flat7 = await readApi('TC-007 หลังสร้าง');
+      const officialAt7 = await officialRoad();
+      for (const block of CONTACT_BLOCKS) {
+        await prefillStep(page, soft, `${TC(7)} หน้าแก้ไข ${block.title}: แต่ละ field แสดงค่าที่กรอก`, block, block.id === 'official' ? officialAt7 : A_ADDRESS[block.id as AddressBlockId]!, flat7);
+      }
+
+      await reopen(13, false);
 
       // TC-013: ข้อความที่อยู่บนหน้าข้อมูลผู้ป่วย (ตัดสินที่อยู่หลัก · ส่วนอื่นเป็นข้อมูลประกอบ)
       await soft(`${TC(13)} หน้าข้อมูลผู้ป่วย: ที่อยู่แบบข้อความครบทุกองค์ประกอบ ไม่ตกหล่น ไม่ซ้ำ`, async () => {
@@ -560,7 +598,7 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
         expect(main.map((r) => `${r.label}: ${r.values[1]}`), 'ที่อยู่หลักต้องครบทุกองค์ประกอบ ไม่ซ้ำ').toEqual([]);
       }).finally(() => hideCompareTable(page));
 
-      await openEdit(page, `${TC(5)} · ${TC(7)} ขั้น 5 กด แก้ไขข้อมูลผู้ป่วย → ฟอร์มแก้ไข`);
+      await reopen(5);
       for (const block of ALL_BLOCKS) {
         await soft(`${TC(5)} หน้าแก้ไข ${block.title}: แสดง field แยก 12 ช่อง`, async () => {
           await showBlock(f, block);
@@ -570,26 +608,22 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
         });
       }
 
-      const stored = await api(`/new-demographic-api/patients/${hn}?include=RelatedPerson`);
-      await test.info().attach(`GET patients/${hn} (หลังสร้าง)`, { body: JSON.stringify(stored, null, 2), contentType: 'application/json' });
-      const flat = flattenJson(stored);
-      const checks: { tc: number; block: AddressBlock }[] = [
-        { tc: 7, block: B.official },
-        { tc: 7, block: B.current },
-        { tc: 7, block: B.emergency },
-        { tc: 9, block: B.father },
-        { tc: 9, block: B.mother },
-        { tc: 9, block: B.spouse },
-        { tc: 10, block: B.birth },
-      ];
-      // รันซ้ำกับผู้ป่วยเดิมหลัง TC-012: ถนนของทะเบียนบ้านเป็นค่าใหม่แล้ว
-      const officialNow = { ...A_ADDRESS.official!, road: (await textField(f, B.official, 'road').inputValue()) || A_ADDRESS.official!.road };
-      for (const { tc, block } of checks) {
-        const input = block.id === 'official' ? officialNow : A_ADDRESS[block.id as AddressBlockId]!;
-        await prefillStep(page, soft, `${TC(tc)} หน้าแก้ไข ${block.title}: แต่ละ field แสดงค่าที่กรอก`, block, input, flat);
+      for (const { tc, blocks } of [
+        { tc: 9, blocks: FAMILY_BLOCKS },
+        { tc: 10, blocks: [B.birth] },
+      ]) {
+        await reopen(tc);
+        const flatTc = await readApi(clipOf(tc));
+        for (const block of blocks) {
+          await prefillStep(page, soft, `${TC(tc)} หน้าแก้ไข ${block.title}: แต่ละ field แสดงค่าที่กรอก`, block, A_ADDRESS[block.id as AddressBlockId]!, flatTc);
+        }
       }
 
       // TC-012: แก้เฉพาะถนนของที่อยู่ (ทะเบียนบ้าน) → บันทึก → เปิดหน้าแก้ไขอีกครั้ง
+      await reopen(12);
+      const checks = ALL_BLOCKS.filter((block) => A_ADDRESS[block.id as AddressBlockId]);
+      const flat = await readApi('TC-012 ก่อนแก้ไข');
+      const officialNow = await officialRoad();
       const editedOfficial = { ...A_ADDRESS.official!, road: NEW_ROAD };
       const roadBefore = officialNow.road;
       await checkStep(page, `${TC(12)} ขั้น 3 แก้ถนนเป็น "${NEW_ROAD}" แล้วกดบันทึก`, async () => {
@@ -613,7 +647,7 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
       const after = await api(`/new-demographic-api/patients/${hn}?include=RelatedPerson`);
       await test.info().attach(`GET patients/${hn} (หลังแก้ไข)`, { body: JSON.stringify(after, null, 2), contentType: 'application/json' });
       const flatAfter = flattenJson(after);
-      for (const { block } of checks) {
+      for (const block of checks) {
         const input = block.id === 'official' ? editedOfficial : A_ADDRESS[block.id as AddressBlockId]!;
         await prefillStep(page, soft, `${TC(12)} หลังแก้ ${block.title}: ${block.id === 'official' ? `ถนน = "${editedOfficial.road}" ช่องอื่นคงเดิม` : 'คงเดิมทุกช่อง'}`, block, input, flatAfter);
       }
@@ -650,10 +684,13 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
       if (!hn) {
         await checkStep(page, `${TC(11)} ขั้น 2 สร้างผู้ป่วยใหม่ → กรอกข้อมูลส่วนตัวที่บังคับ (เลขบัตรประชาชน)`, async () => {
           await gotoReception(page);
+          await startClip(page, 'TC-011');
           await fillNewPatientForm(page, patient);
           await markEvidence(filled(f.getByTestId('firstName')), filled(f.getByTestId('familyName')), filled(f.getByTestId('identifyVerification.identify')));
         });
         await checkStep(page, `${TC(11)} ขั้น 3 ที่อยู่ (ทะเบียนบ้าน): บ้านเลขที่ + หมู่ + จ/อ/ต เท่านั้น`, () => fillBlock(page, B.official, B_OFFICIAL, patient.familyName));
+        // ที่อยู่หลัก = ทะเบียนบ้าน + ปัจจุบัน (config เลขบัตรประชาชนบังคับทั้ง 2 ส่วนตั้งแต่ 16 ต.ค. 2026 บ่าย)
+        await checkStep(page, `${TC(11)} ขั้น 3 ที่อยู่ปัจจุบัน: บ้านเลขที่ + หมู่ + จ/อ/ต เท่านั้น`, () => fillBlock(page, B.current, B_OFFICIAL, patient.familyName));
         await soft(`${TC(11)} ขั้น 4 ที่อยู่ที่ทำงาน / ครอบครัว / ข้อมูลการเกิด ว่างทั้งหมด`, async () => {
           for (const block of [B.work, ...FAMILY_BLOCKS, B.birth]) {
             const shown = await readAddress(f, block);
@@ -663,13 +700,21 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
           await markEvidence(...blockFields(f, B.work).map(expected));
         });
         hn = await checkStep(page, `${TC(11)} ขั้น 5 กดบันทึก → บันทึกสำเร็จ ไม่มีแจ้งเตือนของ section อื่น`, () => savePatient(page, `ผู้ป่วย B ${patient.familyName}`));
+        await holdForClip(page);
       } else {
         await openPatient(page, hn);
       }
+      // คลิป TC-014 เริ่มที่หน้าข้อมูลผู้ป่วย B (หลังบันทึกของ TC-011)
+      await startClip(page, 'TC-014');
 
       await soft(`${TC(14)} หน้าข้อมูลผู้ป่วย: แสดงเฉพาะองค์ประกอบที่กรอก ไม่มีคำนำหน้า / ตัวคั่นของ field ที่ว่าง`, async () => {
         await expect(f.getByRole('heading', { name: 'ข้อมูลผู้ป่วย' })).toBeVisible({ timeout: 60_000 });
-        const { line, text } = await infoText(f, B_OFFICIAL.houseNo!);
+        // ทะเบียนบ้าน / ปัจจุบัน กรอกค่าเดียวกัน → หาจากป้ายของบรรทัด ไม่ใช่บ้านเลขที่ (เดิมได้บรรทัดปัจจุบัน — กรอบผิดบรรทัด 18 ต.ค. 2026)
+        const official = f.getByTestId('label-title').filter({ hasText: /^ที่อยู่ตามทะเบียนบ้าน\s*:$/ }).locator('xpath=following-sibling::*[@data-testid="label-description"][1]');
+        const found = (await official.count()) > 0;
+        const fallback = await infoText(f, B_OFFICIAL.houseNo!);
+        const line = found ? official : fallback.line;
+        const text = found ? (await official.innerText()).replace(/\s+/g, ' ').trim() : fallback.text;
         const problems = textProblems(text, B_OFFICIAL);
         const rows: CompareRow[] = [{ label: B.official.title, values: [text || '(ไม่พบ)', problems.join(' · ') || 'ไม่มีคำ / ตัวคั่นของช่องที่ว่าง'], same: !problems.length }];
         if (await line.count()) {
@@ -699,6 +744,7 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
       if (!hn) {
         await checkStep(page, `${TC(8)} ขั้น 2 สร้างผู้ป่วยใหม่ → ข้อมูลส่วนตัว + ที่อยู่หลัก (field บังคับ)`, async () => {
           await gotoReception(page);
+          await startClip(page, 'TC-008');
           await fillNewPatientForm(page, patient);
           // ที่อยู่หลัก = ทะเบียนบ้าน + ปัจจุบัน (เลขบัตรประชาชนบังคับทั้ง 2 ส่วนตั้งแต่ 16 ต.ค. 2026 บ่าย)
           await fillBlock(page, B.official, C_OFFICIAL, patient.familyName);
@@ -784,59 +830,44 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
         await holdForClip(page, 1_500);
       };
 
-      // ฟอร์มเดียวต่อประเภท (ไม่โหลดหน้าใหม่ทุกเคส — iframe เวชระเบียนโหลดช้า คลิปจอว่างนาน) แก้ช่องต่อกันตามลำดับ TC-017 → 016 → 015
-      // ที่อยู่หลัก = ทะเบียนบ้าน + ปัจจุบัน → แก้ทั้ง 2 ส่วนเหมือนกันทุกเคส
-      for (const mode of modes) {
-        await checkStep(page, `${mode.name}: สร้างผู้ป่วยใหม่ → กรอกข้อมูลส่วนตัวที่บังคับ`, async () => {
-          await page.waitForTimeout(3_000);
+      // 1 คลิปต่อ 1 TC (R61): ฟอร์มใหม่ 1 ฟอร์มต่อ TC — กรอกที่อยู่หลัก (ทะเบียนบ้าน + ปัจจุบัน) เว้นช่องของ TC → บันทึกด้วยเลขบัตรประชาชน
+      //   → เปลี่ยนเป็นหนังสือเดินทาง (ที่อยู่คงเดิม) → บันทึกอีกครั้ง → ตารางผลของ TC นั้น
+      const o = B.official;
+      const FILL: Record<15 | 16 | 17, { what: string; input: AddressInput; until?: 'districtCode'; marks: Locator[] }> = {
+        17: { what: 'บ้านเลขที่ + หมู่ + จังหวัด / อำเภอ ไม่เลือกตำบล', input: { houseNo: '7/7', villageNo: '3' }, until: 'districtCode', marks: [textField(f, o, 'houseNo'), textField(f, o, 'villageNo'), locationTrigger(f, o, 'stateCode'), locationTrigger(f, o, 'districtCode')] },
+        16: { what: 'บ้านเลขที่ + จังหวัด / อำเภอ / ตำบล เว้นหมู่', input: { houseNo: '7/7' }, marks: [textField(f, o, 'houseNo'), locationTrigger(f, o, 'stateCode'), locationTrigger(f, o, 'districtCode'), locationTrigger(f, o, 'cityCode')] },
+        15: { what: 'หมู่ + จังหวัด / อำเภอ / ตำบล เว้นบ้านเลขที่', input: { villageNo: '3' }, marks: [textField(f, o, 'villageNo'), locationTrigger(f, o, 'stateCode'), locationTrigger(f, o, 'districtCode'), locationTrigger(f, o, 'cityCode')] },
+      };
+      for (const tc of [15, 16, 17] as const) {
+        const c = CASES[tc];
+        const fill = FILL[tc];
+        await checkStep(page, `${TC(tc)} ขั้น 2 สร้างผู้ป่วยใหม่ → กรอกข้อมูลส่วนตัวที่บังคับ (เลขบัตรประชาชน)`, async () => {
+          await page.waitForTimeout(3_000); // แอปลองส่งคำสั่งที่ถูกยกเลิกซ้ำ — รอให้จบก่อนเปลี่ยนหน้า
           await gotoReception(page);
-          if (!mode.passport) await restartVideo(page);
-          await fillNewPatientForm(page, newTestPatient('Uhp1290'));
-          if (mode.passport) {
-            await f.getByTestId('identify-form').evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
-            await chooseIdentityMode(f, 'หนังสือเดินทาง');
-            await f.getByTestId('identifyVerification.identify').fill(`AA${String(Date.now()).slice(-7)}`);
-            await f.getByTestId('identifyVerification.expire').fill('31/12/2030');
-            await f.getByTestId('identifyVerification.expire').press('Tab');
-            await markEvidence(filled(f.getByTestId('select-trigger-identifyVerification.verificationMode')), filled(f.getByTestId('identifyVerification.identify')), filled(f.getByTestId('identifyVerification.expire')));
-          } else {
-            await markEvidence(filled(f.getByTestId('select-trigger-identifyVerification.verificationMode')), filled(f.getByTestId('identifyVerification.identify')));
-          }
+          await startClip(page, `TC-${String(tc).padStart(3, '0')}`);
+          await fillNewPatientForm(page, newTestPatient('Uhp1290'), { skipAddress: true });
+          await markEvidence(filled(f.getByTestId('select-trigger-identifyVerification.verificationMode')), filled(f.getByTestId('identifyVerification.identify')));
         });
-
-        await soft(`${TC(17)} ${mode.name}: บ้านเลขที่ + หมู่ + จังหวัด / อำเภอ ไม่เลือกตำบล → กดบันทึก`, async () => {
+        await checkStep(page, `${TC(tc)} ขั้น 3 ที่อยู่หลัก (ทะเบียนบ้าน + ปัจจุบัน): ${fill.what}`, async () => {
           for (const block of MAIN_BLOCKS) {
             await showBlock(f, block);
-            await fillAddress(f, block, { houseNo: '7/7', villageNo: '3' });
-            await chooseLocation(f, block, SARABURI_PAKPHRIAO, { until: 'districtCode' });
+            await fillAddress(f, block, fill.input);
+            await chooseLocation(f, block, SARABURI_PAKPHRIAO, fill.until ? { until: fill.until } : undefined);
+            if (!fill.until) await expect(postalField(f, block)).toHaveValue(SARABURI_PAKPHRIAO.postal);
           }
-          const o = B.official;
-          await attempt(CASES[17], mode, [textField(f, o, 'houseNo'), textField(f, o, 'villageNo'), locationTrigger(f, o, 'stateCode'), locationTrigger(f, o, 'districtCode')]);
+        });
+        await soft(`${TC(tc)} ขั้น 4 เลขบัตรประชาชน: กดบันทึก`, () => attempt(c, modes[0], fill.marks));
+        await soft(`${TC(tc)} ขั้น 4 หนังสือเดินทาง: เปลี่ยนประเภท (ที่อยู่คงเดิม) → กดบันทึก`, async () => {
+          await f.getByTestId('identify-form').evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+          await chooseIdentityMode(f, 'หนังสือเดินทาง');
+          await f.getByTestId('identifyVerification.identify').fill(`AA${String(Date.now()).slice(-7)}`);
+          await f.getByTestId('identifyVerification.expire').fill('31/12/2030');
+          await f.getByTestId('identifyVerification.expire').press('Tab');
+          await markEvidence(filled(f.getByTestId('select-trigger-identifyVerification.verificationMode')), filled(f.getByTestId('identifyVerification.identify')), filled(f.getByTestId('identifyVerification.expire')));
+          await snapEvidence(page, `${String(tc).padStart(3, '0')} passport เปลี่ยนประเภท`);
+          await attempt(c, modes[1], fill.marks);
         });
 
-        await soft(`${TC(16)} ${mode.name}: เลือกตำบล แล้วลบหมู่ → กดบันทึก`, async () => {
-          for (const block of MAIN_BLOCKS) {
-            await showBlock(f, block);
-            await pickLocation(f, block, 'cityCode', SARABURI_PAKPHRIAO.city);
-            await expect(postalField(f, block)).toHaveValue(SARABURI_PAKPHRIAO.postal);
-            await textField(f, block, 'villageNo').fill('');
-          }
-          const o = B.official;
-          await attempt(CASES[16], mode, [textField(f, o, 'houseNo'), locationTrigger(f, o, 'stateCode'), locationTrigger(f, o, 'districtCode'), locationTrigger(f, o, 'cityCode')]);
-        });
-
-        await soft(`${TC(15)} ${mode.name}: ใส่หมู่คืน แล้วลบบ้านเลขที่ → กดบันทึก`, async () => {
-          for (const block of MAIN_BLOCKS) {
-            await showBlock(f, block);
-            await textField(f, block, 'villageNo').fill('3');
-            await textField(f, block, 'houseNo').fill('');
-          }
-          const o = B.official;
-          await attempt(CASES[15], mode, [textField(f, o, 'villageNo'), locationTrigger(f, o, 'stateCode'), locationTrigger(f, o, 'districtCode'), locationTrigger(f, o, 'cityCode')]);
-        });
-      }
-
-      for (const c of [CASES[15], CASES[16], CASES[17]]) {
         await soft(`${TC(c.tc)} ผล: บันทึกไม่ได้ และแจ้งให้กรอก${c.label} (ทั้ง 2 ประเภท)`, async () => {
           const list = results.get(c.tc)!;
           const rows: CompareRow[] = list.map((r) => ({

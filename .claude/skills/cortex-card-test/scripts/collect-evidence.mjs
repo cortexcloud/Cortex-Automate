@@ -36,6 +36,12 @@ if (fs.existsSync(video)) {
 } else {
   lines.push('', 'ไม่มี video.webm (เทสพังก่อนหน้าแรกโหลดเสร็จ?)');
 }
+// คลิปแยกต่อ TC จาก startClip() (R61 — 1 คลิปต่อ 1 TC) → <คำนำหน้า>-clip-TC-xxx.webm · ใช้ไฟล์เหล่านี้แนบ Linear (video.webm = ช่วงก่อน TC แรก)
+for (const name of fs.readdirSync(source).filter((file) => /^clip-.+\.webm$/.test(file)).sort()) {
+  const short = `${prefix}-${name}`;
+  fs.copyFileSync(path.join(source, name), path.join(target, short));
+  lines.push(`| ${short} | คลิปของ ${name.replace(/^clip-|\.webm$/g, '')} | ${fs.statSync(path.join(target, short)).size} |`);
+}
 
 fs.writeFileSync(path.join(target, 'index.md'), `${lines.join('\n')}\n`);
 console.log(lines.join('\n'));
