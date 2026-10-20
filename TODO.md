@@ -1,5 +1,12 @@
 # TODO
 
+## สไตล์การเขียน content (อ่านง่าย ไม่ technical เกิน) + เขียนการ์ด bug ใหม่ — 20 ต.ค. 2569
+
+- [x] **P1 — สร้าง skill `qa-bug-writer`** (`~/.claude/skills/qa-bug-writer/SKILL.md`) — เขียนแล้ว: ขั้นตอน, สูตรชื่อ `[Bug][Module][Form] - <ทำอะไร> ใน <ที่ไหน> แล้ว <อาการ>` + ตารางตัวอย่างดี/ไม่ดี, โครง body QA Bug (Actual = ปัญหา/เกิดที่/อาการ/เกิดซ้ำ + หัวข้อ "รายละเอียดสำหรับ dev"), สไตล์ภาษา, ห้ามเดาสาเหตุ, ตารางสรุปการ์ดแม่, checklist · ตรวจสอบ: frontmatter name/description ครบ, อยู่นอก repo (global) จึงไม่ commit
+- [x] **P1 — เพิ่ม section "สไตล์การเขียน content" ใน `linear-testcase-writer`** — เพิ่ม section ก่อน Final consistency check (อะไร + ที่ไหน + อาการ, technical ตามหลัง/แยกหัวข้อ dev, ห้ามเดาสาเหตุ, ตัวอย่าง ❌/✅, ชี้ไป `qa-bug-writer`) + 1 ข้อใน checklist + log 2026-10-20 · ตรวจสอบ: `diff` global กับ `.claude/skills/` = เหมือนกัน
+- [ ] **P2 — เขียน 6 การ์ด bug ใหม่ (NUH-3253–3258)** — ชื่อ + Actual Result ตามสไตล์ใหม่ คงรูป/วิดีโอ/steps/severity/labels, ทำ NUH-3253 ก่อนแล้ว `get_issue` ตรวจ, ปรับตารางใน NUH-3088
+- [ ] **P3 — (รอ user ยืนยัน) เพิ่มกฎใช้ `qa-bug-writer` ใน `~/.claude/CLAUDE.md`**
+
 ## CTXN-12015 — ทดสอบ Save/Edit/Reload ทุก form (ครบ 29 TC) — 20 ต.ค. 2569
 
 - [x] **P1 — เขียน script CRUD flow ทุก form** — `temp_scripts/test-form-crud-all.js`: เปิด form → กรอก field หลัก 1 ช่อง (textarea / text / radio / checkbox / ICD) → Save → reload ตรวจค่า → แก้ไข → Save → reload ตรวจค่าล่าสุด, เก็บ HTTP status ตอน Save + screenshot ทุกขั้นที่ `temp_scripts/save-results/crud-tc-xxx-*.png` · ตรวจสอบ: รันกับ Operative Note ผ่านครบก่อน แล้วค่อยรันทั้ง 10 form
