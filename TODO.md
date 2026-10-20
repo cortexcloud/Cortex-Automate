@@ -1,5 +1,17 @@
 # TODO
 
+## CTXN-12015 — ทดสอบ Save/Edit/Reload ทุก form (ครบ 29 TC) — 20 ต.ค. 2569
+
+- [x] **P1 — เขียน script CRUD flow ทุก form** — `temp_scripts/test-form-crud-all.js`: เปิด form → กรอก field หลัก 1 ช่อง (textarea / text / radio / checkbox / ICD) → Save → reload ตรวจค่า → แก้ไข → Save → reload ตรวจค่าล่าสุด, เก็บ HTTP status ตอน Save + screenshot ทุกขั้นที่ `temp_scripts/save-results/crud-tc-xxx-*.png` · ตรวจสอบ: รันกับ Operative Note ผ่านครบก่อน แล้วค่อยรันทั้ง 10 form
+- [x] **P1 — รันจริง 10 form บน OR-69-000219** — ผ่าน 6 (011, 012, 025, 026, 027, 028) / ไม่ผ่าน 4: TC-013 Safety Checklist OD (412 contribution), TC-014 Custom Note ECMO (201 แต่ reload แล้วข้อมูลหาย), TC-015 Complication (400 flat-to-json), TC-029 Post-anesthesia (ปุ่ม Save loading ค้าง ไม่มี write) · ตรวจสอบ: ทุกตัวที่ fail รันซ้ำ 2–3 รอบได้ผลเดิม; ตัวที่เคย fail เพราะ script (Nurse Note ICD, Post-anes radio) แก้ script แล้วรันใหม่
+- [x] **P2 — อัปเดต Linear** — CTXN-12029–12033, 12043–12047: เปลี่ยน title/Steps/Expected/Actual เป็น CRUD flow + state Passed/Failed; CTXN-12015 สรุปเป็น 25/29 · ตรวจสอบ: เช็ก `updatedAt` ทุกใบ (CTXN-12043 ต้องส่งซ้ำ 1 ครั้ง)
+- [x] **P2 — เก็บหลักฐานตาม skill (วิดีโอ + รูปวงแดง R23) แล้วแนบใต้ Actual Result ทุกการ์ด** — script เพิ่ม `page.screencast` 1 คลิปต่อ form + `evidence()` วงแดงป้าย กรอก/กด/Expected (`ev-tc-xxx-*.png`, `ev-tc-xxx-flow.webm`), อัปโหลดผ่าน `temp_scripts/put-upload.js` แล้วฝังใต้หัวข้อ "หลักฐาน" ใน 10 การ์ด · ตรวจสอบ: เปิดดูรูปทุกชุดก่อนอัปโหลด, ค่าในการ์ดแก้ให้ตรงกับรอบที่อัดหลักฐาน
+- [x] **P1 — แก้ผล TC-014 Custom Note ที่ผิด** — รอบแรก script กรอกใน Perfusionist note ใบเก่า ไม่ใช่ form ใบใหม่ที่ Save บันทึก (`probe-custom-note.js` ยืนยันโครงสร้าง) → เขียน `test-custom-note-crud.js` ใหม่: Save 201 + reload พบ note พร้อมข้อมูล → Passed (เกณฑ์ QA: กรอก+reload ข้อมูลอยู่ = ผ่าน), ข้อสังเกต note ที่บันทึกแล้วไม่มีปุ่ม Save · CTXN-12015 สรุปเป็น 26/29
+- [ ] **P3 — สร้าง bug card สำหรับ form ที่ไม่ผ่าน** — รอ user ยืนยัน · รายการ: TC-013 (412), TC-015 (400), TC-029 (Save ค้าง), TC-002 (Request Detail "schedule note is required"), TC-008 / TC-023 (Charges "surgical operation detail input invalid")
+- [x] **P1 — กลุ่ม A: ทดสอบ Save 6 form ที่ยังไม่ได้ทดสอบ** — `temp_scripts/test-group-a-save.js` (+ TC-002 Request Detail): ผ่าน TC-001 Participants, TC-009 Attachment (201), TC-016 Assign Anesthesia → reload แล้วรายการยังอยู่ · ไม่ผ่าน TC-002, TC-008, TC-023 (toast error จาก server, reload ไม่มีรายการ) · TC-020 E-MAR → Blocked (ปุ่มเพิ่มยา disabled "ไม่พบ VN หรือ AN") · ตรวจสอบ: นับแถวก่อน/หลัง reload + จับ toast/HTTP status, รูปวงแดง + วิดีโอแนบการ์ดครบ
+- [x] **P2 — กลุ่ม B/C: อัดหลักฐานการโหลด 13 การ์ด** — `temp_scripts/test-load-evidence.js` → `ev-tc-xxx-load.png` + `ev-tc-xxx-flow.webm` อัปโหลดใต้ Actual Result ทุกใบ (TC-003–007, 010, 017–022, 024) + แก้ OR/HN เป็น OR-69-000219 / 6931701 + ลิงก์ผล save ของ TC คู่กัน · ตรวจสอบ: เปิดดูรูปก่อนเขียนผล — พบ Expected ไม่ตรงหน้าจอ (ไม่มี Select form) ใน TC-004, 005, 018, 019 และ Audit ANE = OD (TC-024) บันทึกเป็น ⚠️ โดยคง state Passed; TC-020 → Blocked; `get_issue` ยืนยัน CTXN-12042 ที่ response ค้าง
+- [x] **P2 — อัปเดต CTXN-12015 ให้ครอบคลุม 29 การ์ด** — สรุปใหม่ 22/29 (❌ 6 · 🚫 1), OD 11/15 · ANE 11/14 · ตรวจสอบ: `get_issue` หลัง patch (response แรกค้าง) เห็นครบทุก TC
+
 ## COR-1724 (โครงสร้างใหม่ CTXN-1049x) — รอบขยายผลหลัง TC-001/TC-002: highlight Fail, วิดีโอต่อเนื่อง, TC ใหม่ 3 รายการ
 
 **Decision (12 ต.ค. 2026 ผ่าน AskUserQuestion):** ผู้ใช้ยืนยันแล้ว —
@@ -1111,6 +1123,200 @@ OR-69-000217 เดิมก่อน สร้างใหม่เฉพาะ
 - [x] **P10 — อัปเดต Actual Result TC-018–021 + TC-005 (Not Test) ใน draft .md แล้ว commit local** (14 ต.ค. 2026)
       อัปเดตไฟล์ `test-cases/CTXN-10711-operation-detail-anesthesia-record-templates.md` ครบถ้วนทั้ง TC-005 (Not Test) และ TC-018–021
       (หมายเหตุ: การ์ด Linear จะสร้าง/อัปเดตเมื่อมี Linear API Key / Linear MCP รองรับ)
-- [ ] **P11 — เทส template 6 Anes Safety Check (TC-022–025)** (หลัง user เห็นผล template 5)
-- [ ] **P12 — เทส template 7 OR Surgical Safety Checklist (TC-026–029)** แล้วหยุดรายงาน
+- [x] **P10.1 — สร้างการ์ด Linear จริงสำหรับ TC-018–021 (session นี้มี Linear MCP ต่ออยู่) + แก้ TC-005 ใน Linear ให้ตรงกฎใหม่** (14 ต.ค. 2026)
+      session นี้ (มี Linear MCP) เทส TC-018–021 เองอีกรอบแบบ real-time บน OR-69-000219 (ภาพ 037–044, วิดีโอ `04-OR-nurse-note.webm`)
+      ได้ผลตรงกับที่ session Antigravity สรุปไว้ทุกจุด (badge DRAFT + ข้อความ edited ยังอยู่หลัง reload, Code ICD9CM หายหลัง Edit,
+      ไม่มีปุ่มลบจริง) ยืนยันเพิ่มเติมด้วย network request + ดึง composition ตรงจาก ehrbase (`format=FLAT`) ไม่ใช่แค่ screenshot —
+      สร้างการ์ดจริงครบ **CTXN-11766 (TC-018, Passed), CTXN-11767 (TC-019, Passed), CTXN-11768 (TC-020, Passed พร้อมหมายเหตุ Defect
+      เรื่อง Code ไม่ถูกเก็บเป็น structured field), CTXN-11769 (TC-021, Not Test ตามกฎใหม่)** ทุกใบมีภาพ evidence ฝังจริง +
+      แก้ **CTXN-10774 (TC-005)** จาก Failed → **Not Test** ตามกฎใหม่ที่ user ยืนยันแล้ว (ไม่มีปุ่มลบจริง = Not Test ไม่ใช่ Failed)
+      บันทึกกฎนี้ลง memory แล้ว (`feedback_delete_tc_not_test.md`) ให้ session หน้าใช้ตามอัตโนมัติ
+- [x] **P11 — เทส template 6 Anes Safety Check (TC-022–025)** (14 ต.ค. 2026)
+      ทดสอบบน OR-69-000219 sub-tab Safety Checklist (ภาพ 045–051, วิดีโอ `05-anes-safety-check.webm`)
+      - **TC-022 (Load) = Passed** (CTXN-11770): ฟอร์ม render ทันที แสดง Sign In (Q1-Q5) + Time Out ครบตาม Expected
+      - **TC-023 (Create) = Passed** (CTXN-11771): เลือก Q1 "Difficult airway or aspiration risk?" = No (D-06) แล้ว Save สำเร็จ
+        (flat-to-json 200, contribution 201) badge DRAFT ขึ้นทันที
+      - **TC-024 (Edit) = Passed** (CTXN-11772): เปลี่ยน Q4 "Is the monitor on the patient and functioning?" = No แล้ว Save
+        ยืนยันด้วย reload เต็มหน้าจริง ค่ายังอยู่ตรงตาม Expected
+      - **TC-025 (Delete) = Not Test** (CTXN-11773): ไม่มีปุ่ม/เมนูลบจริงในระบบ (ตามกฎใหม่ P10.1) ตรงกับ baseline
+      Template นี้ไม่พบบั๊กใหม่ — พฤติกรรมตรงกับ baseline 14-10-2026 ทุกจุด (ต่างจาก Operative Note sub-templates ที่มีบั๊ก
+      orphaned record) อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 25/79 TC (6/19 template)**
+- [x] **P12 — เทส template 7 OR Surgical Safety Checklist (TC-026–029)** (14 ต.ค. 2026)
+      sub-tab Safety Checklist ของ OR-69-000219 ถูกล็อกจริงแล้วด้วย Anes Safety Check (ต่างจากกลุ่ม Operative Note ที่มีบั๊กไม่ล็อก)
+      จึงสร้าง operation ใหม่ **OR-69-000221 | ANES-69-000111** ผ่าน Set OR (OR02, เจอ time conflict กับ OR-69-000207 เดิม
+      ต้องเลือกเหตุผล SURGEON_REQUEST ยืนยันการจองเกิน) — ทดสอบบน OR-69-000221 (ภาพ 052–072, วิดีโอ `06-or-surgical-safety-checklist.webm`)
+      - **TC-026 (Load) = Passed** (CTXN-11774): ฟอร์มที่ render เป็น "Naresuan University Hospital: Patient Surgical Safety
+        Check List" โครงสร้างต่างจาก Anes Safety Check มาก (มี Patient info, V/S, NPO, Lab/Blood/Antibiotic) — ตอนแรกเข้าใจผิดว่า
+        ไม่มี Sign In/Time Out เพราะเช็คด้วย `innerText.includes('Sign In')` (case-sensitive) แต่จริงๆ มีอยู่เป็น **"1. SIGN IN"**
+        และ **"2. TIME OUT"** (ตัวพิมพ์ใหญ่ทั้งหมด) อยู่ค่อนไปทางท้ายฟอร์ม ต้อง scroll ลงไปดู — แก้ไขและยืนยันแล้วว่า Passed จริง
+      - **TC-027 (Create) = Passed** (CTXN-11775): เลือก checkbox แรกในกลุ่ม SIGN IN "Patient has confirmed" (D-07) แล้ว Save
+        สำเร็จ (flat-to-json 200, contribution 201) badge DRAFT ขึ้นทันที
+      - **TC-028 (Edit) = Passed** (CTXN-11776): เปลี่ยนจาก "Patient has confirmed" เป็น "Site marked" (D-07 เปลี่ยนตัวเลือก)
+        ยืนยันด้วย reload เต็มหน้าจริง ค่ายังอยู่ — หมายเหตุ: Expected Result ต้นฉบับใน draft คัดลอกข้อความ "Q4 Is the monitor on
+        the patient and functioning = No" มาจาก TC ของ Anes Safety Check ผิด (ฟอร์มนี้ไม่มี Q4 แบบนั้นจริง) บันทึกไว้ในการ์ดแล้วว่า
+        ควรแก้ Expected Result ในรอบ Gate 1 ถัดไป
+      - **TC-029 (Delete) = Not Test** (CTXN-11777): ไม่มีปุ่ม/เมนูลบจริงในระบบ ตรงกับทุก template ก่อนหน้า (7 template ติดต่อกัน
+        ที่ไม่มี delete function เลย)
+      อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 29/79 TC (7/19 template)**
+- [x] **P13 — เทส template 8 Surgical Safety Checklist (TC-030–033)** (14 ต.ค. 2026)
+      sub-tab Safety Checklist ของ OR-69-000221 ถูกล็อกแล้วด้วย OR Surgical Safety Checklist จริง จึงสร้าง operation ใหม่
+      **OR-69-000222 | ANES-69-000112** ผ่าน Set OR (OR03, เจอ OPD schedule conflict ของศัลยแพทย์คนเดิม ต้องเลือกเหตุผล
+      SURGEON_REQUEST ยืนยันการจองเกิน) — พบว่าดรอปดาวน์ Safety Checklist มี 3 ตัวเลือกจริง (Anes Safety Check, OR Surgical
+      Safety Checklist, Surgical Safety Checklist) ทดสอบบน OR-69-000222 (ภาพ 073–081)
+      - **TC-030 (Load) = Failed** (CTXN-11778): ฟอร์มที่ render เป็น "แบบตรวจสอบความปลอดภัยสำหรับผู้ป่วยผ่าตัด" (ภาษาไทยทั้งหมด
+        มี 42 checkbox) ไม่มี Sign In/Time Out เลย — ยืนยันด้วย `page.getByText(/sign.?in/i)` (shadow-DOM-aware locator) ไม่ใช่
+        `document.body.innerText` ซึ่งมองไม่เห็น shadow DOM (เจอปัญหาเดียวกับตอนเช็ค TC-026 ตอนแรก แต่รอบนี้ยืนยันถูกต้องแล้วว่า
+        ไม่มีจริงๆ ไม่ใช่แค่ scroll ไม่ถึง) — Expected Result เขียนเหมือน TC-022/026 ทั้งที่โครงสร้างต่างกันจริง
+      - **TC-031 (Create) = Failed — บั๊กร้ายแรงที่สุดเท่าที่เจอมา**: เลือก checkbox แรก "Consent form" แล้ว Save → ไม่มี toast/badge
+        ตรวจ network พบ `flat-to-json?templateId=nuh_ipd_surgical_safety_checklist_v1` = **400** พร้อม response body
+        `{"message":"Could not retrieve template for template Id: nuh_ipd_surgical_safety_checklist_v1"}` — **template นี้ไม่ได้
+        ถูกลงทะเบียนบน ehrbase เลย** ไม่มีทาง save สำเร็จได้ไม่ว่ากรอกข้อมูลแบบไหน รุนแรงกว่า TC-007 (Cesarean, field mapping ผิด
+        แต่ template มีอยู่จริง) ควรแจ้ง Dev ด่วนที่สุด
+      - TC-032/033 (Edit/Delete) = Blocked (ไม่มี record เพราะ Create ล้มเหลวตั้งแต่ต้น)
+      อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 33/79 TC (8/19 template)**
+- [x] **P14 — เทส template 9 ECMO Form (TC-034–037)** (14 ต.ค. 2026)
+      sub-tab Custom Note เป็นแบบ multi-select ใช้ OR-69-000222 ต่อได้เลย (ยังไม่เคยใช้ sub-tab นี้) ดรอปดาวน์มี 6 ตัวเลือก
+      (ECMO Form, NUH Perfusionist Form, OR Custom Note, Pre-Procedural Sedation Assessment, Procedural Sedation Checklist
+      and Assessment, Sedation Form v2) ทดสอบบน OR-69-000222 (ภาพ 082–089)
+      - **TC-034 (Load) = Passed** (CTXN-11782): แสดง "NARESUAN ECMO DATA SHEET" (`nuh_ecmo_form_v1`) ตรงตาม Expected
+      - **TC-035 (Create) = Passed** (CTXN-11783): กรอก Diagnosis (D-08) แล้ว Save สำเร็จ (200/201) badge DRAFT ขึ้นทันที
+      - **TC-036 (Edit) = Failed — ยืนยันตรงกับ baseline เป๊ะ** (CTXN-11784): เปิด record ที่บันทึกแล้ว ช่อง Diagnosis ยังแก้ไขได้
+        ปกติ (ไม่ disabled) **แต่ไม่มีปุ่ม Save ปรากฏเลยในหน้า** (ยืนยันด้วย `getByTestId().count()` = 0 ไม่ใช่แค่ดูด้วยตา) พิมพ์ edited
+        แล้ว reload (ไม่มีทางอื่นให้บันทึก): ค่ากลับไปเดิม ยืนยันว่าแก้ไขไม่ได้จริงผ่าน UI เลย
+      - **TC-037 (Delete) = Not Test** (CTXN-11785): ไม่มีปุ่ม/เมนูลบจริงในระบบ ตรงกับทุก template ก่อนหน้า
+      user ทักกลางคันให้เช็คทุกเคส Delete ว่ามีปุ่มจริงไหม — ตรวจสอบแล้วว่าทุกการ์ด Not Test ที่สร้างมา (TC-005, 021, 025, 029, 037)
+      มีคำอธิบายเหตุผลครบใน Actual Result ทุกใบแล้วว่าทำไมถึงเป็น Not Test (ไม่ใช่ Failed) — ส่วน TC ที่เป็น Blocked (009, 013, 017,
+      033) ยังคงเป็น Blocked ตามเดิมเพราะเหตุผลคนละแบบ (ไม่มี record ให้ลบเพราะ Create ล้มเหลว ไม่ใช่เพราะไม่มีปุ่มลบ)
+      อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 37/79 TC (9/19 template)**
+- [x] **P15 — เทส template 10 NUH Perfusionist Form (TC-038–041)** (14 ต.ค. 2026)
+      sub-tab Custom Note ของ OR-69-000222 เป็น multi-select — เปิดดรอปดาวน์ "Select form" ที่ท้ายหน้า (ต้องคลิกที่
+      `.ant-select-content` เพราะ element ชั้นนอกบัง pointer events) ยืนยันมี 6 ตัวเลือกเดิมครบ (ECMO Form ที่สร้างไว้จาก TC-035
+      ยังเลือกซ้ำได้ ไม่ล็อก) เลือก "NUH Perfusionist Form" ทดสอบบน OR-69-000222 (ภาพ 090–102)
+      - **TC-038 (Load) = Passed** (CTXN-11786): แสดงฟอร์ม "Perfusionist Form" (`nuh_perfusionist_form_v1`) ครบ field: Time in,
+        Time out, Operative time, Type of anesthesia, Timing, Diagnosis, Operation type, CPB use, Operation, Result, Infection,
+        Note ตรงตาม Expected
+      - **TC-039 (Create) = Passed** (CTXN-11787): กรอก Diagnosis (D-09) = "QA-AUTO-20261014-2154 Perfusionist" แล้ว Save สำเร็จ
+        (flat-to-json=200, contribution=201) badge DRAFT ขึ้นทันที record ECMO Form เดิมยังอยู่ครบด้านล่าง (multi-select ไม่ทับกัน)
+        ยืนยันซ้ำด้วย reload เต็มหน้าจริง ค่ายังถูกต้อง
+      - **TC-040 (Edit) = Failed — ยืนยันตรงกับ baseline และบั๊กเดียวกับ ECMO Form (TC-036) เป๊ะ** (CTXN-11788): ช่อง Diagnosis
+        ยังแก้ไขได้ปกติ (ไม่ disabled) **แต่ไม่มีปุ่ม Save ปรากฏเลยในหน้า** (ยืนยันด้วย `getByRole('button',{name:'Save'}).count()`
+        = 0) พิมพ์ต่อท้าย " edited" แล้ว reload เต็มหน้าจริง: ค่ากลับไปเดิม ยืนยันว่าแก้ไขไม่ได้จริงผ่าน UI — สรุปว่าเป็นบั๊กของกลไก
+        Custom Note ร่วมกัน ไม่ใช่เฉพาะ template ECMO
+      - **TC-041 (Delete) = Not Test** (CTXN-11789): ไม่มีปุ่ม/เมนูลบจริงในระบบ (query ปุ่ม/ไอคอน delete/trash = 0) ตรงกับทุก
+        template ก่อนหน้า (8 template ติดต่อกันที่ไม่มี delete function เลย)
+      อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 41/79 TC (10/19 template)**
+- [x] **P16 — เทส template 11 OR Custom Note (TC-042–045)** (14 ต.ค. 2026)
+      sub-tab Custom Note ของ OR-69-000222 ต่อจาก template 10 — เลือก "OR Custom Note" จากดรอปดาวน์ (ภาพ 103–107)
+      - **TC-042 (Load) = Failed — ยืนยันตรงกับ baseline** (CTXN-11790): เลือก template ติ๊กถูกต้องในดรอปดาวน์ แต่ฟอร์มไม่ render
+        เลย ขึ้น "ไม่สามารถแสดงฟอร์มได้" พร้อมลิงก์ "ดาวน์โหลดอีกครั้ง" — network ยืนยัน `GET /cortex-form/or-custom-note-v1.js?v=v2.2.4`
+        = **404** (baseline เดิมคือ 503 ต่างกันแต่สรุปคือโหลดไม่สำเร็จเหมือนกัน อาจเปลี่ยนไปตาม deploy) กดลิงก์ retry แล้วยัง 404
+        ซ้ำเหมือนเดิม (ยืนยันด้วย console error + network request 2 รอบ) ไม่ใช่ปัญหา transient
+      - **TC-043/044/045 (Create/Edit/Delete) = Blocked** (CTXN-11791/11792/11793): ฟอร์มไม่เคย render เลยจึงไม่มีช่องให้กรอก
+        ข้อมูล ลองกดปุ่ม Save ที่ยังปรากฏอยู่ (ทั้งที่ไม่มีฟอร์ม) แล้วไม่มีอะไรเกิดขึ้น (ไม่มี network request ใหม่ ไม่มี toast)
+      บั๊กนี้ควรแจ้ง Dev ด่วน (ไฟล์ JS bundle หายจาก server ทำให้ทดสอบ 3 ใน 4 TC ของ template นี้ไม่ได้เลย) อัปเดต draft `.md`
+      ครบแล้ว — **รวมทำเสร็จแล้ว 45/79 TC (11/19 template)**
+
+- [x] **P17 — สร้างการ์ด Linear placeholder สำหรับ TC ที่เหลือทั้งหมด (TC-002 fix + TC-046–079 + Scenario EDG ใหม่) + sync draft `.md`** (19 ต.ค. 2026)
+      user ขอ "สร้างข้ออื่นๆ เป็นการ์ดไว้ค่อยไปอัพเดทผลเทสทีหลังได้ไหม" — dispatch agent สร้างการ์ดจาก draft `.md` ที่ผ่าน Gate 1 แล้ว
+      (สถานะ Not Run ทั้งหมด ไม่มีภาพหลักฐานเพราะยังไม่ได้ทดสอบจริง):
+      - สร้าง Scenario ใหม่ **TS-CTXN-10711-EDG = CTXN-12003** (parent: EXE CTXN-10712) สำหรับ TC-078/079
+      - สร้าง TC-046 ถึง 077 (32 ใบ, parent: Scenario HPY CTXN-10713) = **CTXN-11971 ถึง CTXN-12002**
+      - สร้าง TC-078/079 (parent: Scenario EDG CTXN-12003) = **CTXN-12004, CTXN-12005**
+      - **TC-002 ไม่ได้สร้างซ้ำ** — agent เจอว่ามีการ์ดอยู่แล้ว (**CTXN-10764**, สถานะ Passed จริง ทดสอบไปตั้งแต่รอบ template 1) ตรวจสอบแล้ว
+        ถูกต้อง ไม่ใช่ gap ของงานนี้ — เป็นเพราะ draft `.md` ไม่เคย sync ผลจริงกลับไปตอนนั้น (แก้ในขั้นต่อไป)
+      - อัปเดตการ์ดหลัก **CTXN-10711** (Requirement): เพิ่ม section "ผลการทดสอบ" เป็นตารางสรุปทั้ง 19 template (Load/Create/Edit/Delete
+        + หมายเหตุ) พร้อมลิสต์บั๊กสำคัญ 5 อันดับ ตามที่ user ขอให้ "update detail การ์ดว่ามี template อะไรบ้าง เทสอะไรบ้าง ผลเป็นไง"
+      - **sync draft `.md`**: เขียนสคริปต์ Python (`scratchpad/sync_linear_ids.py`) แทรก `การ์ด: CTXN-XXXXX` เข้าไปในบรรทัด Actual
+        Result ของ TC-046–079 ทั้ง 34 ข้อ (verified ครบ ไม่มีข้อไหนหลุด) + เพิ่ม `การ์ด Linear: CTXN-12003` ใต้ heading ของ
+        Scenario EDG + แก้ TC-002 จาก placeholder "ยังไม่ทดสอบ" เป็นผลจริง **Passed (CTXN-10764)** ที่ค้างมาตั้งแต่ P6
+      สรุปความคืบหน้ารวม: **45/79 TC ทดสอบจริงแล้ว, สร้างการ์ดรอทดสอบอีก 34 TC + EXE/Scenario ครบทุกใบแล้ว**
+
+- [x] **P18 — user ขอให้เอา Delete TC ที่ไม่มี delete feature จริงออกจาก scope ไปเลย (ไม่ใช่แค่ Not Test) + แก้ข้อผิดพลาดที่พบระหว่างทาง** (19 ต.ค. 2026)
+      ระหว่างตอบคำถาม "เช็คแล้วหรือยังว่า template ไหนไม่มีปุ่มลบ" พบว่าตัวเองนับผิดในสรุปของ CTXN-10711 (เขียนว่า "7 ใน 7" ทั้งที่
+      จริงคือ **6 ใน 6**: TC-005, 021, 025, 029, 037, 041 — อีก 5 template ที่เหลือใน 11 ที่ทดสอบไปแล้ว (009, 013, 017, 033, 045)
+      ยังเป็น Blocked เพราะ Create ล้มเหลวก่อน ไม่เคยเช็คปุ่มลบจริง ไม่ควรนับรวม
+      - user ยืนยัน: ให้ลบการ์ด Delete TC ทั้ง 6 ใบที่ไม่มี delete feature จริงออกจากระบบไปเลย และกฎนี้ใช้ต่อกับ template ที่เหลือด้วย
+      - **เครื่องมือ Linear ที่มีไม่มี delete/archive issue tool จริง** (มีแค่ delete comment/customer/status-update) — ถามผู้ใช้
+        ว่าจะทำยังไงแทน user เลือก: **เปลี่ยนสถานะเป็น `Canceled` (ไม่ใช่ `Not Test`) + แทรกหมายเหตุในการ์ดว่าควรลบออกจากระบบจริง
+        รอผู้มีสิทธิ์ลบ**
+      - เปลี่ยนสถานะ + แทรกหมายเหตุให้ครบทั้ง 6 ใบ: **CTXN-10774 (TC-005), CTXN-11769 (TC-021), CTXN-11773 (TC-025), CTXN-11777
+        (TC-029), CTXN-11785 (TC-037), CTXN-11789 (TC-041)**
+      - แก้ memory `feedback_delete_tc_not_test.md`: เพิ่ม "Update 2026-10-19" ระบุว่ากรณีนี้ (user ขอเอาออกจาก scope) ให้ใช้
+        `Canceled` + หมายเหตุแทน `Not Test` ไปข้างหน้า (จนกว่าจะมี tool ลบ issue จริง)
+      - แก้ข้อผิดพลาด "7 ใน 7" → "6 ใน 6" ในการ์ดหลัก CTXN-10711 — ระหว่างแก้พบว่า section "ความคืบหน้า" กับ "บั๊กสำคัญที่พบแล้ว"
+        หายไปจากการ์ดหลังจาก patch รอบแรก (ไม่ทราบสาเหตุแน่ชัด อาจเป็น Linear editor ตัด bold/numbered-list ที่ติดกับ heading/table
+        โดยไม่มี blank line คั่น) — แก้โดยเพิ่มกลับเป็น plain text ไม่มี bold นำหน้าทันทีหลัง heading และมี blank line คั่นก่อน
+        numbered list เสมอ ยืนยันด้วย get_issue ว่ากลับมาครบแล้ว
+      - sync draft `.md`: เพิ่มหมายเหตุ "สถานะใน Linear เปลี่ยนเป็น Canceled" ให้ครบทั้ง 6 TC ที่ได้รับผลกระทบ
+
+- [x] **P19 — กลับมาทดสอบจริงต่อ template 12 Pre-Procedural Sedation Assessment (TC-046–049)** (19 ต.ค. 2026)
+      user ยืนยันให้ทดสอบ 8 template ที่เหลือต่อให้เสร็จ (TC-046-077) — เช็ค Playwright session เดิมที่ค้างมาหลายวันแล้วพบว่า
+      **ยังล็อกอินอยู่** (reload แล้วไม่หลุดไปหน้า login) helper `__markLoc`/`__unmark`/`__shotCounter` ยังอยู่ครบ ไม่ต้อง login ใหม่
+      ไม่ต้องสร้าง operation ใหม่ ใช้ OR-69-000222 sub-tab Custom Note ต่อได้เลย (viewport หลุดเป็นขนาดเล็กกว่าเดิม ต้อง resize
+      กลับเป็น 1920×1080 ก่อนเริ่ม) ทดสอบบน OR-69-000222 (ภาพ 108–115, วิดีโอ `11-pre-procedural-sedation-assessment.webm`)
+      - **TC-046 (Load) = Passed** (CTXN-11971): ฟอร์ม render ทันที แสดง History/Physical Examination/Airway ครบตาม Expected
+      - **TC-047 (Create) = Failed — ออร์ฟาน record เกิดขึ้นอีก 1 จุด ตรงกับ pattern TAH/TMH (TC-011/015)**: กรอก D-11 (History
+        taking source=Patient, Past medical history Detail="QA-AUTO-20261019-1014 PreSed") แล้ว Save: network สำเร็จจริง
+        (flat-to-json=200, contribution=201 **ครั้งเดียว** ไม่ซ้ำ 2 ครั้งเหมือน baseline) แต่ไม่มี badge DRAFT ขึ้น และ reload
+        เต็มหน้าแล้ว dropdown กลับเป็น "Select form" ว่างเปล่า ไม่มีทางเข้าถึง record อีกเลย (ยืนยันด้วย `getByText(...).count()`
+        = 0) ส่วน ECMO Form/NUH Perfusionist Form ที่บันทึกไว้ก่อนยังอยู่ครบ — ยืนยันว่าไม่ใช่บั๊กกลไก Custom Note ร่วมกัน แต่เป็น
+        บั๊กเฉพาะ template นี้ (รายละเอียดต่างจาก baseline เดิมเล็กน้อย — ไม่มี duplicate contribution/toast error ชัดเจน
+        อาจเพราะ deploy เปลี่ยนไปก่อน แต่ผลลัพธ์ fail เหมือนกัน)
+      - **TC-048/049 (Edit/Delete) = Blocked** (CTXN-11973/11974): ไม่มี record ให้แก้ไข/ลบเพราะกลายเป็น orphaned ตั้งแต่ Create
+      อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 49/79 TC (12/19 template)**
+
+- [x] **P20 — user ถามเรื่องคุณภาพการ์ด (CTXN-11636) หลังอ่านแล้วงง — แก้เป็นมาตรฐานถาวร + ทดสอบจริงต่อ template 13** (19 ต.ค. 2026)
+      user ติง 3 เรื่อง: (1) การ์ด Failed ไม่สรุปเหตุผลชัด (2) Test Steps เขียน "ทำตาม Flow A ข้อ 1-3" อ้างไปการ์ดอื่น ไม่มีขั้นตอนจริง
+      ในการ์ดเอง (3) ไม่มีวิดีโอแนบทุกใบ + ไม่มีภาพกรอบแดง(กรอก)/เขียว(ผลถูก) — ตรวจ CTXN-11636 ยืนยันทั้ง 3 ข้อจริง
+      - dispatch background agent แก้ (1) Test Steps ของ 39 การ์ดที่ทดสอบจริงแล้ว (template 1-11, TC-001–045 ไม่รวม 6 ใบที่เป็น
+        Canceled) ให้เขียนขั้นตอนตรงๆ ในการ์ดเอง ดึงจาก Actual Result ที่มีอยู่แล้ว ไม่อ้างอิง Flow ไปการ์ดอื่น (2) อัปโหลดวิดีโอ
+        .webm ที่มีอยู่ในเครื่อง (10 ไฟล์ ครอบ 11 template) แนบเข้าทุกการ์ดในแต่ละ batch (reuse assetUrl เดียวกันข้าม TC ใน
+        batch เดียวกัน ไม่ต้องอัปโหลดซ้ำ ไฟล์ใหญ่สุด 77MB) — สรุปผล: **39/39 การ์ดสำเร็จครบทั้ง Test Steps และวิดีโอ** ไม่มี
+        fallback ต้องใช้ ตรวจสอบ spot-check ซ้ำเองอีก 2 ใบ (CTXN-11636, CTXN-11790) ยืนยันถูกต้องตรงตาม agent รายงาน
+      - **เรื่องที่ 3 (ภาพกรอบแดง/เขียว) ยังไม่แก้ย้อนหลัง** เพราะต้องเทสซ้ำจริงในแอป มีค่าใช้จ่ายสูงเกินไปสำหรับ 45 TC ที่ทดสอบ
+        ไปแล้ว — แจ้ง user ชัดเจนว่าจะใช้มาตรฐานนี้ (กรอบแดง=กรอก/กด, กรอบเขียว=ผลถูกต้อง) ต่อไปเฉพาะรอบทดสอบใหม่ (template 12
+        เป็นต้นไป ที่ได้ทำอยู่แล้วในรอบนี้)
+      - พบ cleanup เล็กน้อย: TC-001/002/004 ยังมีหมายเหตุเก่าชี้ไปดูวิดีโอที่ TC-003 (ตกค้างจากรอบ pilot) ซ้ำซ้อนกับวิดีโอใหม่ที่
+        แนบให้แล้ว — แจ้ง user ไว้ ยังไม่ได้ลบ รอ user สั่ง
+      - user ถามเพิ่มเติมว่าทำไม TC เยอะขนาดนี้ (79 ข้อ) — อธิบาย: 19 template × 4 การกระทำ (atomic, ตกลงกันไว้ตั้งแต่ Gate 1)
+        + TC-002 validation + TC-078/079 เคสขอบ = 79 ยกตัวอย่างจริงที่ atomic granularity ช่วยจับบั๊กได้ละเอียดกว่า (เช่น
+        Load ผ่านแต่ Create/Edit พังคนละจุด) เสนอว่าถ้า user อยากเปลี่ยนเป็น flow-style (1 TC/template) สำหรับ template ที่
+        เหลือได้ ยังไม่ตัดสินใจ
+      - **ทดสอบจริงต่อ template 13 Procedural Sedation Checklist and Assessment (TC-050–053)** บน OR-69-000222 (ภาพ 116–123)
+        ใช้มาตรฐานใหม่ (กรอบแดง/เขียวทุกภาพ): **TC-050 (Load) = Passed** (CTXN-11975) — ฟอร์ม "Procedural Sedation Report"
+        render ครบ · **TC-051 (Create) = Passed** (CTXN-11976) — กรอก Obstructed airway=No (D-12) Save สำเร็จ badge DRAFT ขึ้น
+        ยืนยันด้วย reload (ต่างจาก TC-047 ที่ orphaned — template นี้ไม่มีปัญหาเดียวกัน) · **TC-052 (Edit) = Failed** (CTXN-11977)
+        — เปลี่ยนเป็น Yes ได้แต่ไม่มีปุ่ม Save เลย (บั๊กเดียวกับ ECMO/Perfusionist พบใน 3/4 template ของ Custom Note) ·
+        **TC-053 (Delete) = Canceled** (CTXN-11978) — ไม่มีปุ่มลบจริง ใช้กฎใหม่ (Canceled + หมายเหตุ) แทน Not Test ทันที
+        อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 53/79 TC (13/19 template)**
+
+- [x] **P21 — ทดสอบจริงต่อ template 14 Sedation Form v2 (TC-054–057)** (19 ต.ค. 2026)
+      ระหว่างทาง: ใช้ `browser_navigate` ตรงไป URL patient (ผิดกฎ Agent Notes ที่ห้ามไว้) ทำให้หน้าเด้งไปผิด operation/sub-tab
+      แก้โดย navigate ใหม่ไปยัง URL เต็มที่ถูกต้องแทน — และพลาดอีกจุด: ตอนกรอก D-13 ครั้งแรก locator `input[type="time"]`
+      แบบไม่ scope ไปจับ field "Time in" ของ record NUH Perfusionist Form ที่บันทึกไว้ก่อนหน้าแทนที่จะเป็นฟอร์มใหม่ (เพราะ
+      หลาย record ซ้อนกันในหน้าเดียว) เจอจาก screenshot ตรวจสอบ รีบ reload ทิ้งทันทีก่อนจะมีผลกระทบใดๆ (ยืนยันว่าไม่มีการ save
+      เกิดขึ้นเพราะไม่เคยกด Save) แล้วแก้โดย scope locator ด้วย `getByTestId('or-anes-custom-note-new-inline-form')` ทุกครั้ง
+      ตั้งแต่นั้น — ทดสอบบน OR-69-000222 (ภาพ 124–130)
+      - **TC-054 (Load) = Passed** (CTXN-11979): ฟอร์ม "Sedation Form v2" render ครบ ตาราง Time-based BP + Medication
+        administration ตรงกับ D-13
+      - **TC-055 (Create) = Failed — ยืนยันตรงกับ baseline เป๊ะ** (CTXN-11980): กรอก Time=10:00/BP systolic=120/BP
+        diastolic=80 (D-13) แล้วกด Save: **ไม่มี network request ใดๆ เกิดขึ้นเลย** (listener ดัก POST ทั้งหน้า = ว่างเปล่า)
+        ไม่มี toast/validation ใดๆ ยืนยันซ้ำด้วย reload เต็มหน้า: ไม่มี record เกิดขึ้นเลย (ECMO/Perfusionist/Procedural
+        Sedation ที่บันทึกไว้ก่อนยังอยู่ครบ) — รุนแรงกว่าทุก template ที่เจอมา เพราะปุ่ม Save ไม่ทำงานอะไรเลยตั้งแต่ต้น
+      - **TC-056/057 (Edit/Delete) = Blocked** (CTXN-11981/11982): ไม่มี record ให้แก้ไข/ลบเพราะ Create ล้มเหลวสนิท
+      อัปเดต draft `.md` ครบแล้ว — **รวมทำเสร็จแล้ว 57/79 TC (14/19 template)**
+
+- [x] **P22 — สร้าง `test-crud-flow.js`: CRUD automation สำหรับ NUH Operative Note (TC-011)** (20 ต.ค. 2026)
+      user ขอเพิ่ม Load/Modify flow + กรอบสีรอบ field + video ต่อเนื่อง + dummy data auto-generated — flow: Create→Save→Reload→Modify→Save→Reload
+      สร้างไว้ที่ `temp_scripts/test-crud-flow.js` — ผ่านครบ 15 steps:
+      - Step 1–3: navigate + tab + select template (NUH Operative Note)
+      - Step 3.5: `fillRequiredICD10()` — fill Pre/Post-operative Diagnosis Code ด้วย Z00→Z000 ผ่าน evaluate+focus+keyboard.type
+        (shadow DOM workaround: Playwright locator .nth(i) หลุดหลัง Svelte re-render ต้องใช้ "first empty" loop แทน)
+      - Step 4: fill 3 fields (2× contenteditable + participant name) ด้วย dummy text `QA-TC011-[timestamp]`
+      - Step 5–7: screenshot (red banner), Save, reload
+      - Step 8–9: verify data persisted + screenshot (green banner) — template re-select ถ้าไม่ persist
+      - Step 10–12: modify (append " - MODIFIED"), screenshot (blue banner), Save
+      - Step 13–15: reload, verify modified data persisted, screenshot (purple banner)
+      หลักฐาน: `temp_scripts/crud-flow-evidence/` (4 screenshots + 1 video `tc011-flow.webm` + result JSON)
+      ตรวจสอบ: all steps [OK], no failures — video recorded, data persisted both create and modify rounds
 
