@@ -1,5 +1,14 @@
 # TODO
 
+## SBH-2457 — Form OPD note / Pre-assessment หลัง Restructure EHRbase: ร่าง Test Case + helper BMI/BSA — 20 ต.ค. 2569
+
+ข้อตกลง: ยึดตาม AC 1–16 · Fall risk = ต้องไม่มีใน Pre-assessment (AC 14) · Body chart = ใช้งานได้เหมือนเดิม ไม่ตรวจ default collapsed (AC 6) · Physical exam = ตรวจแค่ AC 5 ไม่ตรวจขนาดช่อง · Family history general = TC optional (ไม่มี AC) · Underlying disease = ไม่เขียน TC ใน 2457 แค่อ้างอิงว่าต้องเหมือน SBH-2413 · SBH-2413 ยังไม่เทสรอบนี้ · BMI/BSA = เทียบระบบเดิม ถ้าไม่มีข้อมูลให้ย้อนหาสูตรจากหน้าจอจริงแล้วทำ helper ที่ `helpers/functions/`
+
+- [x] **P1 — ร่าง TC ด้วย skill `linear-testcase-writer`** → `test-cases/SBH-2457-opd-note-pre-assessment.md` (ยังไม่เขียนลง Linear) — เขียนแล้ว: 1 EXE (`EXE - CT - 2.9.0`, DEV-X), 1 Scenario HPY, 18 TC flow-style (17 Required + TC-016 Family history Optional), AC 16 แยก Collapse/Expand เป็น TC-017/018, Underlying disease อ้างอิง SBH-2413 ไม่มี TC, ค่าที่ยังไม่รู้ใส่ "รอยืนยัน" + ตาราง AC→TC + Requirement gap · ตรวจสอบ: Final consistency check ของสกิล (ชื่อ/tag/ID plain text/ลำดับ 001–018/ทุก AC มี TC) · รอ user review (GATE 1)
+- [ ] **P1 — (รอ user ยืนยัน) ย้อนหาสูตร BSA + การปัดทศนิยม BMI/BSA บน dev-x** — กรอกน้ำหนัก/ส่วนสูงหลายชุดใน test data ที่สร้างเอง เทียบกับ Mosteller/DuBois/สูตรอื่น พร้อมเก็บหลักฐาน
+- [ ] **P2 — เขียน helper `helpers/functions/body-metrics.ts`** (`calcBmi`, `calcBsa`) ตามสูตรที่ยืนยันแล้ว + อัปเดต expected ของ TC AC 3
+- [ ] **P3 — (รอ approve TC) สำรวจแอปจริงตาม `qa-automate-readiness`** ก่อนส่งต่อเขียน automate
+
 ## สไตล์การเขียน content (อ่านง่าย ไม่ technical เกิน) + เขียนการ์ด bug ใหม่ — 20 ต.ค. 2569
 
 - [x] **P1 — สร้าง skill `qa-bug-writer`** (`~/.claude/skills/qa-bug-writer/SKILL.md`) — เขียนแล้ว: ขั้นตอน, สูตรชื่อ `[Bug][Module][Form] - <ทำอะไร> ใน <ที่ไหน> แล้ว <อาการ>` + ตารางตัวอย่างดี/ไม่ดี, โครง body QA Bug (Actual = ปัญหา/เกิดที่/อาการ/เกิดซ้ำ + หัวข้อ "รายละเอียดสำหรับ dev"), สไตล์ภาษา, ห้ามเดาสาเหตุ, ตารางสรุปการ์ดแม่, checklist · ตรวจสอบ: frontmatter name/description ครบ, อยู่นอก repo (global) จึงไม่ commit
