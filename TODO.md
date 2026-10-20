@@ -1,5 +1,16 @@
 # TODO
 
+## สร้างผู้ป่วยใหม่บน dev-x + เก็บเป็น mock data (`test-data/patients.json`) — 20 ต.ค. 2569
+
+ข้อตกลง: ลงทะเบียนที่หน้าคัดกรอง ER (5 ช่องบังคับ) แล้วกด `ยกเลิก` ที่ modal เปิด Visit → มี HN ไม่มี Visit (แบบ R24) · เรียกเป็น function เลือกจำนวนได้ (1 หรือหลายคน) · ชื่อ `AIทดสอบ<seq>f` / นามสกุล `AIทดสอบ<seq>l` (seq = a…z → aa, ab … นับต่อจากตัวสุดท้ายใน patients.json) · เพศสุ่ม · อายุสุ่ม 18–80 ปี (ปรับ min/max ได้) · เลขบัตรสุ่ม checksum ถูก (R8) · ทิ้งผู้ป่วยไว้บน dev-x ได้ (R11)
+
+- [x] **P1 — ต่อยอด `helpers/functions/test-data.ts`** — เพิ่ม `AiTestPatient`, `AI_TEST_PREFIX`, `nextSeq()` (ลำดับแบบคอลัมน์ Excel), `randomGender()`, `randomBirthDate(minAge, maxAge)` (คืน birthDate + age ณ วันนี้เวลาไทย), `aiTestPatient(seq, { minAge, maxAge })` · `newTestPatient()` เดิมไม่แตะ · ตรวจสอบ: typecheck ผ่าน · สคริปต์ scratchpad: a→b, z→aa, az→ba, zz→aaa · สุ่มอายุ 5,000 ครั้งคำนวณอายุจากวันเกิดตรงกับ age ทุกครั้ง ช่วง 18–80
+- [ ] **P1 — store `helpers/functions/patient-store.ts`**: อ่าน/ต่อท้าย `test-data/patients.json` (citizenId, ชื่อ, นามสกุล, เพศ, วันเกิด, อายุ, HN, seq, createdAt, env) · เขียนทีละคนทันทีหลังได้ HN (พังกลางทางไม่เสียคนที่สร้างแล้ว)
+- [ ] **P1 — flow `helpers/flows/patient.flows.ts`**: `createPatients(page, { count, minAge, maxAge })` → ER Dashboard → คัดกรอง → `registerNewPatient()` → กด `ยกเลิก` ที่ modal → ยืนยันไม่มี Visit → บันทึกลง store
+- [ ] **P2 — spec ตัวเรียก + npm script**: `tests/data/create-patients.spec.ts` อ่านจำนวนจาก env `PATIENT_COUNT` (ค่าเริ่ม 1) · เพิ่ม `npm run data:patients` (ไม่ให้ `npm test` ปกติรันสร้างผู้ป่วยเอง)
+- [ ] **P2 — รันจริง 1 คน แล้ว 3 คน** ตรวจ HN ค้นเจอในระบบ + ไม่มี Visit + JSON ถูกต้อง
+- [ ] **P3 — อัปเดต README + skill `cortex-automate` (§2, §3, §10)** + commit แยกตาม task
+
 ## SBH-2457 — Form OPD note / Pre-assessment หลัง Restructure EHRbase: ร่าง Test Case + helper BMI/BSA — 20 ต.ค. 2569
 
 ข้อตกลง: ยึดตาม AC 1–16 · Fall risk = ต้องไม่มีใน Pre-assessment (AC 14) · Body chart = ใช้งานได้เหมือนเดิม ไม่ตรวจ default collapsed (AC 6) · Physical exam = ตรวจแค่ AC 5 ไม่ตรวจขนาดช่อง · Family history general = TC optional (ไม่มี AC) · Underlying disease = ไม่เขียน TC ใน 2457 แค่อ้างอิงว่าต้องเหมือน SBH-2413 · SBH-2413 ยังไม่เทสรอบนี้ · BMI/BSA = เทียบระบบเดิม ถ้าไม่มีข้อมูลให้ย้อนหาสูตรจากหน้าจอจริงแล้วทำ helper ที่ `helpers/functions/`
