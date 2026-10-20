@@ -36,6 +36,7 @@ Cortex Automate/
 │  ├─ modules/er/                  เทสรายการ์ดของ module ER — รันแยกด้วย `npm run test:module:er` (§3, ตั้งแต่ 30 ก.ย. 2026)
 │  │  ├─ SBH-1013-open-visit-er.spec.ts   การ์ด SBH-1013: 2 เทสตาม flow (ผู้ป่วยใหม่ที่ไม่เคยมีในระบบ / ผู้ป่วยทีมที่มี HN อยู่แล้ว + ยกเลิก Visit หลังเทส) · step ตาม TC-001–006 ของชุด EXE SBH-1702
 │  │  └─ SBH-1021-triage-form.spec.ts     การ์ด SBH-1021: 1 เทส ผู้ป่วย AUTO ใหม่ → กรอกฟอร์ม Triage จนบันทึก + โหลดหน้าใหม่เช็คค่าที่บันทึก · step ตาม TC-001–008 ของชุด EXE SBH-1739
+│  ├─ data/                        ไม่ใช่เทสของการ์ด — `create-patients.spec.ts` สร้างผู้ป่วย mock data (R29) · รันด้วย `npm run data:patients` เท่านั้น (`npm test` ข้าม)
 │  └─ E2E/                         เทส flow เต็มที่ข้ามหลาย module (เช่น ลงทะเบียน ER → ส่งต่อ OPD → Discharge) — รันแยกด้วย `npm run test:e2e` ·
 │                                  โฟลเดอร์เตรียมไว้ตั้งแต่ 30 ก.ย. 2026 ยังไม่มีไฟล์เทสจริง (script จะรันแล้วเจอ "no tests found" จนกว่าจะมี flow แรก)
 ├─ helpers/
@@ -46,10 +47,13 @@ Cortex Automate/
 │  │  ├─ er-triage.ts              ฟอร์ม "คัดกรอง ER": triageForm · Vital Signs · Pain score · MEWS · GCS (chooseGcs) · อุปกรณ์ช่วยเหลือ / ผู้ที่มาด้วย · labelledBox()
 │  │  ├─ evidence.ts               checkStep() · markEvidence() (กรอบแดง R13/R23) · snapEvidence()
 │  │  ├─ fixtures.ts               test / expect ของโปรเจกต์ (import จากที่นี่ทุกไฟล์) — อัดวิดีโอด้วย page.screencast เริ่มหลังหน้าแรกโหลดเสร็จ
-│  │  └─ test-data.ts              newTestPatient(label) · randomThaiId()
+│  │  ├─ patient-store.ts          `test-data/patients.json`: readPatients() · lastSeq() · appendPatient() (R29)
+│  │  └─ test-data.ts              newTestPatient(label) · randomThaiId() · aiTestPatient(seq) · nextSeq() · randomBirthDate() · PREFIX_BY_GENDER
 │  ├─ flows/                       **Layer 2: Business-level sequences** (ใช้ซ้ำข้าม spec ได้ — เรียก functions หลายอัน)
-│  │  └─ er.flows.ts               prepareNewPatientErVisit(page, label) — Dashboard → Triage page → ลงทะเบียน AUTO → ยืนยัน Visit → รอฟอร์ม Triage → ปิด toast
+│  │  ├─ er.flows.ts               prepareNewPatientErVisit(page, label) — Dashboard → Triage page → ลงทะเบียน AUTO → ยืนยัน Visit → รอฟอร์ม Triage → ปิด toast
+│  │  └─ patient.flows.ts          createPatients(page, { count, minAge, maxAge }) — ผู้ป่วย AIทดสอบ มี HN ไม่มี Visit → ต่อท้าย patients.json (R29)
 │  └─ steps/                       **Layer 3: Reusable test step groups** (placeholder — เพิ่มเมื่อมี step group ที่ซ้ำข้าม spec)
+├─ test-data/patients.json         mock data ผู้ป่วยที่สร้างจริงบน dev-x (commit เข้า git ให้งานถัดไปใช้) — R29
 ├─ utils/env.ts                    DEFAULT_ROLE · ROLES_IN_USE · authFile(role) · getCredentials(role) · listRoles()
 ├─ utils/session.ts                isSessionAlive() — ถาม Keycloak ว่า session เดิมยังใช้ได้ไหม
 ├─ .env (.env.example)             BASE_URL + CORTEX_USERNAME_<Role> / CORTEX_PASSWORD_<Role>
@@ -77,6 +81,7 @@ Cortex Automate/
 | รันเฉพาะการ์ด / TC (tag) | `npx playwright test --grep @SBH-1013` · `--grep @SBH-1709` (เลข TC รันทั้งเทสที่มี step นั้น) |
 | รันเฉพาะ module | `npm run test:module:er` (`tests/modules/er`) — module ใหม่เพิ่ม script คู่กันเอง เช่น `test:module:opd` (R28, ตั้งแต่ 30 ก.ย. 2026) |
 | รันเฉพาะ flow e2e (ข้ามหลาย module) | `npm run test:e2e` (`tests/E2E`) — ยังไม่มีไฟล์เทสจริง (R28) |
+| สร้างผู้ป่วย mock data (R29) | `npm run data:patients` (1 คน) · `PATIENT_COUNT=3 npm run data:patients` · PowerShell `$env:PATIENT_COUNT=3; npm run data:patients` · ช่วงอายุ `PATIENT_MIN_AGE` / `PATIENT_MAX_AGE` |
 | เปิดจอดูตอนรัน | `npm run test:headed` · เฉพาะการ์ด `npm run test:headed -- --grep @SBH-1013` (PowerShell 5.1 ส่ง `--` และ `@SBH-...` ต่อได้ปกติ — ตรวจแล้ว) |
 | โหมด UI (เลือกเทส ดูทีละ step) | `npx playwright test --project=setup` ก่อน แล้ว `npx playwright test --ui --project=chrome` = **`npm run test:ui`** (แก้ script แล้ว 26 ก.ย. 2026 หลังผู้ใช้เจอว่า `npx playwright test --ui` ไม่เห็น SBH-1013) · เห็น Chrome จริงด้วย: `npm run test:ui -- --headed` · **อย่าใช้ `npx playwright test --ui` เฉยๆ** เหตุผลด้านล่าง |
 | debug ทีละบรรทัด | `npm run test:debug` |
@@ -186,6 +191,7 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/SuchatChancherngsila/O
 | R26 | หมายเหตุชีต UAT-ER-01 "ต้องกด จ่ายบางส่วน" (กรณี 1.3, 1.4) → **ข้ามไปก่อน** ลงหมายเหตุไว้ | 29 ก.ย. 2026 |
 | R27 | UAT ที่มีหลายผู้ป่วยทำขั้นร่วมซ้ำ → ผู้ใช้เลือก **"เต็มแค่รายที่ 1"**: รายที่ 1 ถ่ายทุกขั้น (R23) · รายถัดไปทำขั้นร่วมครบแต่ถ่ายเฉพาะผลสำคัญ + ถ่ายเต็มที่ขั้นเฉพาะของกรณีตัวเอง · คลิปแยกรายละคลิป | 29 ก.ย. 2026 |
 | R28 | "อยากให้แยกการ run ต่อ module และ ต่อ flow e2e ได้" → ยืนยัน: "flow e2e" = สายงานเต็มข้ามหลาย module (เช่น ลงทะเบียน ER → ส่งต่อ OPD → Discharge) ต่างจากเทสรายการ์ดใน `tests/modules/<module>/` · รูปแบบคำสั่งที่เลือก = **npm script คงที่ต่อรายชื่อ** (ไม่ใช่ script รับ parameter) → เพิ่ม `test:module:er` (`tests/modules/er`) + `test:e2e` (`tests/E2E`) ใน `package.json` · module ใหม่ / flow e2e ไฟล์แรก ต้องกลับมาเพิ่ม script ใหม่ตาม pattern นี้ทุกครั้ง | 30 ก.ย. 2026 |
+| R29 | "สามารถสร้างคนไข้ใหม่ใน cortex ได้ไหม แล้วเมื่อสร้างเสร็จเก็บข้อมูลคนไข้ที่สร้างเก็บเป็นไฟล์ mock data ไว้ใครงานต่อไป" + ผู้ใช้ตอบคำถาม →<br>**มี HN ไม่มี Visit** (ลงทะเบียนที่หน้าคัดกรอง ER แล้วกด `ยกเลิก` ที่ modal แบบ R24) · เลือกจำนวนได้ (function + `PATIENT_COUNT`) · เก็บ `test-data/patients.json` ผ่าน spec + `npm run data:patients` ·<br>ชื่อ `AIทดสอบ<seq>f` / นามสกุล `AIทดสอบ<seq>l` ("a run ตัวอักษรไปเรื่อยๆ" — "ถ้าสุดถึง z ก็เปลี่ยนเป็น aa > ab > ac", นับต่อจากไฟล์) · เพศสุ่ม · อายุสุ่ม 18–80 · เลขบัตรสุ่ม (R8) ·<br>คำนำหน้า: ผู้ใช้เลือก "เปิดหน้าคัดกรองใหม่ทุกคน + เช็คคำนำหน้า" และ **เลือกเอง ชาย = นาย / หญิง = น.ส.** · ผู้ป่วยที่ข้อมูลผิด "ควรแก้ต้องให้ตรง" → แก้ในแอป ถ้าฟอร์มบังคับที่อยู่ "สุ่มไปเลย" | 20 ต.ค. 2026 |
 
 ### ขั้นตอนเมื่อได้การ์ดใหม่
 
@@ -267,6 +273,20 @@ _(กฎและขั้นตอนถัดไปผู้ใช้จะส
   ช่องคลินิกเติมให้เองไม่เท่ากันทุกรอบ: รอบแรกว่าง · รอบสอง (28 ก.ย. 2026) URL มี `clinicIds=11,19,344,345,347,349` และช่องขึ้น "MED - ห้องตรวจโรคอายุรกรรมทั่วไป +5" → ถ้าเทสอิงผลในตาราง ให้ตั้งตัวกรองเองก่อน อย่าพึ่งค่าที่เติมมา
   ตัวกรอง: ค้นหา HN · ค้นหาชื่อผู้ป่วย · ช่วงวันที่ · ช่วงเวลา · คลินิก · Patient category · แพทย์ (ตอนเปิดกับ user1 มี "นาย ทดสอบ มานะ" ใส่ไว้ให้แล้ว) · สวิตช์ "เรียงตามความรุนแรง ESI" / "ดูรายการ นศพ." · ปุ่ม "ล้าง"
   แท็บ: นัดหมาย / ลงทะเบียน · คำขอ Walk-in · ทั้งหมด (ค่าเริ่มต้น) · รอเช็คอิน · เช็คอิน · พร้อมตรวจ | พักการตรวจ · ตรวจเสร็จ · จำหน่าย · … · ปุ่ม "ย้ายแพทย์หลายคนไข้" · ไม่มีรายการจะขึ้น "ไม่มีข้อมูล"
+
+**ลงทะเบียน / แก้ข้อมูลผู้ป่วย** (20 ต.ค. 2026 — R29)
+- ฟอร์ม "ผู้ป่วยใหม่" ที่หน้าคัดกรอง ER มีช่อง **`* คำนำหน้าชื่อ`** (combobox บังคับ) นอกจาก 5 ช่องที่ `registerNewPatient` กรอก — ระบบเติมจากเพศให้เอง**แต่เชื่อไม่ได้**:
+  ลงทะเบียนต่อในฟอร์มเดิม (กดยกเลิก modal แล้วกรอกคนถัดไป) คำนำหน้าค้างจากคนก่อน (หญิง → ชาย ได้ `น.ส.`, เพศบันทึกถูก) · เปิดฟอร์มใหม่บางครั้งไม่เติมเลย → กดลงทะเบียนแล้วไม่ส่ง request (ไม่ขึ้นข้อความในจอที่เห็น)
+  → ส่ง `namePrefix` ใน `NewPatient` ให้ `registerNewPatient` เลือกเองหลังเลือกเพศ · response ลงทะเบียนมี `patient.data.namePrefix.display`
+  (spec SBH-1013/1021 ยังไม่ส่ง namePrefix — สร้างทีละคนต่อเทสจึงยังไม่เจอ ถ้าเทสเหล่านั้นพังที่ปุ่มลงทะเบียนให้ดูช่องนี้ก่อน)
+- `page.goto` ซ้ำในเทสเดียวกันเคยค้าง spinner เกิน 20 วินาที → ลงทะเบียนหลายคนให้กลับผ่านเมนู (`openErDashboardFromMenu`) แล้วกด `คัดกรอง` ได้ฟอร์มใหม่
+- ข้อมูลผู้ป่วยจริงจาก API: `GET /new-demographic-api/patients?filter[name][startsWith]=<ชื่อ>` (namePrefix, gender, birthDate) · Encounter: `GET /generated-emr-api/encounters?filter[hn][equals]=<HN>` — ใช้ Bearer จาก request ของแอป
+- **แก้ข้อมูลผู้ป่วย**: แอป `เวชระเบียน` (`getByLabel('เวชระเบียน')`) → `/cortex/reception/search-patient` · **ทั้งหน้าอยู่ใน iframe** `main iframe` (`/reception/embedded/...`) → ใช้ `page.frameLocator('main iframe')` ·
+  ค้น `getByPlaceholder('HN')` → ปุ่ม `ค้นหา [Enter]` → คลิกชื่อ → `/cortex/next/patients/<HN>?views=patientInfo` → ปุ่ม `แก้ไขข้อมูลผู้ป่วย` → หัว "แก้ไขข้อมูลผู้ป่วยใหม่" ปุ่ม `ยกเลิก` / `บันทึก`
+  - คำนำหน้า: ปุ่ม `เลือก` ตัวแรก → `getByRole('option', { name: '003 - นาย' })` (รูปแบบ `<code> - <ชื่อ>`, น.ส. = `004`)
+  - **บันทึกได้ต้องมีที่อยู่ครบ 2 ชุด** (ทะเบียนบ้าน + ปัจจุบัน: บ้านเลขที่ · หมู่ · จังหวัด · อำเภอ · ตำบล — รหัสไปรษณีย์เติมเอง) — ผู้ป่วยจาก ER ไม่มีที่อยู่ จึงแก้แค่คำนำหน้าไม่ได้ ·
+    ช่อง `หมู่` ต้อง `exact: true` (ไม่งั้นจับ "ชื่อหมู่บ้าน") · จังหวัด/อำเภอ/ตำบล = ปุ่ม `เลือกจังหวัด` ฯลฯ เปิด popover cmdk (`[data-radix-popper-content-wrapper] [cmdk-item]`) บางครั้งไม่ขึ้นรายการ ต้องคลิกซ้ำ · ปุ่ม `บ้านเดียวกัน` คัดลอกที่อยู่ไปชุดปัจจุบัน
+  - ผล: `PATCH /new-demographic-api/patients/<HN>` → 200 แล้วกลับหน้าข้อมูลผู้ป่วย
 
 **Playwright MCP** (เครื่องมือเปิดเว็บให้ผู้ใช้ดู — คนละตัวกับ `npx playwright test`)
 - เปิด Chrome แยก ไม่มี session จาก `.auth/` → ต้องล็อกอินใหม่ทุกครั้งที่เปิดเบราว์เซอร์ (หน้าต่างเดิมยังอยู่ก็ใช้ต่อได้)
@@ -372,3 +392,5 @@ _(กฎและขั้นตอนถัดไปผู้ใช้จะส
   `linear-execution-test` (synced จาก claude.ai) มี rule ขัดกันจริง (tag Required/Optional, Test Level, Priority scale, ชื่อ label)
   → รวมเป็น ruleset เดียวแล้วเขียนเป็นไฟล์โปรเจกต์ (git-tracked) `.claude/skills/linear-testcase-writer/SKILL.md` +
   sync กับ global copy ให้เหมือนกัน (รายละเอียดเต็มอยู่ใน TODO.md และ log ของสกิลนั้นเอง)
+- 2026-10-20 — ผู้ใช้ขอสร้างคนไข้ใหม่ + เก็บเป็นไฟล์ mock data → R29 · เพิ่ม `test-data.ts` (aiTestPatient/nextSeq/randomBirthDate/PREFIX_BY_GENDER), `patient-store.ts`, `patient.flows.ts`, `tests/data/create-patients.spec.ts`, script `data:patients` · `registerNewPatient` รับ/คืน `namePrefix` ·
+  รันจริงเจอคำนำหน้าค้าง/ไม่เติม → เลือกเองตามเพศ · สร้าง a–i (HN 6931978–6931988) · แก้คำนำหน้า d (6931982) ที่เวชระเบียน (ต้องใส่ที่อยู่สุ่ม) · เพิ่มความรู้ §9 "ลงทะเบียน / แก้ข้อมูลผู้ป่วย" + er-flow.md §6
