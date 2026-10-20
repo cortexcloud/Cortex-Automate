@@ -378,7 +378,7 @@ export async function chooseFirst(page: Page, scope: Locator, label: string | Re
 }
 
 /** One Day Order (เปิดอยู่แล้ว): เพิ่มยาตามรหัสลงตะกร้า — ขนาดยา 1 · Route ตัวแรก · วันละ 1 ครั้ง · จำนวนจ่าย 1 */
-export async function addMedicineToCart(page: Page, code: string) {
+export async function addMedicineToCart(page: Page, code: string, beforeAdd?: () => Promise<void>) {
   const main = page.getByRole('main');
   // เล่นซ้ำ: ยาตัวนี้ค้างในตะกร้า (ยังไม่ส่ง) อยู่แล้ว ไม่เพิ่มซ้ำ — รอรายการในตะกร้าโหลดก่อนนับ
   await main.getByRole('row', { name: /^ยังไม่ส่ง/ }).first().waitFor({ state: 'visible', timeout: 6_000 }).catch(() => undefined);
@@ -408,7 +408,9 @@ export async function addMedicineToCart(page: Page, code: string) {
     console.log(`    Route ที่เลือกได้: ${(await options(page).allInnerTexts()).map((text) => text.trim()).join(' | ')}`);
     const oral = options(page).filter({ hasText: /รับประทาน|Oral/i }).first();
     await pick((await oral.count()) ? oral : options(page).first());
-    await main.getByText('ความถี่', { exact: true }).locator('xpath=following::input[@role="spinbutton"][1]').fill('1');
+    // ยาบางตัวกำหนดความถี่มาแล้ว (ช่อง disabled — dev-x บัญชี Doctor 19 ต.ค. 2026: GPO-L-ONE) → กรอกเฉพาะเมื่อแก้ได้
+    const frequency = main.getByText('ความถี่', { exact: true }).locator('xpath=following::input[@role="spinbutton"][1]');
+    if (await frequency.isEnabled()) await frequency.fill('1');
     await expect(usage, 'ช่อง "วิธีใช้" ต้องถูกสร้างจากขนาดยา / Route / ความถี่').not.toHaveValue('');
   }
   const quantity = main.getByRole('spinbutton', { name: /จำนวนที่จ่าย/ });
@@ -426,6 +428,8 @@ export async function addMedicineToCart(page: Page, code: string) {
       await page.keyboard.press('Escape');
     }
   }
+  // ปรับค่าในฟอร์มเพิ่มก่อนกดเพิ่ม (เช่น SBH-2126: ระยะเวลาการใช้ 4 สัปดาห์ + จำนวนที่จ่าย 28)
+  if (beforeAdd) await beforeAdd();
   console.log(`    ยา ${code}: วิธีใช้ = "${await usage.inputValue()}"`);
   // SBH Prod: กดเพิ่มลงตะกร้าครั้งแรกบางครั้งเงียบ ไม่มีแถวขึ้น (3 ต.ค. 2026) → ยังไม่มีแถวค่อยกดซ้ำ
   const row = main.getByRole('row').filter({ hasText: `[${code}]` }).first();

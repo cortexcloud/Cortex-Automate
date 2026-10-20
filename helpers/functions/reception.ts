@@ -40,7 +40,7 @@ export function newPatientButton(page: Page) {
 }
 
 /** กด "สร้างผู้ป่วยใหม่" แล้วกรอกช่องบังคับของฟอร์ม (ยังไม่กดบันทึก) */
-export async function fillNewPatientForm(page: Page, patient: NewPatient) {
+export async function fillNewPatientForm(page: Page, patient: NewPatient, options: { skipAddress?: boolean } = {}) {
   const f = receptionFrame(page);
   await newPatientButton(page).click();
   await page.waitForURL(/\/reception\/create-patient/, { timeout: 60_000 });
@@ -60,6 +60,8 @@ export async function fillNewPatientForm(page: Page, patient: NewPatient) {
   await f.getByTestId('birthDate').fill(`${d}/${m}/${Number(y) + 543}`);
   await f.getByTestId('birthDate').press('Tab');
   await expect(f.getByTestId('age'), 'กรอกวันเกิดแล้วระบบต้องเติมอายุ').not.toHaveValue('');
+  // เทสที่ตรวจช่องบังคับของที่อยู่เอง (SBH-1290 UHP) กรอกที่อยู่เอง
+  if (options.skipAddress) return;
 
   // SBH Prod: ที่อยู่ตามทะเบียน = บ้านเลขที่ + ค้นหาตำบล · ที่อยู่ปัจจุบัน = "บ้านเดียวกัน" (dev-x เป็นฟอร์มที่อยู่แบบแยกช่องและไม่บังคับ → ข้าม)
   const addressLine = f.getByTestId('address.officialAddressLine');
