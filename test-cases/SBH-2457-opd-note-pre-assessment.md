@@ -7,7 +7,7 @@
 - TC granularity: **Flow-style** ตามที่ QA ยืนยัน (20 ต.ค. 2569) — 1 TC ต่อ 1 AC ไล่ กรอก → บันทึก → reload → ตรวจค่า ในฟอร์มเดียวกัน · ทางเลือกคู่ขนาน (Collapse / Expand ใน AC 16) แยกเป็นคนละ TC
 - Run Type: `CT` (การ์ดผูก Cycle) · Scope/Version: `2.9.0` (จาก label `VERSION 2.9.0` ของการ์ด) · Environment: `DEV-X` (QA ยืนยัน)
 - ข้อตกลงกับ QA (20 ต.ค. 2569):
-  - **Fall risk** — ยึด BR 14 / AC 14: Pre-assessment ต้องไม่มี section Fall risk (ไม่ใช้บรรทัด "ใช้ `Fall risk screening general`" ในตาราง)
+  - **Fall risk** — เดิมยึด AC 14 (ต้องไม่มี) → เปลี่ยน 20 ต.ค. 2569 หลังเจอว่าฟอร์ม SBH ยังมี "ความเสี่ยงพลัดตกหกล้ม": QA สั่ง "ถ้ามีก็เช็คไปเลย" → TC-014 ตรวจว่าเลือกแล้วบันทึกได้
   - **Body chart** — ยึด AC 6: ใช้งานได้เหมือนเดิม ไม่ตรวจ Default collapsed
   - **Physical examination** — ตรวจแค่ AC 5 ไม่ตรวจขนาดช่อง
   - **Family history general** — ไม่มี AC จึงทำเป็น `[Optional]`
@@ -34,7 +34,7 @@
 
 ขอบเขตการทดสอบ
 - OPD note: Chief complaint, Present illness, Body metrics (BMI/BSA), Vital sign (Pain score), Physical examination, Body chart, เอกสารแนบ, Diagnosis general (Onset date), ไม่มี Note to nurse (AC 1–9)
-- Pre-assessment: การมาถึงและความช่วยเหลือ, การคัดกรองเพศหญิง, ประวัติแพ้, ประวัติการผ่าตัด / สุรา / บุหรี่, ไม่มี Fall risk, เอกสารแนบ (AC 10–15)
+- Pre-assessment: การมาถึงและความช่วยเหลือ, การคัดกรองเพศหญิง, ประวัติแพ้, ประวัติการผ่าตัด / สุรา / บุหรี่, ความเสี่ยงพลัดตกหกล้ม (ตรวจว่าใช้งานได้ ตามที่ QA สั่ง), เอกสารแนบ (AC 10–15)
 - Pre-assessment (ฟอร์มคัดกรอง): Body Metric BMI/BSA และ Pain score (AC 3–4 เทสซ้ำในฟอร์มนี้)
 - Pre-assessment: Family history general (Optional — ไม่มี AC)
 - Setting form: ค่า Default Expand / Collapse ของแต่ละ section (AC 16)
@@ -566,37 +566,41 @@ Actual Result
 - AC 13 · สุรา / บุหรี่ มีแผนปรับใหม่ก่อน go-live (SBH-2419) — ถ้าเปลี่ยนต้องปรับ TC นี้และเทสซ้ำ
 ```
 
-#### [Required] TC-SBH-2457-014 - ตรวจสอบว่า Form Pre-assessment ไม่แสดง section Fall risk
+#### [Required] TC-SBH-2457-014 - ทดสอบเลือกความเสี่ยงพลัดตกหกล้มในฟอร์มคัดกรองแล้วค่ายังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-014
 - Scenario ID: TS-SBH-2457-HPY
 - Case Type: Happy
-- Test Level: System
+- Test Level: Integration
 - Test Type: Functional
 - Priority: Medium
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
 1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี encounter ที่คลินิก "SBH - ห้องตรวจสระบุรี" (เช็คอินแล้ว)
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
 
 Test Data
-- -
+- ความเสี่ยงพลัดตกหกล้ม: "สูง"
 
 Test Steps
-1. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
-2. เลื่อนดูทุก section ของฟอร์มจนสุด (กาง section ที่พับอยู่ทั้งหมด)
+1. ไปที่ section "ความเสี่ยงพลัดตกหกล้ม"
+2. กดตัวเลือกตาม Test Data
+3. กด "สร้าง" (ครั้งแรก) / "บันทึก"
+4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- ไม่มี section "Fall risk" ในฟอร์ม Pre-assessment
+- section "ความเสี่ยงพลัดตกหกล้ม" มีตัวเลือก ไม่มี / ต่ำ / สูง
+- หลัง reload ตัวเลือก "สูง" ยังถูกเลือกอยู่
 
 Actual Result
 - ยังไม่ทดสอบ (Not Run)
 
 หมายเหตุ
-- AC 14 · ยึด BR 14 / AC 14 ตามที่ QA ยืนยัน (ตารางในการ์ดเขียนว่าใช้ `Fall risk screening general` ซึ่งขัดกับ AC)
+- AC 14 · การ์ดเขียนว่าฟอร์มต้องไม่มี Fall risk แต่หน้าจอ SBH ยังมี section นี้ — QA สั่ง (20 ต.ค. 2569) "ถ้ามีก็เช็คไปเลย" จึงเปลี่ยนจากตรวจว่าไม่มี เป็นตรวจว่าใช้งานได้
 ```
 
 #### [Required] TC-SBH-2457-015 - ทดสอบแนบเอกสารใน Pre-assessment แล้วไฟล์ยังอยู่หลัง reload
@@ -914,7 +918,8 @@ Actual Result
 - AC 9: ภาพหน้าจอ 20 ต.ค. 2569 (ก่อนรันจริง) ยังเห็น section "Note to Nurse" ใน OPD Note — ต้องยืนยันตอนรัน TC-009
 - AC 3: ยังไม่รู้สูตร BSA และการปัดทศนิยมของ BMI/BSA — รอเทียบระบบเดิม หรือย้อนหาจากหน้าจอจริง (TODO P1)
 - AC 16: ไม่ระบุว่าหน้า Setting form อยู่ที่ไหน และตั้งค่าได้ต่อฟอร์ม หรือต่อทุกฟอร์ม
-- ตาราง Requirement ขัดกับ AC เรื่อง Fall risk และ Body chart Default collapsed — ยึด AC ตามที่ QA ยืนยัน
+- ตาราง Requirement ขัดกับ AC เรื่อง Body chart Default collapsed — ยึด AC ตามที่ QA ยืนยัน
+- AC 14 ขัดกับหน้าจอ SBH (ยังมี Fall risk) — QA สั่งให้ตรวจว่าใช้งานได้แทน
 
 **Validation**
 - AC 4: ไม่ระบุช่วงค่า Pain score ที่รับได้
