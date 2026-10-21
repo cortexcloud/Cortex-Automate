@@ -96,7 +96,14 @@
 
 ##### Test Case ภายใต้ Scenario นี้
 
-#### [Required] TC-SBH-2457-001 - ทดสอบเลือก CC suggestion ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
+แยกตามฟอร์มที่ทดสอบ (ใส่ tag ไว้ในชื่อ TC)
+
+| ฟอร์ม | TC | จำนวน |
+| -- | -- | -- |
+| [OPD Note] | 001–009, 017, 018 (Setting form → เปิด OPD Note), 021 (CC/PI prefill จากฟอร์มคัดกรอง) | 12 |
+| [ฟอร์มคัดกรอง] | 010–016, 019, 020 | 9 |
+
+#### [Required] TC-SBH-2457-001 - [OPD Note] ทดสอบเลือก CC suggestion ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
 - Linear: SBH-2820
 
@@ -137,7 +144,7 @@ Actual Result
 - AC 1 · กรณีมีฟอร์มคัดกรองก่อน ดู TC-021
 ```
 
-#### [Required] TC-SBH-2457-002 - ทดสอบบันทึก Present illness ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-002 - [OPD Note] ทดสอบบันทึก Present illness ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 - Linear: SBH-2821
 
@@ -177,7 +184,7 @@ Actual Result
 - AC 2 · กรณีมีฟอร์มคัดกรองก่อน ดู TC-021
 ```
 
-#### [Required] TC-SBH-2457-003 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของ OPD Note ถูกต้อง
+#### [Required] TC-SBH-2457-003 - [OPD Note] คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของ OPD Note ถูกต้อง
 
 - Linear: SBH-2822
 
@@ -220,7 +227,7 @@ Actual Result
 - AC 3 · ไม่มีค่าจากระบบเดิมให้เทียบ ใช้สูตรที่ย้อนหาจากหน้าจอจริง (QA ตกลง)
 ```
 
-#### [Required] TC-SBH-2457-004 - ทดสอบบันทึก Pain score ใน Vital Signs ของ OPD Note แล้วค่ายังอยู่หลัง reload
+#### [Required] TC-SBH-2457-004 - [OPD Note] ทดสอบบันทึก Pain score ใน Vital Signs ของ OPD Note แล้วค่ายังอยู่หลัง reload
 
 - Linear: SBH-2823
 
@@ -259,7 +266,7 @@ Actual Result
 - AC 4
 ```
 
-#### [Required] TC-SBH-2457-005 - ทดสอบพิมพ์ Free text พร้อมจัดรูปแบบด้วย Rich text ใน Physical Examination แล้วรูปแบบยังอยู่หลังบันทึก
+#### [Required] TC-SBH-2457-005 - [OPD Note] ทดสอบพิมพ์ Free text พร้อมจัดรูปแบบด้วย Rich text ใน Physical Examination แล้วรูปแบบยังอยู่หลังบันทึก
 
 - Linear: SBH-2824
 
@@ -300,7 +307,7 @@ Actual Result
 - AC 5 · ไม่ตรวจขนาดช่องตามที่ QA ยืนยัน
 ```
 
-#### [Required] TC-SBH-2457-006 - ตรวจสอบการวาด Body Chart ใน OPD Note แล้วภาพยังอยู่หลังบันทึก
+#### [Required] TC-SBH-2457-006 - [OPD Note] ตรวจสอบการวาด Body Chart ใน OPD Note แล้วภาพยังอยู่หลังบันทึก
 
 - Linear: SBH-2825
 
@@ -341,7 +348,7 @@ Actual Result
 - AC 6 · ไม่ตรวจ Default collapsed ตามที่ QA ยืนยัน
 ```
 
-#### [Required] TC-SBH-2457-007 - ทดสอบแนบเอกสารใน OPD Note แล้วไฟล์ยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-007 - [OPD Note] ทดสอบแนบเอกสารใน OPD Note แล้วไฟล์ยังอยู่หลัง reload
 
 - Linear: SBH-2826
 
@@ -382,7 +389,7 @@ Actual Result
 - AC 7 · รอบสำรวจใช้ PDF ขนาดเล็กที่ QA สร้างเอง ควรลองซ้ำด้วยไฟล์จริงตอน retest
 ```
 
-#### [Required] TC-SBH-2457-008 - ทดสอบบันทึก Onset date ใน Diagnosis ของ OPD Note แล้ววันที่ยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-008 - [OPD Note] ทดสอบบันทึก Onset date ใน Diagnosis ของ OPD Note แล้ววันที่ยังอยู่หลัง reload
 
 - Linear: SBH-2827
 
@@ -424,7 +431,7 @@ Actual Result
 - AC 8
 ```
 
-#### [Required] TC-SBH-2457-009 - ตรวจสอบว่า OPD Note ไม่แสดง section Note to Nurse
+#### [Required] TC-SBH-2457-009 - [OPD Note] ตรวจสอบว่า OPD Note ไม่แสดง section Note to Nurse
 
 - Linear: SBH-2828
 
@@ -461,7 +468,7 @@ Actual Result
 - AC 9 · Note to nurse ควรอยู่ใน Section Order (แผงคำสั่งการรักษา) เท่านั้น
 ```
 
-#### [Required] TC-SBH-2457-010 - ทดสอบบันทึก section การมาถึงและความต้องการช่วยเหลือในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-010 - [ฟอร์มคัดกรอง] ทดสอบบันทึก section การมาถึงและความต้องการช่วยเหลือในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 - Linear: SBH-2829
 
@@ -502,7 +509,7 @@ Actual Result
 - AC 10 · ฟอร์มคัดกรองบังคับกรอก Chief Complaint + Present Illness ("กรุณากรอกข้อมูล")
 ```
 
-#### [Required] TC-SBH-2457-011 - ทดสอบบันทึก section การคัดกรองเพศหญิงในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-011 - [ฟอร์มคัดกรอง] ทดสอบบันทึก section การคัดกรองเพศหญิงในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 - Linear: SBH-2830
 
@@ -541,7 +548,7 @@ Actual Result
 - AC 11 · ยังไม่ได้ทดสอบกับผู้ป่วยชาย (การ์ดไม่ได้ระบุว่าต้องแสดงเฉพาะผู้ป่วยหญิง)
 ```
 
-#### [Required] TC-SBH-2457-012 - ทดสอบเพิ่มประวัติแพ้ในฟอร์มคัดกรอง แล้วรายการยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-012 - [ฟอร์มคัดกรอง] ทดสอบเพิ่มประวัติแพ้ในฟอร์มคัดกรอง แล้วรายการยังอยู่หลัง reload
 
 - Linear: SBH-2831
 
@@ -580,7 +587,7 @@ Actual Result
 - AC 12
 ```
 
-#### [Required] TC-SBH-2457-013 - ทดสอบบันทึกประวัติการผ่าตัด สุรา และบุหรี่ในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-013 - [ฟอร์มคัดกรอง] ทดสอบบันทึกประวัติการผ่าตัด สุรา และบุหรี่ในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 - Linear: SBH-2832
 
@@ -622,7 +629,7 @@ Actual Result
 - AC 13 · สุรา / บุหรี่ มีแผนปรับใหม่ก่อน go-live (SBH-2419) — ถ้าเปลี่ยนต้องปรับ TC นี้และเทสซ้ำ
 ```
 
-#### [Required] TC-SBH-2457-014 - ทดสอบเลือกความเสี่ยงพลัดตกหกล้มในฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
+#### [Required] TC-SBH-2457-014 - [ฟอร์มคัดกรอง] ทดสอบเลือกความเสี่ยงพลัดตกหกล้มในฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
 - Linear: SBH-2833
 
@@ -661,7 +668,7 @@ Actual Result
 - AC 14 · การ์ดเขียนว่าต้องไม่มี Fall risk แต่ฟอร์ม SBH ยังมี — QA สั่ง (20 ต.ค. 2569) "ถ้ามีก็เช็คไปเลย"
 ```
 
-#### [Required] TC-SBH-2457-015 - ทดสอบแนบเอกสารในฟอร์มคัดกรอง แล้วไฟล์ยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-015 - [ฟอร์มคัดกรอง] ทดสอบแนบเอกสารในฟอร์มคัดกรอง แล้วไฟล์ยังอยู่หลัง reload
 
 - Linear: SBH-2834
 
@@ -702,7 +709,7 @@ Actual Result
 - AC 15 · รอบสำรวจใช้ PDF ขนาดเล็กที่ QA สร้างเอง ควรลองซ้ำด้วยไฟล์จริงตอน retest
 ```
 
-#### [Optional] TC-SBH-2457-016 - ทดสอบเพิ่มประวัติครอบครัวในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
+#### [Optional] TC-SBH-2457-016 - [ฟอร์มคัดกรอง] ทดสอบเพิ่มประวัติครอบครัวในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 - Linear: SBH-2835
 
@@ -741,7 +748,7 @@ Actual Result
 - ไม่มี AC รองรับ (อยู่ในตาราง Requirement เท่านั้น) — QA ยืนยันให้เป็น Optional
 ```
 
-#### [Required] TC-SBH-2457-017 - ตรวจสอบว่า section ที่ตั้ง "ซ่อน" ใน Setting form แสดงแบบพับเมื่อเปิด OPD Note
+#### [Required] TC-SBH-2457-017 - [OPD Note] ตรวจสอบว่า section ที่ตั้ง "ซ่อน" ใน Setting form แสดงแบบพับเมื่อเปิด OPD Note
 
 - Linear: SBH-2836
 
@@ -784,7 +791,7 @@ Actual Result
 - AC 16 · "ซ่อน" = Collapse (QA ยืนยัน) · section ที่ติ๊ก "ซ่อน" อยู่เดิม (Vital signs, Body metric, Body chart v2) พับอยู่จริง · OPD Note ที่ใช้ทดสอบเคยบันทึกแล้ว ควร retest กับฟอร์มที่ยังไม่เคยบันทึกด้วย · หน้าตั้งค่าเป็นค่ากลาง ต้องคืนค่าเดิมทุกครั้ง
 ```
 
-#### [Required] TC-SBH-2457-018 - ตรวจสอบว่า section ที่เอาติ๊ก "ซ่อน" ออกใน Setting form แสดงแบบกางเมื่อเปิด OPD Note
+#### [Required] TC-SBH-2457-018 - [OPD Note] ตรวจสอบว่า section ที่เอาติ๊ก "ซ่อน" ออกใน Setting form แสดงแบบกางเมื่อเปิด OPD Note
 
 - Linear: SBH-2837
 
@@ -825,7 +832,7 @@ Actual Result
 - AC 16 (กรณีกลับกัน) · หน้าตั้งค่าเป็นค่ากลาง ต้องคืนค่าเดิมทุกครั้ง
 ```
 
-#### [Required] TC-SBH-2457-019 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของฟอร์มคัดกรองถูกต้อง
+#### [Required] TC-SBH-2457-019 - [ฟอร์มคัดกรอง] คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของฟอร์มคัดกรองถูกต้อง
 
 - Linear: SBH-2838
 
@@ -868,7 +875,7 @@ Actual Result
 - AC 3 (เทสซ้ำในฟอร์มคัดกรองตามที่ QA สั่ง) · Body metric ในฟอร์มคัดกรองกับ OPD Note เป็นคนละชุดค่ากัน ไม่ดึงกันเอง
 ```
 
-#### [Required] TC-SBH-2457-020 - ทดสอบบันทึก Pain score ใน Vital Signs ของฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
+#### [Required] TC-SBH-2457-020 - [ฟอร์มคัดกรอง] ทดสอบบันทึก Pain score ใน Vital Signs ของฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
 - Linear: SBH-2839
 
@@ -907,7 +914,7 @@ Actual Result
 - AC 4 (เทสซ้ำในฟอร์มคัดกรองตามที่ QA สั่ง)
 ```
 
-#### [Required] TC-SBH-2457-021 - ตรวจสอบว่า CC และ PI จากฟอร์มคัดกรอง prefill ไป OPD Note แก้ได้ และไม่ sync กลับไปฟอร์มคัดกรอง
+#### [Required] TC-SBH-2457-021 - [OPD Note] ตรวจสอบว่า CC และ PI จากฟอร์มคัดกรอง prefill ไป OPD Note แก้ได้ และไม่ sync กลับไปฟอร์มคัดกรอง
 
 - Linear: SBH-2840
 
