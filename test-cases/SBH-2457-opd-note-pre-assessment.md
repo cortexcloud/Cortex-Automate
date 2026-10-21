@@ -16,6 +16,11 @@
   - Business rule นอก AC — ไม่มี ยึด AC
   - Role: user1 (`CORTEX_USERNAME_Super_User`) ทั้ง OPD note และ Pre-assessment · Pre-assessment = tab "OPD" > "ฟอร์มคัดกรอง" (QA ยืนยันจากภาพหน้าจอ 20 ต.ค. 2569)
   - Body metrics (BMI/BSA) และ Pain score — หน้าจอจริงอยู่ใน "ฟอร์มคัดกรอง" ด้วย QA ให้เทสทั้ง OPD note (TC-003/004) และฟอร์มคัดกรอง (TC-019/020)
+- ข้อตกลงเพิ่ม (21 ต.ค. 2569):
+  - **ฟอร์มที่ใช้เทส = site SBH → คลินิก "ห้องตรวจสระบุรี"** (template `sbh_general_opd_note_v2` / `sbh_general_opd_pre_assessment_v2`)
+  - **ข้อไหนหน้าจอไม่มีตาม AC ให้ตีเป็น bug** — ใช้กับ TC-007 / TC-015 (ไฟล์แนบหายหลัง reload), TC-008 (ไม่มีช่อง Onset date), TC-009 (OPD Note ยังมี Note to Nurse)
+  - **CC / PI (business rule จาก QA):** ถ้ากรอกฟอร์มคัดกรองก่อน ระบบ prefill CC / PI ให้ใน OPD Note · แก้ใน OPD Note ได้ และค่าที่แก้**ไม่ sync กลับ**ไปที่ฟอร์มคัดกรอง
+  - **AC 16:** ตั้งค่าแล้วเปิดฟอร์มใหม่ section ต้องแสดงตามที่ตั้ง (QA ยืนยัน) · ยังรอยืนยันว่า checkbox "ซ่อน" ในหน้าตั้งค่า = ตัวตั้ง Expand/Collapse
 - ค่าที่ยังไม่รู้ใส่เป็น "รอยืนยัน" — จะเติมตอนสำรวจแอปจริง (GATE 2) ดูรายการที่ท้ายไฟล์ "Requirement gap"
 
 ---
