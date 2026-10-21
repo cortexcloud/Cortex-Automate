@@ -2,8 +2,17 @@
 
 - ที่มา: ผลสำรวจแอปจริงบนฟอร์ม SBH (คลินิก "ห้องตรวจสระบุรี") 20 ต.ค. 2569 — ดูหัวข้อ "ผลสำรวจแอปจริง" ใน `SBH-2457-opd-note-pre-assessment.md`
 - กติกา: QA สั่ง (21 ต.ค. 2569) ว่าข้อไหนหน้าจอไม่มีตาม AC ให้ตีเป็น bug
-- สถานะ: **ร่างให้ QA review** · สร้างจริงใน Linear หลัง QA approve เท่านั้น
-- เสนอการแบ่งการ์ด: 5 ใบ (ไฟล์แนบรวม 2 ฟอร์มไว้ใบเดียวเพราะอาการเดียวกัน) · วางเป็น sub-issue ของ SBH-2457 · template QA Bug · ไม่ assign · severity เป็นค่าที่เสนอ รอ QA ยืนยัน
+- สถานะ: **สร้างใน Linear แล้ว 21 ต.ค. 2569** (sub-issue ของ SBH-2457 · template QA Bug · label การ์ดแม่ + QA : Bug · Backlog · ไม่ assign · ภาพ/วิดีโอฝังใต้ Actual Result ครบทุกใบ)
+
+| Draft | Linear | Priority |
+| -- | -- | -- |
+| Bug 1a ไฟล์แนบหาย (OPD Note) | SBH-2812 | High |
+| Bug 1b ไฟล์แนบหาย (ฟอร์มคัดกรอง) | SBH-2813 | High |
+| Bug 2 ไม่มี Onset date | SBH-2814 | Medium |
+| Bug 3 ยังมี Note to Nurse | SBH-2815 | Low |
+| Bug 4 CC/PI หายเมื่อยังไม่มีฟอร์มคัดกรอง | SBH-2816 | High |
+| Bug 5 ตั้ง "ซ่อน" แล้วไม่พับ | SBH-2817 | Medium |
+- QA ยืนยัน (21 ต.ค. 2569): **6 ใบ** (ไฟล์แนบแยก OPD Note กับฟอร์มคัดกรอง) · sub-issue ของ SBH-2457 · template QA Bug · label ของการ์ดแม่ + "QA : Bug" (แบบ NUH-3088) · ไม่ assign · severity ตามที่เสนอ
 - หลักฐานทั้งหมดอยู่ที่ `.playwright-mcp/SBH-2457/explore/` — ตอนสร้างจริงจะอัปโหลดแนบใต้ Actual Result
 - TC ต้นทางยังเป็น draft ในไฟล์ ยังไม่มีการ์ดใน Linear — ตอนสร้างจริงจะใส่ลิงก์เมื่อมีการ์ด TC
 
@@ -13,9 +22,9 @@
 
 ---
 
-## Bug 1
+## Bug 1a
 
-**ชื่อ:** `[Bug][EMR][OPD Note/ฟอร์มคัดกรอง] - แนบไฟล์ในเอกสารแนบของ OPD Note และฟอร์มคัดกรอง (SBH) แล้วบันทึก ไฟล์หายหลัง reload`
+**ชื่อ:** `[Bug][EMR][OPD Note] - แนบไฟล์ในเอกสารแนบของ OPD Note (SBH) แล้วบันทึก ไฟล์หายหลัง reload`
 
 **Severity ที่เสนอ:** High — ผู้ใช้เห็นชื่อไฟล์ขึ้นและกดบันทึกได้ตามปกติ จึงเข้าใจว่าแนบสำเร็จ แต่เอกสารไม่ได้ถูกเก็บไว้กับฟอร์ม
 
@@ -23,10 +32,10 @@
 # Test Result
 
 ### 1. Description:
-* User: user1 (Super_User) · Env: DEV-X · Version: 2.9.0 · Date/Time: 20/10/2569 15:41–15:49
+* User: user1 (Super_User) · Env: DEV-X · Version: 2.9.0 · Date/Time: 20/10/2569 15:41 และ 21/10/2569 09:55
 * Severity: High — ผู้ใช้เข้าใจว่าแนบเอกสารแล้ว แต่เอกสารหายจากฟอร์มโดยไม่มีอะไรเตือน
 * etc.,: HN 6931979 · VN V69102027456 · EN E69102032186 · คลินิก ห้องตรวจสระบุรี
-* TC ต้นทาง: TC-SBH-2457-007 (OPD Note), TC-SBH-2457-015 (ฟอร์มคัดกรอง)
+* TC ต้นทาง: TC-SBH-2457-007
 
 ### 2. Steps reproduce:
 1. เปิดหน้าผู้ป่วยที่มี encounter คลินิก "ห้องตรวจสระบุรี" (เช็คอินแล้ว) > tab "OPD" > "OPD Note"
@@ -35,34 +44,80 @@
 4. กด "อัปโหลด" แล้วเลือกไฟล์ PDF — ชื่อไฟล์ขึ้นในแถว (ระบบตั้งชื่อเป็น "other-6-69.pdf")
 5. กด "สร้าง"
 6. Reload หน้า แล้วเปิด "OPD Note" เดิม
-7. ทำซ้ำข้อ 2–6 ที่ "ฟอร์มคัดกรอง" (ชื่อไฟล์ที่ระบบตั้ง "other-7-69.pdf")
 
 ### 3. Actual Result:
-* ปัญหา: แนบไฟล์แล้วบันทึกฟอร์มได้ แต่หลัง reload แถวเอกสารแนบหายไป
-* เกิดที่: OPD › OPD Note › เอกสารแนบ และ OPD › ฟอร์มคัดกรอง › เอกสารแนบ
+* ปัญหา: แนบไฟล์แล้วบันทึก OPD Note ได้ แต่หลัง reload แถวเอกสารแนบหายไป
+* เกิดที่: OPD › OPD Note › เอกสารแนบ
 * อาการ: ก่อนบันทึกเห็นชื่อไฟล์ในแถว กด "สร้าง" แล้วไม่มีข้อความแจ้งเตือนใด ๆ ผู้ใช้จะเข้าใจว่าแนบสำเร็จ แต่หลัง reload section "เอกสารแนบ" ว่าง ส่วนข้อมูล section อื่นในฟอร์มเดียวกันยังอยู่ครบ
-* เกิดซ้ำ: เกิดทั้ง 2 ฟอร์มที่ลอง (ฟอร์มละ 1 รอบ)
+* เกิดซ้ำ: 2 รอบ (20/10/2569 และ 21/10/2569)
 * ข้อสังเกต:
+  * วันถัดมา (21/10/2569 09:55) เปิด OPD Note เดิม แถว "other-6-69.pdf" กลับมาแสดง แต่ช่องชื่อเอกสารว่าง ขึ้น "กรุณาเลือกชื่อเอกสาร" และกด "สร้าง" แล้วไม่บันทึกทั้งฟอร์ม จนกว่าจะเลือกชื่อเอกสารใหม่ · เลือก "อื่นๆ" แล้วบันทึก → reload แถวไฟล์แนบหายอีก
+  * ลองอัปโหลดไฟล์ PNG แล้วระบบไม่รับ (ดูรายละเอียดสำหรับ dev) และหลังจากนั้นกด "สร้าง" แล้วฟอร์มไม่ถูกบันทึก
   * ฟอร์มของคลินิกห้องตรวจโรคอายุรกรรมทั่วไป (template อื่น) ก็เกิดอาการเดียวกัน 2 รอบ
   * ไฟล์ที่ใช้เป็น PDF ขนาดเล็กที่ QA สร้างเอง — ควรลองซ้ำด้วยไฟล์เอกสารจริง
-  * ลองอัปโหลดไฟล์ PNG แล้วระบบไม่รับ (ดูรายละเอียดสำหรับ dev) และหลังจากนั้นกด "สร้าง" แล้วฟอร์มไม่ถูกบันทึก
-  * วันถัดมา (21/10/2569 09:55) เปิด OPD Note เดิม แถว "other-6-69.pdf" กลับมาแสดง แต่ช่องชื่อเอกสารว่าง ขึ้น "กรุณาเลือกชื่อเอกสาร" และกด "สร้าง" แล้วไม่บันทึกทั้งฟอร์ม จนกว่าจะเลือกชื่อเอกสารใหม่ · เลือก "อื่นๆ" แล้วบันทึก (201) → reload แถวไฟล์แนบหายอีก (รวม 3 รอบที่ OPD Note)
-  * ภาพเพิ่ม: 26e-opd-attachment-row-back-name-empty.png, 26i-opd-attachment-after-reload.png · วิดีโอ 09-sbh-cc-pi-prefill-nosync.webm
 
-① ก่อนบันทึก — เห็นชื่อไฟล์ในแถว: 20g-sbh-opd-attachment.png, 24a-sbh-scr-create-before.png
-② หลัง reload — section เอกสารแนบว่าง: 21f-sbh-opd-after-reload-attachment-dx.png, 24d-sbh-scr-after-reload-2.png
-③ ลองไฟล์ PNG: 22a-sbh-opd-attach-png-before-save.png, 22b-sbh-opd-attach-png-after-reload.png
-🎬 วิดีโอ: 06-sbh-opd-note.webm, 07-sbh-screening.webm
+① ก่อนบันทึก — เห็นชื่อไฟล์ในแถว: 20g-sbh-opd-attachment.png
+② หลัง reload — section เอกสารแนบว่าง: 21f-sbh-opd-after-reload-attachment-dx.png
+③ วันถัดมา แถวกลับมาแบบชื่อเอกสารว่าง และบล็อกการบันทึก: 26e-opd-attachment-row-back-name-empty.png
+④ เลือกชื่อเอกสารแล้วบันทึก → reload หายอีก: 26i-opd-attachment-after-reload.png
+⑤ ลองไฟล์ PNG: 22a-sbh-opd-attach-png-before-save.png
+🎬 วิดีโอ: 06-sbh-opd-note.webm, 09-sbh-cc-pi-prefill-nosync.webm
 
 **รายละเอียดสำหรับ dev**
-* อัปโหลด PDF: `201 POST /cortex-api/documents/upload-by-hn` ทั้ง 2 ฟอร์ม
-* บันทึกฟอร์ม: `201 POST /cortex-api/clinical-form-legacy/rest/openehr/v1/ehr/{ehr_id}/contribution` (template `sbh_general_opd_note_v2`, `sbh_general_opd_pre_assessment_v2`)
+* อัปโหลด PDF: `201 POST /cortex-api/documents/upload-by-hn`
+* บันทึกฟอร์ม: `200 POST .../plugin/transform-composition/flat-to-json?templateId=sbh_general_opd_note_v2` → `201 POST .../rest/openehr/v1/ehr/{ehr_id}/contribution`
 * อัปโหลด PNG: `422 POST /cortex-api/documents/upload-by-hn` · กด "สร้าง" หลังจากนั้นไม่มี request contribution
-* ต้องให้ dev ยืนยันว่า ข้อมูลไฟล์แนบถูกส่งไปใน composition หรือไม่ และระบบรับไฟล์ชนิดไหนบ้าง
+* ต้องให้ dev ยืนยันว่า ข้อมูลไฟล์แนบถูกส่งไปใน composition หรือไม่ แถวที่กลับมาในวันถัดมามาจาก draft หรือไม่ และระบบรับไฟล์ชนิดไหนบ้าง
 
 ### 4. Expected Result:
 * แนบไฟล์แล้วบันทึก หลัง reload แถวเอกสารแนบยังอยู่ พร้อมชื่อเอกสาร รายละเอียด และไฟล์ที่เปิดดูได้
 * ถ้าไฟล์ชนิดนั้นแนบไม่ได้ ต้องมีข้อความบอกผู้ใช้
+```
+
+---
+
+## Bug 1b
+
+**ชื่อ:** `[Bug][EMR][ฟอร์มคัดกรอง] - แนบไฟล์ในเอกสารแนบของฟอร์มคัดกรอง (SBH) แล้วบันทึก ไฟล์หายหลัง reload`
+
+**Severity ที่เสนอ:** High — ผู้ใช้เห็นชื่อไฟล์ขึ้นและกดบันทึกได้ตามปกติ จึงเข้าใจว่าแนบสำเร็จ แต่เอกสารไม่ได้ถูกเก็บไว้กับฟอร์ม
+
+```
+# Test Result
+
+### 1. Description:
+* User: user1 (Super_User) · Env: DEV-X · Version: 2.9.0 · Date/Time: 20/10/2569 15:47
+* Severity: High — ผู้ใช้เข้าใจว่าแนบเอกสารแล้ว แต่เอกสารหายจากฟอร์มโดยไม่มีอะไรเตือน
+* etc.,: HN 6931979 · VN V69102027456 · EN E69102032186 · คลินิก ห้องตรวจสระบุรี
+* TC ต้นทาง: TC-SBH-2457-015
+
+### 2. Steps reproduce:
+1. เปิดหน้าผู้ป่วยที่มี encounter คลินิก "ห้องตรวจสระบุรี" (เช็คอินแล้ว) > tab "OPD" > "ฟอร์มคัดกรอง"
+2. กรอกช่องบังคับ (การมาถึงและความต้องการช่วยเหลือ, Chief Complaint, Present Illness)
+3. ที่ section "เอกสารแนบ" กด "+ เพิ่มรายการ"
+4. ชื่อเอกสาร เลือก "อื่นๆ" · รายละเอียดเอกสาร กรอก "QA-SBH2457 screening attachment"
+5. กด "อัปโหลด" แล้วเลือกไฟล์ PDF — ชื่อไฟล์ขึ้นในแถว (ระบบตั้งชื่อเป็น "other-7-69.pdf")
+6. กด "สร้าง"
+7. Reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
+
+### 3. Actual Result:
+* ปัญหา: แนบไฟล์แล้วบันทึกฟอร์มคัดกรองได้ แต่หลัง reload แถวเอกสารแนบหายไป
+* เกิดที่: OPD › ฟอร์มคัดกรอง › เอกสารแนบ
+* อาการ: ก่อนบันทึกเห็นชื่อไฟล์ในแถว กด "สร้าง" แล้วไม่มีข้อความแจ้งเตือนใด ๆ ผู้ใช้จะเข้าใจว่าแนบสำเร็จ แต่หลัง reload section "เอกสารแนบ" ว่าง ส่วน section อื่น (การมาถึง, Body metric, การคัดกรองเพศหญิง, ประวัติแพ้, ความเสี่ยงพลัดตกหกล้ม ฯลฯ) ยังอยู่ครบ
+* เกิดซ้ำ: 1 รอบ
+* ข้อสังเกต: OPD Note ของ encounter เดียวกันเกิดอาการเดียวกัน (การ์ดแยก) · ไฟล์ที่ใช้เป็น PDF ขนาดเล็กที่ QA สร้างเอง — ควรลองซ้ำด้วยไฟล์เอกสารจริง
+
+① ก่อนบันทึก — เห็นแถวเอกสารแนบ: 24a-sbh-scr-create-before.png
+② หลัง reload — section เอกสารแนบว่าง: 24d-sbh-scr-after-reload-2.png
+🎬 วิดีโอ: 07-sbh-screening.webm
+
+**รายละเอียดสำหรับ dev**
+* อัปโหลด PDF: `201 POST /cortex-api/documents/upload-by-hn`
+* บันทึกฟอร์ม: `200 POST .../plugin/transform-composition/flat-to-json?templateId=sbh_general_opd_pre_assessment_v2` → `201 POST .../rest/openehr/v1/ehr/{ehr_id}/contribution`
+* ต้องให้ dev ยืนยันว่า ข้อมูลไฟล์แนบถูกส่งไปใน composition หรือไม่
+
+### 4. Expected Result:
+* แนบไฟล์แล้วบันทึก หลัง reload แถวเอกสารแนบยังอยู่ พร้อมชื่อเอกสาร รายละเอียด และไฟล์ที่เปิดดูได้ (AC 15)
 ```
 
 ---
