@@ -467,12 +467,42 @@ export async function recordDrugAllergy(page: Page, drugSearch = 'paracetamol'):
   return drugName;
 }
 
+/** ตารางสิทธิในแผงเปิด Visit (หัวตารางมี "ลูกหนี้") */
+export function coverageTable(page: Page): Locator {
+  return page.getByRole('main').getByRole('table').filter({ hasText: 'ลูกหนี้' });
+}
+
+/**
+ * แผงเปิด Visit: เพิ่มสิทธิจากช่อง "สิทธิการรักษา" แล้วลากขึ้นเป็นลำดับ 1 → คืนแถวของสิทธินั้น
+ * แถวเงินสดที่ระบบใส่มาลบไม่ได้ (SBH Prod H02 · dev-x H01 — ตรวจ 19–20 ต.ค. 2026) · ลากด้วยปุ่ม `holder`
+ */
+export async function addCoverageFirst(page: Page, coverage: string): Promise<Locator> {
+  const main = page.getByRole('main');
+  const box = main.getByText('สิทธิการรักษา', { exact: true }).locator('xpath=following::input[@role="combobox"][1]');
+  await box.click();
+  await box.fill(coverage.split(' - ')[1] ?? coverage);
+  await openOptions(page).filter({ hasText: new RegExp(`^${coverage}$`) }).first().click();
+  const rows = coverageTable(page).getByRole('row').filter({ has: page.getByRole('button', { name: 'holder' }) });
+  const added = rows.filter({ hasText: coverage });
+  await expect(added).toBeVisible();
+  if (!(await rows.first().innerText()).includes(coverage)) {
+    const a = (await added.getByRole('button', { name: 'holder' }).boundingBox())!;
+    const b = (await rows.first().getByRole('button', { name: 'holder' }).boundingBox())!;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2 + ((b.y - a.y - 8) * i) / 10);
+    await page.mouse.up();
+  }
+  await expect(rows.first(), `สิทธิ ${coverage} ต้องเป็นลำดับ 1`).toContainText(coverage);
+  return rows.first();
+}
+
 /**
  * เปิด Visit OPD แบบ Walk-in ที่แผนกอายุรกรรม จากเมนูขวา "จัดการ Visit" โดยระบุแพทย์ตาม `SETTINGS.opdDoctor`
  * (สิทธิใช้ค่าที่ฟอร์มใส่มาให้) → คืน VN / EN / ชื่อคลินิก / ชื่อแพทย์ · Visit ที่ได้สถานะ "รอเช็คอิน" — เช็คอินต่อด้วย `checkInOpdVisit()`
  * SBH Prod: คลินิกอายุรกรรมได้แถวประเภท "คำขอ Walk-in" (ไม่มีช่องแพทย์) → คืน `doctor: ''` ให้ไปลงตารางแพทย์ต่อด้วย `scheduleWalkInRequest()`
  */
-export async function openOpdVisit(page: Page): Promise<{ vn: string; en: string; clinic: string; doctor: string }> {
+export async function openOpdVisit(page: Page, opts: { anyDoctor?: boolean } = {}): Promise<{ vn: string; en: string; clinic: string; doctor: string }> {
   const main = page.getByRole('main');
   // เปิดจากปุ่ม "Visit ใหม่" ของเวชระเบียนมาแล้ว (แผงจัดการ Visit เปิดอยู่) → ไม่ต้องกดเมนูซ้ำ
   const panel = main.getByText(/^รายการเข้ารับบริการ/);
@@ -487,7 +517,10 @@ export async function openOpdVisit(page: Page): Promise<{ vn: string; en: string
   const row = main.getByRole('row').filter({ hasText: 'Walk-in' }).first();
   await expect(row).toBeVisible();
   let doctorName = '';
-  if (!(await row.getByText('คำขอ Walk-in').count())) {
+  if (!(await row.getByText('คำขอ Walk-in').count()) && opts.anyDoctor) {
+    // การ์ดที่ไม่ขึ้นกับแพทย์ (SBH-1566): ใช้แพทย์ที่ระบบเลือกให้ในแถว — แพทย์ใน SETTINGS อาจตารางเต็ม "(Full)" ช่วงบ่าย (dev-x 20 ต.ค. 2026)
+    doctorName = (await row.locator('.ant-select').first().innerText()).trim();
+  } else if (!(await row.getByText('คำขอ Walk-in').count())) {
     await row.locator('.ant-select').first().click();
     await expect(openOptions(page).first()).toBeVisible();
     const available = await openOptions(page).allTextContents();
