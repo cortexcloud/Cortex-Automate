@@ -8,7 +8,7 @@ import { opdListRow, selectOpdUnit } from '../helpers/functions/opd-activity';
 import { expectPatientInfo, fillNewPatientForm, gotoReception, openNewVisitPanel, saveNewPatient } from '../helpers/functions/reception';
 import { getCredentials } from '../utils/env';
 import { cacheAppAssets, expect, test } from './fixtures';
-import { SYSTEM, checkInOpdVisit, createPrescription, nextPrefixedPatient, openOpdVisit, recordMockPatient, scheduleWalkInRequest } from './uat-er';
+import { SYSTEM, addCoverageFirst, checkInOpdVisit, createPrescription, nextPrefixedPatient, openOpdVisit, recordMockPatient, scheduleWalkInRequest } from './uat-er';
 import { addMedicineToCart } from './uat-play';
 
 // Mock Data: ผู้ป่วย OPD 1 ราย สิทธิ UC → สั่งยา → Discharge โดยพยาบาลแบบส่ง Refer (By Transfer) + เอกสาร Refer out → ชำระเงิน → ปิด Visit → รับยา
@@ -27,26 +27,6 @@ const PHARMACY = { name: 'ห้องยาชั้น 1', counter: '1' };
 
 const options = (page: Page) => page.locator('.ant-select-dropdown:visible .ant-select-item-option');
 const progress = (message: string) => console.log(`    ผู้ป่วย Refer · ${message}`);
-
-/** แผงเปิด Visit: เพิ่มสิทธิจากช่อง "สิทธิการรักษา" แล้วลากขึ้นเป็นลำดับ 1 (แถว H02 เงินสดที่ระบบใส่มาลบไม่ได้) */
-async function addCoverageFirst(page: Page, coverage: string) {
-  const main = page.getByRole('main');
-  const box = main.getByText('สิทธิการรักษา', { exact: true }).locator('xpath=following::input[@role="combobox"][1]');
-  await box.click();
-  await box.fill(coverage.split(' - ')[1] ?? coverage);
-  await options(page).filter({ hasText: new RegExp(`^${coverage}$`) }).first().click();
-  const rows = main.getByRole('table').filter({ hasText: 'ลูกหนี้' }).getByRole('row').filter({ has: page.getByRole('button', { name: 'holder' }) });
-  const added = rows.filter({ hasText: coverage });
-  await expect(added).toBeVisible();
-  if ((await rows.first().innerText()).includes(coverage)) return;
-  const a = (await added.getByRole('button', { name: 'holder' }).boundingBox())!;
-  const b = (await rows.first().getByRole('button', { name: 'holder' }).boundingBox())!;
-  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
-  await page.mouse.down();
-  for (let i = 1; i <= 10; i++) await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2 + ((b.y - a.y - 8) * i) / 10);
-  await page.mouse.up();
-  await expect(rows.first(), `สิทธิ ${coverage} ต้องเป็นลำดับ 1`).toContainText(coverage);
-}
 
 /** ช่องสถานะบนแถบหัวของ Visit OPD (เช็คอิน → พร้อมตรวจ → ตรวจเสร็จ) — graphql TransitionEncounterStatus ไม่มีหน้าต่างยืนยัน */
 async function setVisitStatus(page: Page, name: string) {

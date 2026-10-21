@@ -51,7 +51,7 @@ export const BADGE_PDF_PATH = (en: string) => `/cortex-api/er/encounters/${en}/b
 /** แจ้งเตือนเมื่อเครื่องไม่มี print agent (R18 — ไม่ถือว่า fail) */
 export const NO_PRINT_AGENT_TEXT = 'ไม่สามารถพิมพ์ป้ายชื่อผู้ป่วยได้';
 
-const PDFJS_DIR = path.join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'build');
+const PDFJS_DIR = path.join(__dirname, '..', '..', 'node_modules', 'pdfjs-dist', 'build');
 const PDFJS_ROUTE = '/__pdfjs__/';
 const routed = new WeakSet<Page>();
 
@@ -71,7 +71,7 @@ export async function printBedsideBadge(page: Page, visit: ErVisit): Promise<Buf
 }
 
 /** โหลด pdf.js (pdfjs-dist ในเครื่อง) เข้าหน้าปัจจุบัน — ใช้อ่านข้อความและวาดหน้า PDF ลง canvas */
-async function loadPdfJs(page: Page) {
+export async function loadPdfJs(page: Page) {
   if (!routed.has(page)) {
     routed.add(page);
     await page.route(`**${PDFJS_ROUTE}*`, async (route) => {

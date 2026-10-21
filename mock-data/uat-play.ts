@@ -434,9 +434,12 @@ export async function addMedicineToCart(page: Page, code: string, beforeAdd?: ()
   // SBH Prod: กดเพิ่มลงตะกร้าครั้งแรกบางครั้งเงียบ ไม่มีแถวขึ้น (3 ต.ค. 2026) → ยังไม่มีแถวค่อยกดซ้ำ
   const row = main.getByRole('row').filter({ hasText: `[${code}]` }).first();
   await expect(async () => {
+    // Drug Alert (ยาซ้ำกับออเดอร์อื่นของ Visit — CURRENT_ORDER) ขึ้นช้ากว่าการกด → รอบก่อนเห็นไม่ทัน หน้าต่างค้างบังปุ่ม → ยืนยันก่อน
+    if (await orderAlert(page).isVisible()) await confirmOrderAlert(page);
     if (!(await row.isVisible())) {
       const calls = await watchMutations(page, () => page.getByRole('button', { name: 'plus เพิ่มลงตะกร้า' }).click());
       console.log(`    เพิ่มยา ${code} ลงตะกร้า: ${calls.map((call) => call.slice(0, 200)).join(' ‖ ') || '(ไม่เห็นคำสั่งผ่าน API ที่ดักได้)'}`);
+      await orderAlert(page).waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined);
       if (await orderAlert(page).isVisible()) await confirmOrderAlert(page);
     }
     await expect(row, `ยา ${code} ต้องขึ้นในตะกร้า`).toBeVisible({ timeout: 15_000 });

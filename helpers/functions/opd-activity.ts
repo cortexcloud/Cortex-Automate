@@ -45,13 +45,22 @@ export async function selectOpdUnit(page: Page, unit = 'แผนกอายุ
 }
 
 /** รายการผู้ป่วยนอก แท็บ "ทั้งหมด" ค้นด้วย HN (วันที่ตั้งต้น = วันนี้ · ตัวกรองแพทย์ตั้งต้น = ผู้ที่ล็อกอิน) → แถวของผู้ป่วย */
-export async function opdListRow(page: Page, hn: string): Promise<Locator> {
+export async function opdListRow(page: Page, hn: string, opts: { anyDoctor?: boolean } = {}): Promise<Locator> {
   const main = page.getByRole('main');
   if (!/\/opd\/patient-list/.test(page.url())) await selectOpdUnit(page);
   const search = main.getByPlaceholder('ค้นหา HN');
   await search.waitFor({ timeout: 120_000 });
   const row = main.locator('tr.ant-table-row').filter({ hasText: `HN ${hn}` }).first();
   await expect(async () => {
+    // Visit ที่แพทย์ไม่ใช่ผู้ที่ล็อกอิน (openOpdVisit anyDoctor) → เอา chip ตัวกรองแพทย์ตั้งต้นออก (ขึ้นช้ากว่าหน้า · ปุ่มลบมีตัวซ่อนซ้อน — ใช้ตัวที่มองเห็น)
+    if (opts.anyDoctor) {
+      const remove = main.locator('.ant-select-selection-item-remove').filter({ visible: true });
+      await remove.first().waitFor({ timeout: 5_000 }).catch(() => undefined);
+      for (let i = 0; i < 3 && (await remove.count()); i++) {
+        await remove.first().click();
+        await page.waitForTimeout(800);
+      }
+    }
     await main.getByRole('tab', { name: /^ทั้งหมด/ }).click();
     await search.fill(hn);
     await search.press('Enter');
