@@ -2,6 +2,8 @@
 
 > สถานะ: **สร้างใน Linear แล้ว (2026-10-16)**
 > - EXE SBH-2729 (EXE - CT - 2.9.0) → HPY SBH-2730 (TC 001–019 = SBH-2732–2750) · UHP SBH-2731 (TC 020–022 = SBH-2751–2753)
+> - เพิ่ม 2026-10-21 (หลังเทียบ AC): HPY TC 023 = SBH-2841 (FIFO คิว Cashier) · TC 024 = SBH-2842 (คิว Manual ที่จุดบริการ X-ray)
+> - ⚠️ TC-016 / 023 อิงปุ่ม Create Queue ที่หน้า Cashier (ข้อสรุปเพิ่มเติมของการ์ดแม่) ซึ่งขัดกับ decision SBH-2385 (จุดบริการปลายทางพิมพ์บัตร Cashier Queue จาก flow เดิม) — รอ BA / Dev ยืนยัน
 > - Env: Dev-X / SBH Prod · QA Run : Cycle Test · QA Module: OPD · QA Sub-module / Feature : Queue (label ใหม่)
 > - ใส่เฉพาะ TC ที่จะทดสอบจริง · ชื่อ TC ไม่มี `[Required]` นำหน้า · วงเล็บท้ายชื่อบอกหน้าที่ต้องดู
 > - ตอนสร้างจริง body ของ TC ใช้รูปแบบ SBH-1972 (TC ID / Case Type / Test Type → Test Step → Expected Result → Test Result แยก env)
@@ -27,6 +29,8 @@ Sub-Issue: SBH-2385 (Discharge — ใบนำทางและ Queue ผู�
 | AC เพิ่มเติม 3 | Cashier / จุดบริการปลายทางสร้างคิว Manual ผ่านหน้ารายการคิว โดยกรอก HN | 016, 017 |
 | Flow ข้อ 3 | ดำเนินการตามลำดับคิว (FIFO) | 018 |
 | AC เพิ่มเติม 4 | หน้า Cashier queue list มี tab OPD / IPD | 019 |
+| Scope "Cashier Queue → QUEUE FIFO" | คิว Cashier เรียงแบบ FIFO | 023 |
+| Flow ข้อ 3 / ข้อสรุปเพิ่มเติม (Lab, X-Ray) | จุดบริการปลายทาง X-ray สร้างคิว Manual | 024 |
 | SBH-2385 AC7 | ไม่มีปลายทางที่รองรับ → ไม่แสดงปุ่มพิมพ์ใบนำทาง | 020 |
 | SBH-2385 AC4 | หน้า Discharge ไม่แสดงปุ่มพิมพ์บัตรคิวการเงิน | 021 |
 | SBH-2386 AC9 | resolve Location ไม่ได้ → ไม่เดาห้องปลายทาง | 022 |
@@ -743,6 +747,37 @@ Actual Result
 หมายเหตุ
 - AC เพิ่มเติม 4 (เฉพาะ tab — filter / column ยังไม่มี spec)
 ```
+
+### TC-SBH-2233-023 - ตรวจสอบลำดับคิว Cashier เรียงแบบ FIFO (หน้า Cashier queue list)
+
+Status: Not Run · Priority: High · Labels: เหมือน TC-001 · Linear: SBH-2841
+
+```
+Test Step
+1. ใช้คนไข้ชุด A ที่ได้ Cashier Queue อัตโนมัติจาก TC-SBH-2233-001 (คิวเกิดก่อน)
+2. ใช้คนไข้ชุด B ที่สร้างคิว Manual ด้วยปุ่ม Create Queue จาก TC-SBH-2233-016 (คิวเกิดทีหลัง)
+3. Login ระบบด้วย user การเงิน > เปิดหน้า Cashier queue list
+4. ดูลำดับคิวของคนไข้ชุด A และชุด B
+
+Expected Result
+คนไข้ชุด A อยู่ลำดับก่อนคนไข้ชุด B ตามเวลาที่เกิดคิว (มาก่อนได้ก่อน)
+```
+หมายเหตุ: Scope "Pharmacy to cashier queue / Cashier Queue → QUEUE FIFO" · SBH-2385 AC9
+
+### TC-SBH-2233-024 - สร้างคิวที่จุดบริการปลายทาง X-ray เมื่อผู้ป่วยนำใบนำทางมาติดต่อ (หน้าจุดบริการ X-ray)
+
+Status: Not Run · Priority: High · Labels: เหมือน TC-001 · Linear: SBH-2842
+
+```
+Test Step
+1. ใช้คนไข้ชุด B ที่มีใบนำทางจุดบริการ X-ray (พิมพ์จาก TC-SBH-2233-011)
+2. Login ระบบด้วย user จุดบริการ X-ray > เปิดหน้ารายการคิวของจุดบริการ X-ray
+3. สร้างคิว / Check-in คนไข้ด้วย HN ตามใบนำทาง
+
+Expected Result
+สร้างคิวของคนไข้ในจุดบริการ X-ray สำเร็จ
+```
+หมายเหตุ: Flow ข้อ 3 · ข้อสรุปเพิ่มเติม "จุดบริการปลายทาง (เช่น Lab, X-Ray)" · SBH-2385 AC8
 
 ---
 
