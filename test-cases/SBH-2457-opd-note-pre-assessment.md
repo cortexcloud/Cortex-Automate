@@ -1,28 +1,35 @@
 # SBH-2457 — Form OPD note / Pre-assessment หลัง Restructure EHRbase — Test Coverage
 
 - Requirement: https://linear.app/cortexcloud/issue/SBH-2457
-- สร้างจาก Acceptance Criteria ของการ์ด (AC 1–16) ตาม skill `linear-testcase-writer`
-- สถานะไฟล์นี้: **draft เก็บไว้ในโปรเจกต์ก่อน ยังไม่สร้างจริงใน Linear** — รอ **GATE 1 (QA review)** ตาม skill `qa-automate-readiness` ก่อนไปสำรวจแอปจริง
-- รวม: **1 EXE, 1 Scenario, 20 Test Case** (19 Required, 1 Optional)
-- TC granularity: **Flow-style** ตามที่ QA ยืนยัน (20 ต.ค. 2569) — 1 TC ต่อ 1 AC ไล่ กรอก → บันทึก → reload → ตรวจค่า ในฟอร์มเดียวกัน · ทางเลือกคู่ขนาน (Collapse / Expand ใน AC 16) แยกเป็นคนละ TC
-- Run Type: `CT` (การ์ดผูก Cycle) · Scope/Version: `2.9.0` (จาก label `VERSION 2.9.0` ของการ์ด) · Environment: `DEV-X` (QA ยืนยัน)
-- ข้อตกลงกับ QA (20 ต.ค. 2569):
-  - **Fall risk** — เดิมยึด AC 14 (ต้องไม่มี) → เปลี่ยน 20 ต.ค. 2569 หลังเจอว่าฟอร์ม SBH ยังมี "ความเสี่ยงพลัดตกหกล้ม": QA สั่ง "ถ้ามีก็เช็คไปเลย" → TC-014 ตรวจว่าเลือกแล้วบันทึกได้
-  - **Body chart** — ยึด AC 6: ใช้งานได้เหมือนเดิม ไม่ตรวจ Default collapsed
-  - **Physical examination** — ตรวจแค่ AC 5 ไม่ตรวจขนาดช่อง
-  - **Family history general** — ไม่มี AC จึงทำเป็น `[Optional]`
-  - **Underlying disease** — ไม่เขียน TC ในการ์ดนี้ เทสที่ SBH-2413 (ยังไม่เทสรอบนี้) อ้างอิงไว้ว่า section นี้ใน OPD note / Pre-assessment ต้องทำงานเหมือนที่ SBH-2413 ระบุ
-  - **BMI / BSA** — เทียบกับค่าจากระบบเดิม ถ้าไม่มีข้อมูลเดิม ให้ย้อนหาสูตรจากหน้าจอจริงแล้วทำ helper `helpers/functions/body-metrics.ts` ไว้เทียบ (งาน P1/P2 ถัดไปใน `TODO.md`)
-  - Business rule นอก AC — ไม่มี ยึด AC
-  - Role: user1 (`CORTEX_USERNAME_Super_User`) ทั้ง OPD note และ Pre-assessment · Pre-assessment = tab "OPD" > "ฟอร์มคัดกรอง" (QA ยืนยันจากภาพหน้าจอ 20 ต.ค. 2569)
-  - Body metrics (BMI/BSA) และ Pain score — หน้าจอจริงอยู่ใน "ฟอร์มคัดกรอง" ด้วย QA ให้เทสทั้ง OPD note (TC-003/004) และฟอร์มคัดกรอง (TC-019/020)
-- ข้อตกลงเพิ่ม (21 ต.ค. 2569):
-  - **ฟอร์มที่ใช้เทส = site SBH → คลินิก "ห้องตรวจสระบุรี"** (template `sbh_general_opd_note_v2` / `sbh_general_opd_pre_assessment_v2`)
-  - **ข้อไหนหน้าจอไม่มีตาม AC ให้ตีเป็น bug** — ใช้กับ TC-007 / TC-015 (ไฟล์แนบหายหลัง reload), TC-008 (ไม่มีช่อง Onset date), TC-009 (OPD Note ยังมี Note to Nurse)
-  - **CC / PI (business rule จาก QA):** ถ้ากรอกฟอร์มคัดกรองก่อน ระบบ prefill CC / PI ให้ใน OPD Note · แก้ใน OPD Note ได้ และค่าที่แก้**ไม่ sync กลับ**ไปที่ฟอร์มคัดกรอง
-  - **AC 16:** ตั้งค่าแล้วเปิดฟอร์มใหม่ section ต้องแสดงตามที่ตั้ง · อ่านตามหน้าตั้งค่า: checkbox **"ซ่อน" = Collapse** / ไม่ติ๊ก = Expand (QA ยืนยัน 21 ต.ค. 2569) → ผลที่ติ๊กแล้วยังกาง = bug (Bug 5)
-  - **CC / PI ตอนยังไม่มีฟอร์มคัดกรอง:** แพทย์กรอกใน OPD Note เองต้องเก็บค่า (QA ยืนยัน 21 ต.ค. 2569) → ผลที่ค่าหาย = bug (Bug 4)
-- ค่าที่ยังไม่รู้ใส่เป็น "รอยืนยัน" — จะเติมตอนสำรวจแอปจริง (GATE 2) ดูรายการที่ท้ายไฟล์ "Requirement gap"
+- สร้างจาก Acceptance Criteria ของการ์ด (AC 1–16) ตาม skill `linear-testcase-writer` · ปรับให้อิงฟอร์ม SBH ตามผลสำรวจแอปจริง 20–21 ต.ค. 2569
+- สถานะไฟล์นี้: **draft รอ QA review** ก่อนสร้าง EXE / Scenario / Test Case จริงใน Linear
+- รวม: **1 EXE, 1 Scenario, 21 Test Case** (20 Required, 1 Optional) · ผลจากรอบสำรวจ: **Passed 13 · Failed 7 · Not Run 1**
+- TC granularity: **Flow-style** (QA ยืนยัน 20 ต.ค. 2569) — 1 TC ต่อ 1 AC ไล่ กรอก → บันทึก → reload → ตรวจค่า · ทางเลือกคู่ขนาน (Collapse / Expand ใน AC 16) แยกคนละ TC
+- Run Type: `CT` · Scope/Version: `2.9.0` (label `VERSION 2.9.0`) · Environment: `DEV-X`
+- Label ตอนสร้างจริง (QA ยืนยัน 21 ต.ค. 2569): label ของการ์ดแม่ + `QA Module: OPD` + `QA Sub-module / Feature : OPD Note & Pre-assessment` (สร้างใหม่) · Scenario/TC + `QA Case : Happy` · TC + `QA Type : Functional` + `QA Execution Type: Manual` · EXE + `QA Run : Cycle Test`
+- สถานะ TC ตอนสร้างจริง: ใส่ผลจากรอบสำรวจ (Passed / Failed พร้อมหลักฐานและลิงก์ bug) · ข้อที่ยังไม่ได้เทส = Not Run
+
+### ข้อตกลงกับ QA
+
+- **ฟอร์มที่ใช้เทส:** site SBH → คลินิก **"SBH - ห้องตรวจสระบุรี"** (template `sbh_general_opd_note_v2` / `sbh_general_opd_pre_assessment_v2`) · role **user1** (`CORTEX_USERNAME_Super_User`) · Pre-assessment = tab "OPD" > **"ฟอร์มคัดกรอง"**
+- **ข้อไหนหน้าจอไม่มีตาม AC ให้ตีเป็น bug** (21 ต.ค. 2569)
+- **Fall risk (AC 14):** การ์ดเขียนว่าต้องไม่มี แต่ฟอร์ม SBH มี "ความเสี่ยงพลัดตกหกล้ม" → QA สั่ง "ถ้ามีก็เช็คไปเลย" → TC-014 ตรวจว่าใช้งานได้
+- **Body chart (AC 6):** ตรวจว่าใช้งานได้เหมือนเดิม ไม่ตรวจ Default collapsed
+- **Physical examination (AC 5):** ตรวจแค่ Free text + Rich text + บันทึกแล้วรูปแบบยังอยู่ ไม่ตรวจขนาดช่อง
+- **Family history general:** ไม่มี AC → `[Optional]`
+- **Underlying disease:** ไม่มี TC ในการ์ดนี้ ต้องทำงานเหมือนที่ SBH-2413 ระบุ (SBH-2413 ยังไม่เทสรอบนี้)
+- **Body metrics / Pain score (AC 3–4):** มีทั้งใน OPD Note และฟอร์มคัดกรอง → เทสทั้งสองที่ (TC-003/004 และ TC-019/020)
+- **BMI / BSA:** ไม่มีข้อมูลระบบเดิมให้เทียบ → ใช้สูตรที่ย้อนหาจากหน้าจอจริงและคำนวณมือตรงทุกชุด: **BMI = W ÷ (H/100)²** · **BSA = Mosteller √(H × W ÷ 3600)** · ปัดทศนิยม 2 ตำแหน่ง (หน้าจอตัดเลข 0 ท้าย เช่น 28.90 แสดง 28.9)
+- **CC / PI:** ถ้ามีฟอร์มคัดกรองก่อน → prefill ใน OPD Note แก้ได้ และ**ไม่ sync กลับ** · ถ้ายังไม่มีฟอร์มคัดกรอง → ค่าที่แพทย์กรอกใน OPD Note **ต้องถูกเก็บ** (21 ต.ค. 2569)
+- **AC 16:** ตั้งค่าแล้วเปิดฟอร์ม section ต้องแสดงตามที่ตั้ง · checkbox **"ซ่อน" = Collapse** / ไม่ติ๊ก = Expand (อ่านตามหน้าตั้งค่า) · หน้าตั้งค่า = ผู้ดูแลระบบ > แบบฟอร์ม > แบบฟอร์ม → แท็บ "แบบฟอร์ม EMR" → "SBH GENERAL OPD NOTE" / "SBH OPD PRE-ASSESSMENT" · เป็นค่ากลางทั้งระบบ ต้องคืนค่าเดิมทุกครั้ง
+
+### วิธีเตรียมข้อมูลทดสอบ (ใช้กับทุก TC)
+
+1. ลงทะเบียนผู้ป่วยใหม่ที่ ER (`/cortex/er/triage` → "ผู้ป่วยใหม่") แล้วกด "ยกเลิก" ที่ modal "เปิด Visit ER" → ได้ HN ไม่มี visit
+2. เวชระเบียน → ค้นหา HN → หน้าผู้ป่วย กด "Visit ใหม่" → "Walk-in ไป คลินิก" = **"SBH - ห้องตรวจสระบุรี"** (สิทธิ H01 - เงินสด เติมให้) → "สร้าง"
+3. แอปผู้ป่วยนอก → แท็บ "คำขอ Walk-in" → "ลงตาราง" → แพทย์ที่มีตารางที่คลินิกนี้ (รอบสำรวจใช้ "นาย ทดสอบ มานะ") → เลือกช่วงเวลา → "บันทึก"
+4. แท็บ "ทั้งหมด" (กด "ล้าง" ตัวกรองก่อน) → ค้นหา HN → "เช็คอิน" → คลิกชื่อผู้ป่วย → tab "OPD"
+- ข้อมูลรอบสำรวจ: HN 6931979 (หญิง) · VN V69102027456 · EN E69102032186 · หลักฐาน `.playwright-mcp/SBH-2457/explore/` (ภาพ 19–26 · คลิป 05–09)
 
 ---
 ### EXE
@@ -33,45 +40,46 @@
 ข้อมูลรอบทดสอบ
 - ประเภทการทดสอบ: CT
 - Scope / Version: 2.9.0
-- Module: EMR — Form OPD note / Pre-assessment
+- Module: EMR — Form OPD note / Pre-assessment (SBH)
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 - Environment: DEV-X
 - อนุมัติโดย: -
 
 ขอบเขตการทดสอบ
-- OPD note: Chief complaint, Present illness, Body metrics (BMI/BSA), Vital sign (Pain score), Physical examination, Body chart, เอกสารแนบ, Diagnosis general (Onset date), ไม่มี Note to nurse (AC 1–9)
-- Pre-assessment: การมาถึงและความช่วยเหลือ, การคัดกรองเพศหญิง, ประวัติแพ้, ประวัติการผ่าตัด / สุรา / บุหรี่, ความเสี่ยงพลัดตกหกล้ม (ตรวจว่าใช้งานได้ ตามที่ QA สั่ง), เอกสารแนบ (AC 10–15)
-- Pre-assessment (ฟอร์มคัดกรอง): Body Metric BMI/BSA และ Pain score (AC 3–4 เทสซ้ำในฟอร์มนี้)
-- Pre-assessment: Family history general (Optional — ไม่มี AC)
+- OPD Note (SBH): Chief complaint, Present illness, Body metrics (BMI/BSA), Vital sign (Pain score), Physical examination, Body chart, เอกสารแนบ, Diagnosis (Onset date), ไม่มี Note to nurse (AC 1–9)
+- ฟอร์มคัดกรอง (SBH): การมาถึงและความต้องการช่วยเหลือ, การคัดกรองเพศหญิง, ประวัติแพ้, ประวัติการผ่าตัด / สุรา / บุหรี่, ความเสี่ยงพลัดตกหกล้ม, เอกสารแนบ, Body metric, Pain score (AC 3–4, 10–15)
+- ฟอร์มคัดกรอง: Family history general (Optional — ไม่มี AC)
+- CC / PI prefill จากฟอร์มคัดกรองไป OPD Note และไม่ sync กลับ (business rule จาก QA)
 - Setting form: ค่า Default Expand / Collapse ของแต่ละ section (AC 16)
-- ไม่รวม Underlying disease — เทสที่ SBH-2413
+- ไม่รวม Underlying disease — อ้างอิง SBH-2413
 
 หมายเหตุ
 - สร้างจาก Acceptance Criteria ของ requirement โดยตรง
 - ไม่รวม BDD ตามกติกาปัจจุบัน
 - ไม่รวมงาน Low priority (Design Body metrics แบบเดิม, ปรับ Design การคัดกรองเพศหญิง) เพราะไม่อยู่ใน AC
-- Underlying disease ใน OPD note / Pre-assessment ต้องทำงานเหมือนที่ระบุใน SBH-2413
+- ผลรอบนี้มาจากการสำรวจแอปจริง 20–21 ต.ค. 2569 บนคลินิก "SBH - ห้องตรวจสระบุรี" · bug ที่เจอ: SBH-2812 ถึง SBH-2817
 ```
 
 ### Scenario
 
-#### TS-SBH-2457-HPY - ตรวจสอบการบันทึกและแสดงผล section ใน Form OPD note / Pre-assessment และค่า Default Expand/Collapse
+#### TS-SBH-2457-HPY - ตรวจสอบการบันทึกและแสดงผล section ใน OPD Note / ฟอร์มคัดกรอง (SBH) และค่า Default Expand/Collapse
 
 ```
 ข้อมูลอ้างอิง
 - Scenario ID: TS-SBH-2457-HPY
 - Case Type: Happy
 - Suffix: HPY
-- Module: EMR — Form OPD note / Pre-assessment
+- Module: EMR — Form OPD note / Pre-assessment (SBH)
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 วัตถุประสงค์
-- ยืนยันว่าหลัง Restructure EHRbase ฟอร์ม OPD note และ Pre-assessment มี section ครบตามที่กำหนด บันทึกแล้ว reload ข้อมูลยังอยู่ และ section ที่ต้องเอาออกไม่แสดง
+- ยืนยันว่า OPD Note และฟอร์มคัดกรองของ SBH มี section ครบตามที่กำหนด บันทึกแล้ว reload ข้อมูลยังอยู่ และ section ที่ต้องเอาออกไม่แสดง
+- ยืนยันว่า CC / PI prefill จากฟอร์มคัดกรองไป OPD Note ได้ และไม่ sync กลับ
 - ยืนยันว่าค่า Default Expand / Collapse ที่ตั้งใน Setting form มีผลเมื่อเปิดฟอร์ม
 
 ขอบเขต Requirement
-- OPD note: AC 1–9
-- Pre-assessment: AC 10–15 (+ Family history general แบบ Optional)
+- OPD Note: AC 1–9
+- ฟอร์มคัดกรอง: AC 3–4, 10–15 (+ Family history general แบบ Optional)
 - Setting form: AC 16
 
 ความเสี่ยง
@@ -84,7 +92,7 @@
 
 ##### Test Case ภายใต้ Scenario นี้
 
-#### [Required] TC-SBH-2457-001 - ตรวจสอบการเลือก CC suggestion ใน Chief complaint ของ OPD note แล้วบันทึกได้
+#### [Required] TC-SBH-2457-001 - ทดสอบเลือก CC suggestion ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -97,33 +105,33 @@
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว และ**ยังไม่มีการบันทึกฟอร์มคัดกรอง** (ดู "วิธีเตรียมข้อมูลทดสอบ")
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
 
 Test Data
-- CC suggestion: "ปวดหัว" (ปุ่มที่แสดงใต้หัวข้อ Chief Complaint)
+- CC suggestion: ปุ่ม "ปวดหลัง"
 
 Test Steps
-1. ไปที่ section Chief complaint
-2. ดูรายการ CC suggestion ที่ระบบแสดง
-3. เลือก CC suggestion 1 รายการ
-4. กด "สร้าง"
-5. reload หน้า แล้วเปิด OPD Note เดิม
+1. ที่ section Chief Complaint กดปุ่ม "ปวดหลัง"
+2. กด "สร้าง"
+3. reload หน้า แล้วเปิด "OPD Note" เดิม
 
 Expected Result
-- section Chief complaint แสดงรายการ CC suggestion ให้เลือก
-- เลือกแล้วข้อความของรายการนั้นเข้ามาอยู่ใน Chief complaint
-- หลัง reload Chief complaint ยังเป็นค่าที่เลือกไว้
+- section Chief Complaint มีปุ่ม CC suggestion ให้เลือก (ปวดไหล่ คอ, ปวดแขน, ปวดหลัง, … นวดเพื่อสุขภาพ)
+- กดปุ่มแล้วข้อความ "ปวดหลัง" เข้าช่อง Chief Complaint
+- หลัง reload ช่อง Chief Complaint ยังเป็น "ปวดหลัง"
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Failed** — ทดสอบ 20/10/2569 (HN 6931979 · EN E69102032186): ปุ่ม suggestion มีและกดแล้วข้อความเข้าช่อง · กด "สร้าง" บันทึกสำเร็จ แต่หลัง reload ช่อง Chief Complaint ว่าง ส่วน section อื่นที่บันทึกพร้อมกันยังอยู่ครบ
+- Bug: SBH-2816
+- หลักฐาน: 20a-sbh-cc-pi.png (ก่อนบันทึก) · 21c-sbh-opd-after-reload-1.png (หลัง reload) · วิดีโอ 06-sbh-opd-note.webm
 
 หมายเหตุ
-- AC 1 · ยังไม่รู้ว่า CC suggestion มาจากไหน (ดู Requirement gap)
+- AC 1 · กรณีมีฟอร์มคัดกรองก่อน ดู TC-021
 ```
 
-#### [Required] TC-SBH-2457-002 - ทดสอบบันทึก Present illness ใน OPD note แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-002 - ทดสอบบันทึก Present illness ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -136,30 +144,32 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว และ**ยังไม่มีการบันทึกฟอร์มคัดกรอง**
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
 
 Test Data
-- Present illness: "QA-SBH2457 present illness"
+- Present Illness: "QA-SBH2457 SBH present illness"
 
 Test Steps
-1. กรอก Present illness ตาม Test Data
+1. พิมพ์ Present Illness ตาม Test Data
 2. กด "สร้าง"
-3. reload หน้า แล้วเปิด OPD Note เดิม
+3. reload หน้า แล้วเปิด "OPD Note" เดิม
 
 Expected Result
 - กด "สร้าง" สำเร็จ ไม่มีข้อความ error
-- หลัง reload Present illness แสดงข้อความ "QA-SBH2457 present illness" ครบ
+- หลัง reload Present Illness แสดงข้อความ "QA-SBH2457 SBH present illness" ครบ
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Failed** — ทดสอบ 20/10/2569: บันทึกสำเร็จ แต่หลัง reload ช่อง Present Illness ว่าง
+- Bug: SBH-2816
+- หลักฐาน: 20a-sbh-cc-pi.png · 21c-sbh-opd-after-reload-1.png · วิดีโอ 06-sbh-opd-note.webm
 
 หมายเหตุ
-- AC 2
+- AC 2 · กรณีมีฟอร์มคัดกรองก่อน ดู TC-021
 ```
 
-#### [Required] TC-SBH-2457-003 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metrics ของ OPD note ถูกต้อง
+#### [Required] TC-SBH-2457-003 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของ OPD Note ถูกต้อง
 
 ```
 ข้อมูลอ้างอิง
@@ -172,35 +182,35 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
-4. มีค่า BMI / BSA อ้างอิงของน้ำหนัก/ส่วนสูงชุดเดียวกัน จากระบบเดิม หรือจาก helper `helpers/functions/body-metrics.ts` (รอยืนยันสูตร)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note" แล้วกางหัวข้อ "Body metric" (พับอยู่ตอนเปิดฟอร์ม)
 
 Test Data
-- น้ำหนัก / ส่วนสูง: รอยืนยัน (เลือกตอนย้อนหาสูตร ให้มีทั้งค่าจำนวนเต็มและทศนิยม)
-- BMI / BSA ที่คาดหวัง: รอยืนยันค่าจากระบบเดิม
+- Weight 72.5 kg / Height 158.4 cm → BMI 28.90 (หน้าจอแสดง 28.9) / BSA 1.79
+- สูตร: BMI = W ÷ (H/100)² · BSA = Mosteller √(H × W ÷ 3600) · ปัด 2 ตำแหน่ง
 
 Test Steps
-1. ไปที่ section Body metrics
-2. กรอกน้ำหนักและส่วนสูงตาม Test Data
-3. ดูค่า BMI และ BSA ที่ระบบคำนวณ
+1. กรอก Weight แล้วกด Tab
+2. กรอก Height แล้วกด Tab
+3. ดูค่า BMI และ BSA
 4. กด "สร้าง"
-5. reload หน้า แล้วเปิด OPD Note เดิม
+5. reload หน้า แล้วเปิด "OPD Note" เดิม
 
 Expected Result
-- BMI ตรงกับค่าที่คาดหวัง (รอยืนยัน)
-- BSA ตรงกับค่าที่คาดหวัง (รอยืนยัน)
-- หลัง reload น้ำหนัก ส่วนสูง BMI และ BSA ยังเป็นค่าเดิม
+- BMI = 28.9
+- BSA = 1.79
+- หลัง reload Weight, Height, BMI และ BSA ยังเป็นค่าเดิม
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: BMI 28.9 / BSA 1.79 ตรงสูตร · ลองเพิ่ม 60/165 → 22.04/1.66 · 95/180 → 29.32/2.18 · 95/150 → 42.22/1.99 · 45/150 → 20/1.37 ตรงทุกชุด และออกจากช่องด้วย Tab ก็คำนวณใหม่ทันที · หลัง reload ค่ายังอยู่และขึ้นที่หัวจอผู้ป่วย
+- หลักฐาน: 20c-sbh-opd-bmi-bsa.png · 21d-sbh-opd-after-reload-vitals.png · วิดีโอ 06-sbh-opd-note.webm
 
 หมายเหตุ
-- AC 3 · ถ้าค่าอ้างอิงมาจาก helper แทนระบบเดิม ผลนี้ยืนยันได้แค่ว่าตรงกับสูตรที่ย้อนหาได้ ไม่ได้ยืนยันว่าตรงกับระบบเดิมโดยตรง
+- AC 3 · ไม่มีค่าจากระบบเดิมให้เทียบ ใช้สูตรที่ย้อนหาจากหน้าจอจริง (QA ตกลง)
 ```
 
-#### [Required] TC-SBH-2457-004 - ทดสอบบันทึก Pain score ใน Vital sign ของ OPD note แล้วค่ายังอยู่หลัง reload
+#### [Required] TC-SBH-2457-004 - ทดสอบบันทึก Pain score ใน Vital Signs ของ OPD Note แล้วค่ายังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -213,31 +223,31 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note" แล้วกางหัวข้อ "Vital Signs" (พับอยู่ตอนเปิดฟอร์ม)
 
 Test Data
-- Pain score: 3 (กดปุ่ม "3" ใน section Pain Score ที่มีปุ่ม 0–10)
+- Pain score (0-10): 4
 
 Test Steps
-1. ไปที่ section Vital sign
-2. กรอก Pain score ตาม Test Data
-3. กด "สร้าง"
-4. reload หน้า แล้วเปิด OPD Note เดิม
+1. ที่ Vital Signs เลือก Pain score ตาม Test Data
+2. กด "สร้าง"
+3. reload หน้า แล้วเปิด "OPD Note" เดิม
 
 Expected Result
-- section Vital sign มีช่อง Pain score
-- หลัง reload Pain score ยังเป็น 3
+- Vital Signs มีช่อง Pain score (0-10)
+- หลัง reload Pain score ยังเป็น 4
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: เลือก 4 ได้ · หลัง reload ยังเป็น 4 และหัวจอผู้ป่วยแสดง Pain 4
+- หลักฐาน: 20b-sbh-opd-pain.png · 21d-sbh-opd-after-reload-vitals.png · วิดีโอ 06-sbh-opd-note.webm
 
 หมายเหตุ
-- AC 4 · ช่วงค่าที่รับได้ของ Pain score ไม่ได้ระบุในการ์ด
+- AC 4
 ```
 
-#### [Required] TC-SBH-2457-005 - ทดสอบพิมพ์ Free text พร้อมจัดรูปแบบด้วย Rich text ใน Physical examination แล้วรูปแบบยังอยู่หลังบันทึก
+#### [Required] TC-SBH-2457-005 - ทดสอบพิมพ์ Free text พร้อมจัดรูปแบบด้วย Rich text ใน Physical Examination แล้วรูปแบบยังอยู่หลังบันทึก
 
 ```
 ข้อมูลอ้างอิง
@@ -250,33 +260,33 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
 
 Test Data
-- ข้อความ: "QA-SBH2457 PE" (ตัวหนา) และ "normal" (ตัวเอียง)
+- ข้อความ "QA-SBH2457 PE BOLD and ITALIC UNDER" โดย BOLD = ตัวหนา · ITALIC = ตัวเอียง · UNDER = ขีดเส้นใต้ (ปุ่ม U)
 
 Test Steps
-1. ไปที่ section Physical examination
-2. พิมพ์ข้อความตาม Test Data ในช่อง Free text
-3. ใช้เครื่องมือ Rich text ทำ "QA-SBH2457 PE" เป็นตัวหนา และ "normal" เป็นตัวเอียง
-4. กด "สร้าง"
-5. reload หน้า แล้วเปิด OPD Note เดิม
+1. ที่ Physical Examination พิมพ์ข้อความในช่อง Free text เหนือตาราง System
+2. ใช้แถบเครื่องมือ Rich text ทำตัวหนา / ตัวเอียง / ขีดเส้นใต้ตาม Test Data
+3. กด "สร้าง"
+4. reload หน้า แล้วเปิด "OPD Note" เดิม
 
 Expected Result
-- Physical examination มีช่อง Free text พร้อมแถบเครื่องมือ Rich text
-- ข้อความแสดงเป็นตัวหนา / ตัวเอียงตามที่จัดไว้ก่อนบันทึก
-- หลัง reload ข้อความและรูปแบบตัวหนา / ตัวเอียงยังอยู่ครบ
+- Physical Examination มีช่อง Free text พร้อมแถบเครื่องมือ Rich text (B, I, U, S, สี, H1–H3, list ฯลฯ)
+- ข้อความแสดงตัวหนา / ตัวเอียง / ขีดเส้นใต้ตามที่จัดไว้
+- หลัง reload ข้อความและรูปแบบยังอยู่ครบ
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: มีแถบเครื่องมือ Rich text · จัดรูปแบบได้ (กดปุ่ม U บนแถบได้จริง) · หลัง reload รูปแบบตัวหนา / ตัวเอียง / ขีดเส้นใต้ยังอยู่
+- หลักฐาน: 20d-sbh-opd-pe-richtext-filled.png · 21c-sbh-opd-after-reload-1.png · วิดีโอ 06-sbh-opd-note.webm
 
 หมายเหตุ
-- AC 5 · ไม่ตรวจขนาดช่องตามที่ QA ยืนยัน · เครื่องมือ Rich text ที่มีจริงยังไม่ระบุในการ์ด ถ้าไม่มีตัวหนา/ตัวเอียง ให้ใช้รูปแบบที่มีแทนแล้วบันทึกไว้
+- AC 5 · ไม่ตรวจขนาดช่องตามที่ QA ยืนยัน
 ```
 
-#### [Required] TC-SBH-2457-006 - ตรวจสอบการใช้งาน Body chart ใน OPD note แล้วข้อมูลยังอยู่หลังบันทึก
+#### [Required] TC-SBH-2457-006 - ตรวจสอบการวาด Body Chart ใน OPD Note แล้วภาพยังอยู่หลังบันทึก
 
 ```
 ข้อมูลอ้างอิง
@@ -289,31 +299,33 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
 
 Test Data
-- ตำแหน่ง / การ mark บน Body chart: รอยืนยันตอนสำรวจแอป
+- วาดเส้น 1 เส้นบนภาพร่างกายด้านหน้า ด้วยเครื่องมือดินสอ สีแดง
 
 Test Steps
-1. ไปที่ section Body chart
-2. ใช้งาน Body chart ตาม Test Data
+1. คลิกหัวข้อ "Body Chart" ให้กาง
+2. วาดตาม Test Data
 3. กด "สร้าง"
-4. reload หน้า แล้วเปิด OPD Note เดิม
+4. reload หน้า แล้วเปิด "OPD Note" เดิม และกาง Body Chart
 
 Expected Result
-- Body chart ใช้งานได้เหมือนเดิม (พฤติกรรมเดิม: รอยืนยัน)
-- หลัง reload สิ่งที่ทำไว้บน Body chart ยังอยู่
+- Body Chart มีเครื่องมือวาด (ดินสอ, เลือก, ยางลบ, ข้อความ, undo/redo) และวาดได้
+- หลัง reload เส้นที่วาดยังอยู่
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: วาดได้ · หลัง reload เส้นยังอยู่
+- ข้อสังเกต: template ตั้งต้นเป็น "Adult Male" ทั้งที่ผู้ป่วยเป็นหญิง · Body Chart พับไว้ตอนเปิดฟอร์ม
+- หลักฐาน: 20e-sbh-opd-bodychart-collapsed.png · 20f-sbh-opd-bodychart-drawn.png · 21e-sbh-opd-after-reload-bodychart.png · วิดีโอ 06-sbh-opd-note.webm
 
 หมายเหตุ
 - AC 6 · ไม่ตรวจ Default collapsed ตามที่ QA ยืนยัน
 ```
 
-#### [Required] TC-SBH-2457-007 - ทดสอบแนบเอกสารใน OPD note แล้วไฟล์ยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-007 - ทดสอบแนบเอกสารใน OPD Note แล้วไฟล์ยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -326,31 +338,33 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
 
 Test Data
-- ไฟล์ทดสอบ: ชนิด/ขนาดที่รองรับ รอยืนยัน
+- ชื่อเอกสาร "อื่นๆ" · รายละเอียด "QA-SBH2457 attachment" · ไฟล์ PDF
 
 Test Steps
-1. ไปที่ section เอกสารแนบ
-2. แนบไฟล์ตาม Test Data
+1. ที่ section "เอกสารแนบ" กด "+ เพิ่มรายการ"
+2. เลือกชื่อเอกสาร กรอกรายละเอียด แล้วกด "อัปโหลด" เลือกไฟล์
 3. กด "สร้าง"
-4. reload หน้า แล้วเปิด OPD Note เดิม
+4. reload หน้า แล้วเปิด "OPD Note" เดิม
 
 Expected Result
-- แนบไฟล์ได้ตามรูปแบบเดิมของ SBH
-- หลัง reload ไฟล์ที่แนบยังแสดงอยู่
+- แถวเอกสารแนบแสดงชื่อไฟล์หลังอัปโหลด
+- หลัง reload แถวเอกสารแนบยังอยู่ พร้อมชื่อเอกสาร รายละเอียด และไฟล์
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Failed** — ทดสอบ 20/10 และ 21/10/2569: อัปโหลดได้ (ระบบตั้งชื่อ "other-6-69.pdf") และบันทึกสำเร็จ แต่หลัง reload section เอกสารแนบว่าง (2 รอบ) · วันถัดมาแถวกลับมาแบบชื่อเอกสารว่างและบล็อกการบันทึกทั้งฟอร์ม · ไฟล์ PNG อัปโหลดไม่ได้ (422)
+- Bug: SBH-2812
+- หลักฐาน: 20g-sbh-opd-attachment.png · 21f-sbh-opd-after-reload-attachment-dx.png · 26e-opd-attachment-row-back-name-empty.png · 26i-opd-attachment-after-reload.png · วิดีโอ 06-sbh-opd-note.webm, 09-sbh-cc-pi-prefill-nosync.webm
 
 หมายเหตุ
-- AC 7
+- AC 7 · รอบสำรวจใช้ PDF ขนาดเล็กที่ QA สร้างเอง ควรลองซ้ำด้วยไฟล์จริงตอน retest
 ```
 
-#### [Required] TC-SBH-2457-008 - ทดสอบบันทึก Onset date ใน Diagnosis general ของ OPD note แล้ววันที่ยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-008 - ทดสอบบันทึก Onset date ใน Diagnosis ของ OPD Note แล้ววันที่ยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -363,33 +377,34 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
 
 Test Data
-- Diagnosis: รอยืนยัน (รหัสที่ค้นเจอบน DEV-X)
-- Onset date: วันที่ก่อนวันเปิด visit (ค่าจริง: รอยืนยัน)
+- Diagnosis: "M545 - Low back pain" (ค้นด้วย "M54.5")
+- Onset date: วันก่อนวันเปิด visit
 
 Test Steps
-1. ไปที่ section Diagnosis
-2. ค้นหาและเลือก Diagnosis ตาม Test Data
-3. กรอก Onset date ตาม Test Data
-4. กด "สร้าง"
-5. reload หน้า แล้วเปิด OPD Note เดิม
+1. ที่ section Diagnosis ค้นหาและเลือก Diagnosis ตาม Test Data
+2. กรอก Onset date
+3. กด "สร้าง"
+4. reload หน้า แล้วเปิด "OPD Note" เดิม
 
 Expected Result
-- Diagnosis general มีช่อง Onset date
+- แถว Diagnosis มีช่อง Onset date
 - หลัง reload Diagnosis และ Onset date ยังเป็นค่าที่บันทึกไว้
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Failed** — ทดสอบ 20/10/2569: แถว Diagnosis ไม่มีช่อง Onset date · ช่องวันเวลาที่มีคือ "อัปเดตล่าสุด" (`last_updated`) เติมเวลาปัจจุบันให้เอง · Diagnosis บันทึกและอยู่หลัง reload ได้ปกติ
+- Bug: SBH-2814
+- หลักฐาน: 20h-sbh-opd-diagnosis.png · 19g-sbh-opd-diagnosis.png · วิดีโอ 06-sbh-opd-note.webm
 
 หมายเหตุ
 - AC 8
 ```
 
-#### [Required] TC-SBH-2457-009 - ตรวจสอบว่า Form OPD note ไม่แสดง section Note to nurse
+#### [Required] TC-SBH-2457-009 - ตรวจสอบว่า OPD Note ไม่แสดง section Note to Nurse
 
 ```
 ข้อมูลอ้างอิง
@@ -402,27 +417,29 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
 
 Test Data
 - -
 
 Test Steps
 1. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note"
-2. เลื่อนดูทุก section ของฟอร์มจนสุด (กาง section ที่พับอยู่ทั้งหมด)
+2. เลื่อนดูทุก section จนท้ายฟอร์ม (กาง section ที่พับอยู่ทั้งหมด)
 
 Expected Result
-- ไม่มี section "Note to nurse" ในฟอร์ม OPD note
+- ไม่มี section "Note to Nurse" ในฟอร์ม OPD Note
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Failed** — ทดสอบ 20/10/2569: ท้ายฟอร์มต่อจาก Diagnosis ยังมี section "Note to Nurse" พร้อมช่อง "Note" · หน้าตั้งค่า SBH GENERAL OPD NOTE ไม่มีแถว Note to Nurse
+- Bug: SBH-2815
+- หลักฐาน: 19g-sbh-opd-diagnosis.png · 19f-sbh-opd-note-to-nurse.png · วิดีโอ 05-edit-visit-sbh.webm
 
 หมายเหตุ
-- AC 9 · Note to nurse ย้ายไปอยู่ใน Section Order — ไม่อยู่ในขอบเขตการ์ดนี้
+- AC 9 · Note to nurse ควรอยู่ใน Section Order (แผงคำสั่งการรักษา) เท่านั้น
 ```
 
-#### [Required] TC-SBH-2457-010 - ทดสอบบันทึก section การมาถึงและความช่วยเหลือใน Pre-assessment แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-010 - ทดสอบบันทึก section การมาถึงและความต้องการช่วยเหลือในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -435,31 +452,33 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- ค่าที่เลือก/กรอกใน section: รอยืนยันตอนสำรวจแอป (field ตาม SBH เดิม)
+- การมาถึง: เดินมา · ความต้องการช่วยเหลือ: ไม่ต้องการความช่วยเหลือ · ผู้มาด้วย: มาคนเดียว
+- กรอกช่องบังคับอื่นด้วย: Chief Complaint, Present Illness
 
 Test Steps
-1. ไปที่ section การมาถึงและความช่วยเหลือ
-2. กรอก/เลือกค่าตาม Test Data
-3. กด "บันทึก"
+1. ที่ section "การมาถึงและความต้องการช่วยเหลือ" เลือกค่าตาม Test Data
+2. กรอกช่องบังคับที่เหลือ
+3. กด "สร้าง"
 4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- ฟอร์ม Pre-assessment มี section การมาถึงและความช่วยเหลือ
-- หลัง reload ค่าที่กรอก/เลือกไว้ยังอยู่ครบ
+- ฟอร์มคัดกรองมี section "การมาถึงและความต้องการช่วยเหลือ" (การมาถึง / ความต้องการช่วยเหลือ / ผู้มาด้วย)
+- หลัง reload ค่าที่เลือกยังอยู่ครบ
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: มี section และเป็นช่องบังคับ (*) · หลัง reload ค่าทั้ง 3 ช่องยังอยู่
+- หลักฐาน: 23a-sbh-scr-arrival-filled.png · 24c-sbh-scr-after-reload-1.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
-- AC 10 · หน้าจอมี section "การมาโรงพยาบาล" (dropdown) — ยังไม่ยืนยันว่าเป็น section เดียวกับ "การมาถึงและความช่วยเหลือ"
+- AC 10 · ฟอร์มคัดกรองบังคับกรอก Chief Complaint + Present Illness ("กรุณากรอกข้อมูล")
 ```
 
-#### [Required] TC-SBH-2457-011 - ทดสอบบันทึก section การคัดกรองเพศหญิงใน Pre-assessment แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-011 - ทดสอบบันทึก section การคัดกรองเพศหญิงในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -472,31 +491,31 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD (เพศของผู้ป่วย: รอยืนยัน — ดู Requirement gap)
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ของผู้ป่วยหญิง ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- ค่าที่เลือก/กรอกใน section: รอยืนยันตอนสำรวจแอป (field ตาม SBH เดิม)
+- การตั้งครรภ์: ไม่มี · การให้นมบุตร: ไม่มี · สถานะการมีประจำเดือน: อยู่ในวัยมีประจำเดือน · LMP: 01/10/2026
 
 Test Steps
-1. ไปที่ section การคัดกรองเพศหญิง
-2. กรอก/เลือกค่าตาม Test Data
-3. กด "บันทึก"
-4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
+1. ที่ section "การคัดกรองเพศหญิง" กรอกตาม Test Data
+2. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
+3. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- ฟอร์ม Pre-assessment มี section การคัดกรองเพศหญิง
-- หลัง reload ค่าที่กรอก/เลือกไว้ยังอยู่ครบ
+- ฟอร์มคัดกรองมี section "การคัดกรองเพศหญิง"
+- หลัง reload ค่าที่กรอกยังอยู่ครบ
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569 (ผู้ป่วยหญิง): มี section · หลัง reload ค่าทั้งหมดยังอยู่ รวม LMP 01/10/2026
+- หลักฐาน: 23d-sbh-scr-female.png · 24f-sbh-scr-after-reload-female.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
-- AC 11 · ไม่ตรวจ Design แบบ Compact (Low priority ไม่อยู่ใน AC)
+- AC 11 · ยังไม่ได้ทดสอบกับผู้ป่วยชาย (การ์ดไม่ได้ระบุว่าต้องแสดงเฉพาะผู้ป่วยหญิง)
 ```
 
-#### [Required] TC-SBH-2457-012 - ทดสอบบันทึกประวัติแพ้ใน Pre-assessment ตามที่ Cortex มีอยู่แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-012 - ทดสอบเพิ่มประวัติแพ้ในฟอร์มคัดกรอง แล้วรายการยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -509,31 +528,31 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- รายการแพ้ที่จะเพิ่ม: รอยืนยันตอนสำรวจแอป
+- ประเภท: แพ้ยา · ชื่อยา/สิ่งที่แพ้: "QA Penicillin" · อาการแพ้: "ผื่นคัน"
 
 Test Steps
-1. ไปที่ section ประวัติแพ้
-2. เพิ่มรายการแพ้ตาม Test Data
-3. กด "บันทึก"
-4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
+1. ที่ section "ประวัติแพ้" กด "+ เพิ่มรายการ" แล้วกรอกตาม Test Data
+2. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
+3. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- section ประวัติแพ้ทำงานตามที่ Cortex มีอยู่
-- หลัง reload รายการแพ้ที่เพิ่มยังอยู่
+- section ประวัติแพ้ทำงานตามที่ Cortex มีอยู่ (ประเภท / ชื่อยา / อาการ / ผลการประเมิน)
+- หลัง reload รายการแพ้ยังอยู่
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: เพิ่มรายการได้ (ผลการประเมิน Unverified) · หลัง reload ยังอยู่
+- หลักฐาน: 23e-sbh-scr-allergy.png · 24e-sbh-scr-after-reload-allergy-family-history.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
 - AC 12
 ```
 
-#### [Required] TC-SBH-2457-013 - ทดสอบบันทึกประวัติการผ่าตัด สุรา และบุหรี่ใน Pre-assessment ตามรูปแบบ SBH แล้วข้อมูลยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-013 - ทดสอบบันทึกประวัติการผ่าตัด สุรา และบุหรี่ในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -546,33 +565,34 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- ประวัติการผ่าตัด / สุรา / บุหรี่: รอยืนยันตอนสำรวจแอป (field ตาม SBH เดิม)
+- ประวัติการเจ็บป่วยในอดีต: ไม่มี · ประวัติการผ่าตัดในอดีต: มี + "QA appendectomy 2015"
+- ประวัติการดื่มสุรา: ไม่เคยดื่ม · ประวัติการสูบบุหรี่: ไม่เคยสูบ
 
 Test Steps
-1. ไปที่ section ประวัติการผ่าตัด แล้วกรอกตาม Test Data
-2. ไปที่ section สุรา แล้วกรอกตาม Test Data
-3. ไปที่ section บุหรี่ แล้วกรอกตาม Test Data
-4. กด "บันทึก"
-5. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
+1. ที่ section "ประวัติการเจ็บป่วย/ผ่าตัดในอดีต" กรอกตาม Test Data
+2. ที่ section "ประวัติการดื่มสุราและการสูบบุหรี่" เลือกตาม Test Data
+3. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
+4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- หลัง reload ประวัติการผ่าตัดยังเป็นค่าที่บันทึกไว้
-- หลัง reload ข้อมูลสุรายังเป็นค่าที่บันทึกไว้
-- หลัง reload ข้อมูลบุหรี่ยังเป็นค่าที่บันทึกไว้
+- หลัง reload ประวัติการเจ็บป่วย / การผ่าตัดยังเป็นค่าที่บันทึก
+- หลัง reload ประวัติการดื่มสุรายังเป็น "ไม่เคยดื่ม"
+- หลัง reload ประวัติการสูบบุหรี่ยังเป็น "ไม่เคยสูบ"
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: หลัง reload ค่าทั้งหมดยังอยู่
+- หลักฐาน: 23f-sbh-scr-family-surgery.png · 23g-sbh-scr-alcohol-smoke-fall.png · 24d-sbh-scr-after-reload-2.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
 - AC 13 · สุรา / บุหรี่ มีแผนปรับใหม่ก่อน go-live (SBH-2419) — ถ้าเปลี่ยนต้องปรับ TC นี้และเทสซ้ำ
 ```
 
-#### [Required] TC-SBH-2457-014 - ทดสอบเลือกความเสี่ยงพลัดตกหกล้มในฟอร์มคัดกรองแล้วค่ายังอยู่หลัง reload
+#### [Required] TC-SBH-2457-014 - ทดสอบเลือกความเสี่ยงพลัดตกหกล้มในฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -585,31 +605,31 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี encounter ที่คลินิก "SBH - ห้องตรวจสระบุรี" (เช็คอินแล้ว)
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
 - ความเสี่ยงพลัดตกหกล้ม: "สูง"
 
 Test Steps
-1. ไปที่ section "ความเสี่ยงพลัดตกหกล้ม"
-2. กดตัวเลือกตาม Test Data
-3. กด "สร้าง" (ครั้งแรก) / "บันทึก"
-4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
+1. ที่ section "ความเสี่ยงพลัดตกหกล้ม" กดตัวเลือกตาม Test Data
+2. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
+3. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
 - section "ความเสี่ยงพลัดตกหกล้ม" มีตัวเลือก ไม่มี / ต่ำ / สูง
 - หลัง reload ตัวเลือก "สูง" ยังถูกเลือกอยู่
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: เลือก "สูง" ได้ · หลัง reload ยังถูกเลือก
+- หลักฐาน: 23g-sbh-scr-alcohol-smoke-fall.png · 24d-sbh-scr-after-reload-2.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
-- AC 14 · การ์ดเขียนว่าฟอร์มต้องไม่มี Fall risk แต่หน้าจอ SBH ยังมี section นี้ — QA สั่ง (20 ต.ค. 2569) "ถ้ามีก็เช็คไปเลย" จึงเปลี่ยนจากตรวจว่าไม่มี เป็นตรวจว่าใช้งานได้
+- AC 14 · การ์ดเขียนว่าต้องไม่มี Fall risk แต่ฟอร์ม SBH ยังมี — QA สั่ง (20 ต.ค. 2569) "ถ้ามีก็เช็คไปเลย"
 ```
 
-#### [Required] TC-SBH-2457-015 - ทดสอบแนบเอกสารใน Pre-assessment แล้วไฟล์ยังอยู่หลัง reload
+#### [Required] TC-SBH-2457-015 - ทดสอบแนบเอกสารในฟอร์มคัดกรอง แล้วไฟล์ยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -622,31 +642,33 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- ไฟล์ทดสอบ: ชนิด/ขนาดที่รองรับ รอยืนยัน
+- ชื่อเอกสาร "อื่นๆ" · รายละเอียด "QA-SBH2457 screening attachment" · ไฟล์ PDF
 
 Test Steps
-1. ไปที่ section เอกสารแนบ
-2. แนบไฟล์ตาม Test Data
-3. กด "บันทึก"
+1. ที่ section "เอกสารแนบ" กด "+ เพิ่มรายการ"
+2. เลือกชื่อเอกสาร กรอกรายละเอียด แล้วกด "อัปโหลด" เลือกไฟล์
+3. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
 4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- แนบไฟล์ได้ตามรูปแบบเดิมของ SBH
-- หลัง reload ไฟล์ที่แนบยังแสดงอยู่
+- แถวเอกสารแนบแสดงชื่อไฟล์หลังอัปโหลด
+- หลัง reload แถวเอกสารแนบยังอยู่ พร้อมชื่อเอกสาร รายละเอียด และไฟล์
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Failed** — ทดสอบ 20/10/2569: อัปโหลดได้ ("other-7-69.pdf") และบันทึกสำเร็จ แต่หลัง reload section เอกสารแนบว่าง
+- Bug: SBH-2813
+- หลักฐาน: 24a-sbh-scr-create-before.png · 24d-sbh-scr-after-reload-2.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
-- AC 15
+- AC 15 · รอบสำรวจใช้ PDF ขนาดเล็กที่ QA สร้างเอง ควรลองซ้ำด้วยไฟล์จริงตอน retest
 ```
 
-#### [Optional] TC-SBH-2457-016 - ทดสอบบันทึก Family history general ใน Pre-assessment แล้วข้อมูลยังอยู่หลัง reload
+#### [Optional] TC-SBH-2457-016 - ทดสอบเพิ่มประวัติครอบครัวในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -659,31 +681,31 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- ประวัติครอบครัวที่จะเพิ่ม: รอยืนยันตอนสำรวจแอป
+- ประวัติโรคในครอบครัว: "QA Hypertension" · บุคคลในครอบครัว: "บิดา"
 
 Test Steps
-1. ไปที่ section ประวัติครอบครัว
-2. กรอก/เพิ่มรายการตาม Test Data
-3. กด "บันทึก"
-4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
+1. ที่ section "ประวัติครอบครัว" กด "+ เพิ่มรายการ" แล้วกรอกตาม Test Data
+2. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
+3. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- section ประวัติครอบครัวใช้ `Family history general`
-- หลัง reload ข้อมูลประวัติครอบครัวยังอยู่
+- section ประวัติครอบครัวมีตัวเลือก ไม่มีประวัติโรคในครอบครัว / ไม่ทราบ และเพิ่มรายการได้
+- หลัง reload รายการยังอยู่
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: เพิ่มรายการได้ · หลัง reload ยังอยู่
+- หลักฐาน: 23f-sbh-scr-family-surgery.png · 24e-sbh-scr-after-reload-allergy-family-history.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
-- ไม่มี AC รองรับ (อยู่ในตาราง Requirement เท่านั้น) — QA ยืนยันให้เป็น Optional ถ้าไม่ผ่านไม่ถือว่าการ์ดนี้ไม่ผ่าน
+- ไม่มี AC รองรับ (อยู่ในตาราง Requirement เท่านั้น) — QA ยืนยันให้เป็น Optional
 ```
 
-#### [Required] TC-SBH-2457-017 - ตรวจสอบว่า section ที่ตั้ง Default เป็น Collapse ใน Setting form แสดงแบบพับเมื่อเปิดฟอร์ม
+#### [Required] TC-SBH-2457-017 - ตรวจสอบว่า section ที่ตั้ง "ซ่อน" ใน Setting form แสดงแบบพับเมื่อเปิด OPD Note
 
 ```
 ข้อมูลอ้างอิง
@@ -696,32 +718,35 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วยผู้ใช้ที่เข้าหน้า Setting form ได้ (role: รอยืนยัน)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. รู้ตำแหน่งหน้า Setting form ที่ตั้งค่า Expand/Collapse (URL/เมนู: รอยืนยัน)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. จดค่า "จำเป็น" / "ซ่อน" เดิมของทุกแถวในชุดแบบฟอร์ม "SBH GENERAL OPD NOTE" ไว้ก่อน
 
 Test Data
-- ฟอร์ม: OPD note · section: รอยืนยัน (เลือก section ที่ตอนนี้เป็น Expand) · ค่า: Collapse
+- section: "5. Physical examination general" (ค่าเดิม = ไม่ติ๊ก "ซ่อน") → ติ๊ก "ซ่อน"
 
 Test Steps
-1. เปิดหน้า Setting form ของ OPD note
-2. ตั้ง section ตาม Test Data เป็น Collapse แล้วบันทึกการตั้งค่า
+1. ผู้ดูแลระบบ > แบบฟอร์ม > แบบฟอร์ม → แท็บ "แบบฟอร์ม EMR" → แถว "SBH GENERAL OPD NOTE" กด "เปิด"
+2. ติ๊ก "ซ่อน" ที่ section ตาม Test Data แล้วกด "บันทึก"
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note" ใหม่
-4. ดูสถานะของ section ที่ตั้งค่าไว้
-5. คืนค่า setting เดิมหลังทดสอบเสร็จ
+4. ดูสถานะของ Physical Examination
+5. กลับไปเอาติ๊ก "ซ่อน" ออก กด "บันทึก" แล้ว reload หน้าตั้งค่าเทียบกับค่าเดิม
 
 Expected Result
-- บันทึกการตั้งค่าใน Setting form สำเร็จ
-- เมื่อเปิดฟอร์มใหม่ section นั้นแสดงแบบพับ (Collapse)
+- บันทึกการตั้งค่าสำเร็จ
+- เปิด OPD Note แล้ว Physical Examination แสดงแบบพับ (Collapse)
+- คืนค่าแล้วหน้าตั้งค่าตรงกับค่าเดิมครบทุกแถว
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Failed** — ทดสอบ 20/10/2569: บันทึกการตั้งค่าได้ (`PUT /cortex-api/clinical-form-presets/11` 200) แต่เปิด OPD Note แล้ว Physical Examination ยังกางอยู่ · คืนค่าแล้วตรงค่าเดิมครบ 9 แถว
+- Bug: SBH-2817
+- หลักฐาน: 25b-setting-pe-hide-before-save.png · 25c-setting-pe-hide-after-save.png · 25d-opd-pe-collapsed-after-setting.png · 25f-setting-reverted.png · วิดีโอ 08-sbh-setting-expand-collapse.webm
 
 หมายเหตุ
-- AC 16 · Setting form กระทบทุกคนที่ใช้ฟอร์มนี้บน DEV-X ต้องคืนค่าเดิมเสมอ
+- AC 16 · "ซ่อน" = Collapse (QA ยืนยัน) · section ที่ติ๊ก "ซ่อน" อยู่เดิม (Vital signs, Body metric, Body chart v2) พับอยู่จริง · OPD Note ที่ใช้ทดสอบเคยบันทึกแล้ว ควร retest กับฟอร์มที่ยังไม่เคยบันทึกด้วย · หน้าตั้งค่าเป็นค่ากลาง ต้องคืนค่าเดิมทุกครั้ง
 ```
 
-#### [Required] TC-SBH-2457-018 - ตรวจสอบว่า section ที่ตั้ง Default เป็น Expand ใน Setting form แสดงแบบกางเมื่อเปิดฟอร์ม
+#### [Required] TC-SBH-2457-018 - ตรวจสอบว่า section ที่เอาติ๊ก "ซ่อน" ออกใน Setting form แสดงแบบกางเมื่อเปิด OPD Note
 
 ```
 ข้อมูลอ้างอิง
@@ -734,32 +759,33 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วยผู้ใช้ที่เข้าหน้า Setting form ได้ (role: รอยืนยัน)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. รู้ตำแหน่งหน้า Setting form ที่ตั้งค่า Expand/Collapse (URL/เมนู: รอยืนยัน)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. จดค่า "จำเป็น" / "ซ่อน" เดิมของทุกแถวในชุดแบบฟอร์ม "SBH GENERAL OPD NOTE" ไว้ก่อน
 
 Test Data
-- ฟอร์ม: OPD note · section: รอยืนยัน (เลือก section ที่ตอนนี้เป็น Collapse) · ค่า: Expand
+- section: "3. Vital signs general" (ค่าเดิม = ติ๊ก "ซ่อน") → เอาติ๊กออก
 
 Test Steps
-1. เปิดหน้า Setting form ของ OPD note
-2. ตั้ง section ตาม Test Data เป็น Expand แล้วบันทึกการตั้งค่า
+1. ผู้ดูแลระบบ > แบบฟอร์ม > แบบฟอร์ม → แท็บ "แบบฟอร์ม EMR" → แถว "SBH GENERAL OPD NOTE" กด "เปิด"
+2. เอาติ๊ก "ซ่อน" ออกที่ section ตาม Test Data แล้วกด "บันทึก"
 3. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note" ใหม่
-4. ดูสถานะของ section ที่ตั้งค่าไว้
-5. คืนค่า setting เดิมหลังทดสอบเสร็จ
+4. ดูสถานะของ Vital Signs
+5. กลับไปติ๊ก "ซ่อน" คืน กด "บันทึก" แล้ว reload หน้าตั้งค่าเทียบกับค่าเดิม
 
 Expected Result
-- บันทึกการตั้งค่าใน Setting form สำเร็จ
-- เมื่อเปิดฟอร์มใหม่ section นั้นแสดงแบบกาง (Expand)
+- บันทึกการตั้งค่าสำเร็จ
+- เปิด OPD Note แล้ว Vital Signs แสดงแบบกาง (Expand)
+- คืนค่าแล้วหน้าตั้งค่าตรงกับค่าเดิมครบทุกแถว
 
 Actual Result
 - ยังไม่ทดสอบ (Not Run)
 
 หมายเหตุ
-- AC 16 (กรณีกลับกัน) · Setting form กระทบทุกคนที่ใช้ฟอร์มนี้บน DEV-X ต้องคืนค่าเดิมเสมอ
+- AC 16 (กรณีกลับกัน) · หน้าตั้งค่าเป็นค่ากลาง ต้องคืนค่าเดิมทุกครั้ง
 ```
 
-#### [Required] TC-SBH-2457-019 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body Metric ของฟอร์มคัดกรองถูกต้อง
+#### [Required] TC-SBH-2457-019 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของฟอร์มคัดกรองถูกต้อง
 
 ```
 ข้อมูลอ้างอิง
@@ -772,35 +798,35 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
-4. มีค่า BMI / BSA อ้างอิงของน้ำหนัก/ส่วนสูงชุดเดียวกัน จากระบบเดิม หรือจาก helper `helpers/functions/body-metrics.ts` (รอยืนยันสูตร)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- น้ำหนัก (kg) / ส่วนสูง (cm): ชุดเดียวกับ TC-003 (รอยืนยัน)
-- BMI / BSA ที่คาดหวัง: รอยืนยันค่าจากระบบเดิม
+- Weight 60 kg / Height 165 cm → BMI 22.04 / BSA 1.66
+- สูตร: BMI = W ÷ (H/100)² · BSA = Mosteller √(H × W ÷ 3600) · ปัด 2 ตำแหน่ง
 
 Test Steps
-1. ไปที่ section Body Metric
-2. กรอก Weight และ Height ตาม Test Data
-3. ดูค่า BMI และ BSA ที่ระบบคำนวณ
-4. กด "บันทึก"
+1. ที่ section Body metric กรอก Weight แล้วกด Tab
+2. กรอก Height แล้วกด Tab
+3. ดูค่า BMI และ BSA
+4. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
 5. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- BMI ตรงกับค่าที่คาดหวัง (รอยืนยัน)
-- BSA ตรงกับค่าที่คาดหวัง (รอยืนยัน)
+- BMI = 22.04
+- BSA = 1.66
 - หลัง reload Weight, Height, BMI และ BSA ยังเป็นค่าเดิม
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: BMI 22.04 / BSA 1.66 · หลัง reload ค่ายังอยู่และหัวจอผู้ป่วยแสดงค่าล่าสุดนี้
+- หลักฐาน: 23b-sbh-scr-bmi.png · 24c-sbh-scr-after-reload-1.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
-- AC 3 · การ์ดเขียน Body metrics ไว้ใต้ OPD note แต่หน้าจอจริงมีใน "ฟอร์มคัดกรอง" ด้วย — QA ให้เทสทั้งสองที่ (คู่กับ TC-003)
+- AC 3 (เทสซ้ำในฟอร์มคัดกรองตามที่ QA สั่ง) · Body metric ในฟอร์มคัดกรองกับ OPD Note เป็นคนละชุดค่ากัน ไม่ดึงกันเอง
 ```
 
-#### [Required] TC-SBH-2457-020 - ทดสอบบันทึก Pain score ในฟอร์มคัดกรองแล้วค่ายังอยู่หลัง reload
+#### [Required] TC-SBH-2457-020 - ทดสอบบันทึก Pain score ใน Vital Signs ของฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
 ```
 ข้อมูลอ้างอิง
@@ -813,33 +839,77 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
 
 Preconditions
-1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User` ใน .env)
-2. มีผู้ป่วยทดสอบที่ QA สร้างเองและมี visit OPD
-3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง" (= Pre-assessment)
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว
+3. เปิดหน้าผู้ป่วย > tab "OPD" > "ฟอร์มคัดกรอง"
 
 Test Data
-- Pain score: 3 (กดปุ่ม "3" ใน section Pain Score ที่มีปุ่ม 0–10)
+- Pain score (0-10): 3
 
 Test Steps
-1. ไปที่ section Pain Score
-2. กดปุ่มตาม Test Data
-3. กด "บันทึก"
-4. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
+1. ที่ Vital Signs เลือก Pain score ตาม Test Data
+2. กรอกช่องบังคับที่เหลือ แล้วกด "สร้าง"
+3. reload หน้า แล้วเปิด "ฟอร์มคัดกรอง" เดิม
 
 Expected Result
-- ปุ่ม "3" ถูกเลือก
+- Vital Signs มีช่อง Pain score (0-10)
 - หลัง reload Pain score ยังเป็น 3
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run)
+- **Passed** — ทดสอบ 20/10/2569: เลือก 3 ได้ · หลัง reload ยังเป็น 3
+- หลักฐาน: 23a-sbh-scr-arrival-filled.png · 24c-sbh-scr-after-reload-1.png · วิดีโอ 07-sbh-screening.webm
 
 หมายเหตุ
-- AC 4 · การ์ดเขียน Pain score ไว้ใน Vital sign ของ OPD note แต่หน้าจอจริงมีเป็น section แยกใน "ฟอร์มคัดกรอง" ด้วย — QA ให้เทสทั้งสองที่ (คู่กับ TC-004)
+- AC 4 (เทสซ้ำในฟอร์มคัดกรองตามที่ QA สั่ง)
+```
+
+#### [Required] TC-SBH-2457-021 - ตรวจสอบว่า CC และ PI จากฟอร์มคัดกรอง prefill ไป OPD Note แก้ได้ และไม่ sync กลับไปฟอร์มคัดกรอง
+
+```
+ข้อมูลอ้างอิง
+- TC ID: TC-SBH-2457-021
+- Scenario ID: TS-SBH-2457-HPY
+- Case Type: Happy
+- Test Level: Integration
+- Test Type: Functional
+- Priority: High
+- Requirement ที่อ้างอิง: SBH-2457 - [EMR] [Form] ประกอบและปรับแต่ง Form OPD note/Pre-assessment จากการ Restructure EHR base
+
+Preconditions
+1. ล็อกอิน DEV-X ด้วย user1 (`CORTEX_USERNAME_Super_User`)
+2. มี encounter คลินิก "SBH - ห้องตรวจสระบุรี" ที่เช็คอินแล้ว และ**บันทึกฟอร์มคัดกรองแล้ว** โดย CC = "ปวดเข่า" · PI = "QA-SBH2457 SBH screening PI"
+
+Test Data
+- แก้ใน OPD Note: CC = "ปวดหลัง (แก้จาก OPD Note)" · PI = "QA-SBH2457 OPD edited PI"
+
+Test Steps
+1. เปิดหน้าผู้ป่วย > tab "OPD" > "OPD Note" แล้วดูช่อง Chief Complaint และ Present Illness
+2. แก้ CC / PI ตาม Test Data
+3. กด "สร้าง" (หรือ "บันทึก")
+4. reload หน้า แล้วเปิด "OPD Note" เดิม
+5. เปิด "ฟอร์มคัดกรอง" แล้วดูช่อง Chief Complaint และ Present Illness
+
+Expected Result
+- เปิด OPD Note ครั้งแรก CC / PI แสดงค่าจากฟอร์มคัดกรอง ("ปวดเข่า" / PI ของฟอร์มคัดกรอง)
+- หลัง reload OPD Note ยังเป็นค่าที่แก้
+- ฟอร์มคัดกรองยังเป็นค่าเดิม (ไม่ sync กลับ)
+
+Actual Result
+- **Passed** — ทดสอบ 21/10/2569: prefill ถูกต้อง · แก้แล้วบันทึก (201) · หลัง reload OPD Note ยังเป็นค่าที่แก้ · ฟอร์มคัดกรองยังเป็น "ปวดเข่า" / PI เดิม
+- ข้อสังเกต: กด "สร้าง" ครั้งแรกไม่บันทึก เพราะแถวไฟล์แนบเดิมกลับมาแบบชื่อเอกสารว่างและขึ้น "กรุณาเลือกชื่อเอกสาร" (SBH-2812) ต้องเลือกชื่อเอกสารก่อนจึงบันทึกได้
+- หลักฐาน: 26a-scr-cc-pi-baseline.png · 26b-opd-cc-pi-prefilled.png · 26c-opd-cc-pi-edited-before-save.png · 26h-opd-cc-pi-after-reload.png · 26j-scr-cc-pi-after-opd-edit.png · วิดีโอ 09-sbh-cc-pi-prefill-nosync.webm
+
+หมายเหตุ
+- Business rule จาก QA (21 ต.ค. 2569) ไม่มีใน AC ของการ์ด · เกี่ยวกับ AC 1–2
 ```
 
 ---
 
-## ผลสำรวจแอปจริง — 20 ต.ค. 2569 (ก่อนเขียน TC ให้เสร็จ · ยังไม่ใช่ผล Pass/Fail)
+## บันทึกการสำรวจแอปจริง (ประวัติ 20–21 ต.ค. 2569)
+
+> รอบ 1 เป็นฟอร์มคลินิก MED (template tmh/nuh) ซึ่งไม่ใช่ฟอร์มที่ใช้เทส — เก็บไว้เป็นประวัติ · TC ด้านบนอิงรอบ 2–3 และรอบ CC/PI (ฟอร์ม SBH)
+
+### รอบ 1 — คลินิก MED
 
 - ข้อมูลทดสอบ: ผู้ป่วย AUTO หญิง HN 6931979 (น.ส. AUTO SBH2457X10202640) · VN V69102027456 / EN E69102032174 · Walk-in ห้องตรวจโรคอายุรกรรมทั่วไป · user1 · DEV-X
 - หลักฐาน (ภาพวงแดง + วิดีโอ): `.playwright-mcp/SBH-2457/explore/` — คลิป `01-setup-visit` · `02-opd-note` · `03-screening-form` · `04-setting-form`
@@ -943,51 +1013,52 @@ Actual Result
 
 ## AC → Test Case
 
-| AC | Test Case |
-| -- | -- |
-| 1 | TC-001 |
-| 2 | TC-002 |
-| 3 | TC-003 (OPD note), TC-019 (ฟอร์มคัดกรอง) |
-| 4 | TC-004 (OPD note), TC-020 (ฟอร์มคัดกรอง) |
-| 5 | TC-005 |
-| 6 | TC-006 |
-| 7 | TC-007 |
-| 8 | TC-008 |
-| 9 | TC-009 |
-| 10 | TC-010 |
-| 11 | TC-011 |
-| 12 | TC-012 |
-| 13 | TC-013 |
-| 14 | TC-014 |
-| 15 | TC-015 |
-| 16 | TC-017, TC-018 |
-| (ไม่มี AC) Family history general | TC-016 [Optional] |
-| (ไม่มี TC) Underlying disease | อ้างอิง SBH-2413 |
+| AC | Test Case | ผล |
+| -- | -- | -- |
+| 1 | TC-001 (+ TC-021) | Failed (SBH-2816) · TC-021 Passed |
+| 2 | TC-002 (+ TC-021) | Failed (SBH-2816) · TC-021 Passed |
+| 3 | TC-003 (OPD Note), TC-019 (ฟอร์มคัดกรอง) | Passed |
+| 4 | TC-004 (OPD Note), TC-020 (ฟอร์มคัดกรอง) | Passed |
+| 5 | TC-005 | Passed |
+| 6 | TC-006 | Passed |
+| 7 | TC-007 | Failed (SBH-2812) |
+| 8 | TC-008 | Failed (SBH-2814) |
+| 9 | TC-009 | Failed (SBH-2815) |
+| 10 | TC-010 | Passed |
+| 11 | TC-011 | Passed |
+| 12 | TC-012 | Passed |
+| 13 | TC-013 | Passed |
+| 14 | TC-014 | Passed (ตรวจว่าใช้งานได้ ตามที่ QA สั่ง) |
+| 15 | TC-015 | Failed (SBH-2813) |
+| 16 | TC-017, TC-018 | Failed (SBH-2817) · Not Run |
+| (ไม่มี AC) Family history general | TC-016 [Optional] | Passed |
+| (ไม่มี AC) CC / PI prefill + ไม่ sync กลับ | TC-021 | Passed |
+| (ไม่มี TC) Underlying disease | อ้างอิง SBH-2413 | — |
 
 ## Requirement gap (นอกลำดับชั้น)
 
 **Expected behavior**
-- AC 1: ไม่ระบุว่า CC suggestion มาจากไหน (template / ประวัติเดิม / master data)
-- AC 2, 6, 7, 15: "เหมือนเดิม" / "รูปแบบเดิมของ SBH" ไม่ได้ระบุพฤติกรรมเดิมไว้ในการ์ด — ต้องยืนยันตอนสำรวจแอป
-- AC 3–4: การ์ดเขียนไว้ใต้ OPD note แต่หน้าจอจริงมี Body Metric และ Pain Score ใน "ฟอร์มคัดกรอง" — เทสทั้งสองที่ (TC-003/004 + TC-019/020)
-- AC 10: section "การมาโรงพยาบาล" ในฟอร์มคัดกรอง ยังไม่ยืนยันว่าเป็น "การมาถึงและความช่วยเหลือ"
-- AC 9: ภาพหน้าจอ 20 ต.ค. 2569 (ก่อนรันจริง) ยังเห็น section "Note to Nurse" ใน OPD Note — ต้องยืนยันตอนรัน TC-009
-- AC 3: ยังไม่รู้สูตร BSA และการปัดทศนิยมของ BMI/BSA — รอเทียบระบบเดิม หรือย้อนหาจากหน้าจอจริง (TODO P1)
-- AC 16: ไม่ระบุว่าหน้า Setting form อยู่ที่ไหน และตั้งค่าได้ต่อฟอร์ม หรือต่อทุกฟอร์ม
-- ตาราง Requirement ขัดกับ AC เรื่อง Body chart Default collapsed — ยึด AC ตามที่ QA ยืนยัน
+- AC 1: ไม่ระบุว่า CC suggestion มาจากไหน — หน้าจอ SBH มีปุ่มชุดคงที่ (ปวดไหล่ คอ … นวดเพื่อสุขภาพ)
+- AC 1–2: การ์ดไม่ได้เขียน rule prefill CC / PI จากฟอร์มคัดกรอง — QA ให้ rule เพิ่มแล้ว (prefill + ไม่ sync กลับ / ต้องเก็บค่าเมื่อยังไม่มีฟอร์มคัดกรอง)
+- AC 2, 6, 7, 15: "เหมือนเดิม" / "รูปแบบเดิมของ SBH" ไม่ได้ระบุพฤติกรรมเดิม — ใช้ตามที่หน้าจอ SBH มีปัจจุบัน
+- AC 3: ไม่มีค่าจากระบบเดิมให้เทียบ — ใช้สูตร Mosteller ที่ย้อนหาจากหน้าจอจริง (QA ตกลง)
+- AC 3–4: การ์ดเขียนไว้ใต้ OPD note แต่หน้าจอมีทั้ง 2 ฟอร์ม — เทสทั้งสองที่
 - AC 14 ขัดกับหน้าจอ SBH (ยังมี Fall risk) — QA สั่งให้ตรวจว่าใช้งานได้แทน
+- AC 16: การ์ดไม่ระบุชื่อตัวเลือก — หน้าตั้งค่าใช้ checkbox "ซ่อน" (QA ยืนยัน = Collapse) และเป็นค่ากลางทั้งระบบ
+- ตาราง Requirement ขัดกับ AC เรื่อง Body chart Default collapsed — ยึด AC ตามที่ QA ยืนยัน
 
 **Validation**
-- AC 4: ไม่ระบุช่วงค่า Pain score ที่รับได้
-- AC 7, 15: ไม่ระบุชนิด/ขนาดไฟล์ที่แนบได้
+- AC 4: ไม่ระบุช่วงค่า Pain score ที่รับได้ (หน้าจอเป็น dropdown 0–10)
+- AC 7, 15: ไม่ระบุชนิด/ขนาดไฟล์ที่แนบได้ — PNG ได้ 422 (ดู SBH-2812)
 - AC 8: ไม่ระบุว่า Onset date ต้องไม่เกินวันที่ปัจจุบันหรือไม่
 
 **Error handling**
-- -
+- AC 7, 15: ไม่ระบุว่าแนบไฟล์ไม่สำเร็จต้องแจ้งผู้ใช้อย่างไร
 
 **Permission / role**
-- ไม่ระบุ role ที่ใช้เข้าหน้า Setting form (OPD note / Pre-assessment ใช้ user1 ตามที่ QA ยืนยัน)
+- ไม่ระบุ role ที่ใช้เข้าหน้า Setting form และ role ที่ใช้กรอกแต่ละฟอร์ม (รอบนี้ใช้ user1 ทั้งหมด)
 
 **Edge cases**
-- AC 11: ไม่ระบุว่า section การคัดกรองเพศหญิงแสดงเฉพาะผู้ป่วยหญิงหรือไม่
+- AC 11: ไม่ระบุว่า section การคัดกรองเพศหญิงแสดงเฉพาะผู้ป่วยหญิงหรือไม่ (ยังไม่ได้ลองกับผู้ป่วยชาย)
 - AC 13: สุรา / บุหรี่ อาจเปลี่ยนก่อน go-live (SBH-2419)
+- AC 16: ไม่ระบุว่าค่าที่ตั้งมีผลกับฟอร์มที่เคยบันทึกแล้วหรือไม่
