@@ -1,5 +1,13 @@
 # TODO
 
+## SBH-1308 — [Pharmacy] Checkbox เลือกรายการยาในหน้าใบยารอจ่าย: ร่าง TC + เทสบน dev-x — 21 ต.ค. 2569
+
+ข้อตกลง: เทสเฉพาะ AC 1–5 (ไม่เทสสถานะ header ตอนติ๊กบางรายการ / เมนู "…" เดิม / สถานะติ๊กหลัง reload) · ติ๊กไม่ครบ = ปุ่ม "จ่ายยา" disabled ตาม comment dev · `EXE - CT - 2.8.0` · DEV-X · สร้างผู้ป่วยใหม่ + visit OPD "SBH - ห้องตรวจสระบุรี" + สั่งยา 2–3 รายการ ไม่แตะใบยาคนอื่น · สมมติฐาน: user1 + ห้องยา site SBH
+
+- [x] **P1 — ร่าง EXE / Scenario / TC ด้วย skill `linear-testcase-writer`** → `test-cases/SBH-1308-pharmacy-dispense-checkbox.md` (ยังไม่เขียนลง Linear) — เขียนแล้ว: 1 EXE, 2 Scenario (HPY 8 TC: 001–008 · UHP 3 TC: 009–011), 11 TC atomic ทั้งหมด Required · ตาราง AC→TC + Requirement gap · ค่าที่ยังไม่รู้ (ขั้นตอนสั่งยา, ชื่อเมนูห้องยา, สถานะหลังจ่าย) ใส่ `[ยังไม่ทราบ]` · ตรวจสอบ: Final consistency check ของสกิล (ชื่อ/tag/ID plain text/ลำดับ 001–011/ทุก AC มี TC) · ไม่พบ label `QA Module: Pharmacy` ใน Linear → รอ QA ระบุ · รอ user review
+- [ ] **P1 — (รอ user approve) สำรวจ dev-x + เทส AC 1–5** — สร้างข้อมูลทดสอบ → เทสพร้อมภาพกรอบแดง + วิดีโอ → เติม `[ยังไม่ทราบ]` และ Actual Result ในไฟล์ · ไม่ตรง AC → ร่าง bug ด้วย `qa-bug-writer`
+- [ ] **P2 — สร้าง EXE → Scenario → TC (+ bug ถ้ามี) ใน Linear** ใต้ SBH-1308 · label แบบ SBH-2457 · ต้องยืนยัน QA Module / Sub-module ก่อน
+
 ## สร้างผู้ป่วยใหม่บน dev-x + เก็บเป็น mock data (`test-data/patients.json`) — 20 ต.ค. 2569
 
 ข้อตกลง: ลงทะเบียนที่หน้าคัดกรอง ER (5 ช่องบังคับ) แล้วกด `ยกเลิก` ที่ modal เปิด Visit → มี HN ไม่มี Visit (แบบ R24) · เรียกเป็น function เลือกจำนวนได้ (1 หรือหลายคน) · ชื่อ `AIทดสอบ<seq>f` / นามสกุล `AIทดสอบ<seq>l` (seq = a…z → aa, ab … นับต่อจากตัวสุดท้ายใน patients.json) · เพศสุ่ม · อายุสุ่ม 18–80 ปี (ปรับ min/max ได้) · เลขบัตรสุ่ม checksum ถูก (R8) · ทิ้งผู้ป่วยไว้บน dev-x ได้ (R11)
