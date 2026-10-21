@@ -920,6 +920,17 @@ Actual Result
 | 15 | เอกสารแนบ "อื่นๆ" + อัปโหลด PDF (upload 201, other-7-69.pdf) | **ไฟล์แนบหาย** | 24a, 24d |
 | 16 | หน้า Setting form ของ SBH — ยังหาไม่เจอ (`/setting/admin/forms/presets` = "ไม่พบหน้าที่ต้องการ") | — | — |
 
+**CC / PI ตาม flow ที่ QA อธิบาย (21 ต.ค. 2569 ~09:54)** — คลิป `09-sbh-cc-pi-prefill-nosync.webm` · ภาพ 26a–26j
+
+1. ฟอร์มคัดกรองบันทึกไว้แล้ว: CC "ปวดเข่า" · PI "QA-SBH2457 SBH screening PI" (26a)
+2. เปิด OPD Note → CC / PI **prefill จากฟอร์มคัดกรอง** (26b)
+3. แก้ใน OPD Note เป็น CC "ปวดหลัง (แก้จาก OPD Note)" · PI "QA-SBH2457 OPD edited PI" → กด "สร้าง" (26c)
+4. กดครั้งแรก**ไม่บันทึก** — section เอกสารแนบมีแถว "other-6-69.pdf" ของเมื่อวานกลับมา แต่ช่องชื่อเอกสารว่าง ขึ้น "กรุณาเลือกชื่อเอกสาร" และบล็อกการบันทึกทั้งฟอร์ม (26d, 26e) — เมื่อวานหลัง reload แถวนี้ไม่มี
+5. เลือกชื่อเอกสาร "อื่นๆ" → กด "สร้าง" → contribution 201 (26f, 26g)
+6. Reload → OPD Note CC / PI **ยังเป็นค่าที่แก้** (26h) · ฟอร์มคัดกรองยังเป็น "ปวดเข่า" / PI เดิม = **ไม่ sync กลับ** (26j) → **ตรงตาม rule** · แถวไฟล์แนบหายอีกครั้ง (26i)
+
+- ข้อสังเกต: รอบ 20 ต.ค. กรอก CC/PI ใน OPD Note **ก่อน**มีฟอร์มคัดกรอง แล้วหลัง reload ช่องว่าง — flow นี้ (ไม่มีฟอร์มคัดกรองก่อน) ยังไม่มี rule ว่าควรเป็นอย่างไร ต้องถาม QA/BA
+
 **Setting form (AC 16)** — QA ชี้ทาง: ผู้ดูแลระบบ > แบบฟอร์ม > แบบฟอร์ม → แท็บ "แบบฟอร์ม EMR" → "SBH GENERAL OPD NOTE" (`sbh-general-opd-note`) "เปิด" → `/cortex/setting/admin/forms/presets/11/edit?tab=emr` · คลิป `08-sbh-setting-expand-collapse.webm` · ภาพ 25a–25f
 
 - แต่ละส่วนมี checkbox "จำเป็น" / "ซ่อน" · ค่าเดิม: ติ๊ก "ซ่อน" ที่ Vital signs general, Body metric general, Body chart v2 (ตรงกับ 3 ส่วนที่พับอยู่ตอนเปิด OPD Note SBH) · ไม่มีแถว Note to Nurse ใน preset (แต่ฟอร์มจริงแสดง)
