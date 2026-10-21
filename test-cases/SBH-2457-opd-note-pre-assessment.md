@@ -2,7 +2,7 @@
 
 - Requirement: https://linear.app/cortexcloud/issue/SBH-2457
 - สร้างจาก Acceptance Criteria ของการ์ด (AC 1–16) ตาม skill `linear-testcase-writer` · ปรับให้อิงฟอร์ม SBH ตามผลสำรวจแอปจริง 20–21 ต.ค. 2569
-- สถานะไฟล์นี้: **draft รอ QA review** ก่อนสร้าง EXE / Scenario / Test Case จริงใน Linear
+- สถานะไฟล์นี้: **สร้างใน Linear แล้ว (21 ต.ค. 2569)** — EXE SBH-2818 → Scenario SBH-2819 → TC SBH-2820 ถึง SBH-2840 (TC-001..021 ตามลำดับ)
 - รวม: **1 EXE, 1 Scenario, 21 Test Case** (20 Required, 1 Optional) · ผลจากรอบสำรวจ: **Passed 13 · Failed 7 · Not Run 1**
 - TC granularity: **Flow-style** (QA ยืนยัน 20 ต.ค. 2569) — 1 TC ต่อ 1 AC ไล่ กรอก → บันทึก → reload → ตรวจค่า · ทางเลือกคู่ขนาน (Collapse / Expand ใน AC 16) แยกคนละ TC
 - Run Type: `CT` · Scope/Version: `2.9.0` (label `VERSION 2.9.0`) · Environment: `DEV-X`
@@ -36,6 +36,8 @@
 
 #### EXE - CT - 2.9.0
 
+- Linear: SBH-2818
+
 ```
 ข้อมูลรอบทดสอบ
 - ประเภทการทดสอบ: CT
@@ -63,6 +65,8 @@
 ### Scenario
 
 #### TS-SBH-2457-HPY - ตรวจสอบการบันทึกและแสดงผล section ใน OPD Note / ฟอร์มคัดกรอง (SBH) และค่า Default Expand/Collapse
+
+- Linear: SBH-2819
 
 ```
 ข้อมูลอ้างอิง
@@ -93,6 +97,8 @@
 ##### Test Case ภายใต้ Scenario นี้
 
 #### [Required] TC-SBH-2457-001 - ทดสอบเลือก CC suggestion ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
+
+- Linear: SBH-2820
 
 ```
 ข้อมูลอ้างอิง
@@ -133,6 +139,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-002 - ทดสอบบันทึก Present illness ใน OPD Note ตอนยังไม่มีฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
+- Linear: SBH-2821
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-002
@@ -170,6 +178,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-003 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของ OPD Note ถูกต้อง
+
+- Linear: SBH-2822
 
 ```
 ข้อมูลอ้างอิง
@@ -212,6 +222,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-004 - ทดสอบบันทึก Pain score ใน Vital Signs ของ OPD Note แล้วค่ายังอยู่หลัง reload
 
+- Linear: SBH-2823
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-004
@@ -248,6 +260,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-005 - ทดสอบพิมพ์ Free text พร้อมจัดรูปแบบด้วย Rich text ใน Physical Examination แล้วรูปแบบยังอยู่หลังบันทึก
+
+- Linear: SBH-2824
 
 ```
 ข้อมูลอ้างอิง
@@ -288,6 +302,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-006 - ตรวจสอบการวาด Body Chart ใน OPD Note แล้วภาพยังอยู่หลังบันทึก
 
+- Linear: SBH-2825
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-006
@@ -327,6 +343,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-007 - ทดสอบแนบเอกสารใน OPD Note แล้วไฟล์ยังอยู่หลัง reload
 
+- Linear: SBH-2826
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-007
@@ -365,6 +383,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-008 - ทดสอบบันทึก Onset date ใน Diagnosis ของ OPD Note แล้ววันที่ยังอยู่หลัง reload
+
+- Linear: SBH-2827
 
 ```
 ข้อมูลอ้างอิง
@@ -406,6 +426,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-009 - ตรวจสอบว่า OPD Note ไม่แสดง section Note to Nurse
 
+- Linear: SBH-2828
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-009
@@ -440,6 +462,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-010 - ทดสอบบันทึก section การมาถึงและความต้องการช่วยเหลือในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
+
+- Linear: SBH-2829
 
 ```
 ข้อมูลอ้างอิง
@@ -480,6 +504,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-011 - ทดสอบบันทึก section การคัดกรองเพศหญิงในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
+- Linear: SBH-2830
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-011
@@ -517,6 +543,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-012 - ทดสอบเพิ่มประวัติแพ้ในฟอร์มคัดกรอง แล้วรายการยังอยู่หลัง reload
 
+- Linear: SBH-2831
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-012
@@ -553,6 +581,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-013 - ทดสอบบันทึกประวัติการผ่าตัด สุรา และบุหรี่ในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
+
+- Linear: SBH-2832
 
 ```
 ข้อมูลอ้างอิง
@@ -594,6 +624,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-014 - ทดสอบเลือกความเสี่ยงพลัดตกหกล้มในฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
+- Linear: SBH-2833
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-014
@@ -630,6 +662,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-015 - ทดสอบแนบเอกสารในฟอร์มคัดกรอง แล้วไฟล์ยังอยู่หลัง reload
+
+- Linear: SBH-2834
 
 ```
 ข้อมูลอ้างอิง
@@ -670,6 +704,8 @@ Actual Result
 
 #### [Optional] TC-SBH-2457-016 - ทดสอบเพิ่มประวัติครอบครัวในฟอร์มคัดกรอง แล้วข้อมูลยังอยู่หลัง reload
 
+- Linear: SBH-2835
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-016
@@ -706,6 +742,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-017 - ตรวจสอบว่า section ที่ตั้ง "ซ่อน" ใน Setting form แสดงแบบพับเมื่อเปิด OPD Note
+
+- Linear: SBH-2836
 
 ```
 ข้อมูลอ้างอิง
@@ -748,6 +786,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-018 - ตรวจสอบว่า section ที่เอาติ๊ก "ซ่อน" ออกใน Setting form แสดงแบบกางเมื่อเปิด OPD Note
 
+- Linear: SBH-2837
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-018
@@ -786,6 +826,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-019 - คำนวณ BMI และ BSA จากน้ำหนักและส่วนสูงใน Body metric ของฟอร์มคัดกรองถูกต้อง
+
+- Linear: SBH-2838
 
 ```
 ข้อมูลอ้างอิง
@@ -828,6 +870,8 @@ Actual Result
 
 #### [Required] TC-SBH-2457-020 - ทดสอบบันทึก Pain score ใน Vital Signs ของฟอร์มคัดกรอง แล้วค่ายังอยู่หลัง reload
 
+- Linear: SBH-2839
+
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-2457-020
@@ -864,6 +908,8 @@ Actual Result
 ```
 
 #### [Required] TC-SBH-2457-021 - ตรวจสอบว่า CC และ PI จากฟอร์มคัดกรอง prefill ไป OPD Note แก้ได้ และไม่ sync กลับไปฟอร์มคัดกรอง
+
+- Linear: SBH-2840
 
 ```
 ข้อมูลอ้างอิง
