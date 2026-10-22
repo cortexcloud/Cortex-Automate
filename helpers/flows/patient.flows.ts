@@ -6,8 +6,8 @@ import {
   registerNewPatient,
   trackOpenedErVisits,
 } from '../functions/er';
-import { appendPatient, lastSeq, type StoredPatient } from '../functions/patient-store';
-import { aiTestPatient, nextSeq } from '../functions/test-data';
+import { appendPatient, lastSeq, type StoredPatient } from '../data/patient-store';
+import { aiTestPatient, nextSeq } from '../data/test-data';
 
 // สร้างผู้ป่วย mock data ชุด "AIทดสอบ" บน dev-x — 20 ต.ค. 2026
 // ผู้ป่วยมี HN แต่ไม่มี Visit (ลงทะเบียนที่หน้าคัดกรอง ER แล้วกด "ยกเลิก" ที่ modal เปิด Visit แบบ R24) ·

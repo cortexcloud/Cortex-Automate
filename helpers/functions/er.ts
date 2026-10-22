@@ -1,5 +1,5 @@
 import { expect, test, type APIResponse, type Locator, type Page, type Response } from '@playwright/test';
-import type { NewPatient } from './test-data';
+import type { NewPatient } from '../data/test-data';
 
 // ขั้นตอนหน้าจอโมดูลห้องฉุกเฉิน (ER) ที่ใช้ซ้ำหลายการ์ด — locator ตรวจกับหน้าจอจริงบน dev-x 26 ก.ย. 2026
 

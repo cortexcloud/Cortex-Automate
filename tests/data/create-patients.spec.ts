@@ -1,7 +1,7 @@
 import { searchPatients } from '../../helpers/functions/er';
-import { checkStep, expected, markEvidence } from '../../helpers/functions/evidence';
-import { expect, test } from '../../helpers/functions/fixtures';
-import { PATIENTS_FILE } from '../../helpers/functions/patient-store';
+import { checkStep, expected, markEvidence } from '../../helpers/support/evidence';
+import { expect, test } from '../../helpers/support/fixtures';
+import { PATIENTS_FILE } from '../../helpers/data/patient-store';
 import { createPatients } from '../../helpers/flows/patient.flows';
 
 // สร้างผู้ป่วย mock data ชุด "AIทดสอบ" บน dev-x แล้วเก็บลง test-data/patients.json — ไม่ใช่เทสของการ์ด

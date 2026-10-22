@@ -1,5 +1,13 @@
 # TODO
 
+## Refactor รอบ 2 — แยกไฟล์ที่ไม่ใช่ page action ออกจาก `helpers/functions/` — 20 ต.ค. 2569
+
+ข้อตกลง: `functions/` เหลือเฉพาะ Layer 1 page action (`er.ts`, `er-triage.ts`) · เพิ่ม `helpers/data/` (`test-data.ts`, `patient-store.ts`) + `helpers/support/` (`fixtures.ts`, `evidence.ts`) · ยังไม่แยก `er.ts` · ย้ายไฟล์ + แก้ import เท่านั้น ไม่แก้ logic
+
+- [x] **P1 — `git mv` 4 ไฟล์** — ย้าย `test-data.ts`, `patient-store.ts` ไป `helpers/data/` และ `fixtures.ts`, `evidence.ts` ไป `helpers/support/` · แก้ import ใน `er.ts`, `er.flows.ts`, `patient.flows.ts`, spec SBH-1013/SBH-1021/create-patients และ comment 2 จุดใน `playwright.config.ts` · `PATIENTS_FILE` ไม่ต้องแก้ เพราะโฟลเดอร์ใหม่ลึกเท่าเดิม (`helpers/<x>/` → `../../test-data`) · ตรวจ: typecheck ผ่าน · grep ไม่เหลือ path เก่า · `playwright test --list` โหลดได้ 4 เทส ใน 3 ไฟล์
+- [ ] **P2 — ยืนยันว่าไม่พัง**: `npx playwright test --list` (โหลดทุก spec ได้) + รันจริง `tests/data` 1 คน (เช็ค path `patients.json` ยังถูก) — SBH-1013/1021 แค่เปลี่ยน import จึงใช้ `--list` + typecheck
+- [ ] **P3 — อัปเดต skill `cortex-automate` §2 (ผังโครงสร้าง + นิยามแต่ละโฟลเดอร์) / ข้อความที่อ้าง `helpers/evidence.ts` ฯลฯ + README** · commit แยกตาม task (ไม่ push)
+
 ## SBH-1308 — [Pharmacy] Checkbox เลือกรายการยาในหน้าใบยารอจ่าย: ร่าง TC + เทสบน dev-x — 21 ต.ค. 2569
 
 ข้อตกลง: เทสเฉพาะ AC 1–5 (ไม่เทสสถานะ header ตอนติ๊กบางรายการ / เมนู "…" เดิม / สถานะติ๊กหลัง reload) · ติ๊กไม่ครบ = ปุ่ม "จ่ายยา" disabled ตาม comment dev · `EXE - CT - 2.8.0` · DEV-X · สร้างผู้ป่วยใหม่ + visit OPD "SBH - ห้องตรวจสระบุรี" + สั่งยา 2–3 รายการ ไม่แตะใบยาคนอื่น · สมมติฐาน: user1 + ห้องยา site SBH

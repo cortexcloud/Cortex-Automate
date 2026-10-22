@@ -11,8 +11,8 @@ import {
   triageForm,
   type VitalSigns,
 } from '../../../helpers/functions/er-triage';
-import { checkStep, markEvidence } from '../../../helpers/functions/evidence';
-import { expect, test } from '../../../helpers/functions/fixtures';
+import { checkStep, markEvidence } from '../../../helpers/support/evidence';
+import { expect, test } from '../../../helpers/support/fixtures';
 import { prepareNewPatientErVisit } from '../../../helpers/flows/er.flows';
 
 // SBH-1021 [ER][Triage] Triage Form
