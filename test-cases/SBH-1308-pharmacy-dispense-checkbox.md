@@ -3,7 +3,7 @@
 - Requirement: https://linear.app/cortexcloud/issue/SBH-1308
 - สร้างจาก Acceptance Criteria ของการ์ด (AC 1–5) ตาม skill `linear-testcase-writer`
 - สถานะไฟล์นี้: **QA approve แล้ว (22 ต.ค. 2569) · รันครบ 11 TC แล้ว · สร้างใน Linear แล้ว** — EXE SBH-2871 → Scenario SBH-2872 (HPY) / SBH-2873 (UHP) → TC SBH-2874 ถึง SBH-2884 (TC-001..011 ตามลำดับ) · ฝังภาพ + วิดีโอในหัวข้อ "หลักฐาน" ครบทั้ง 11 การ์ดแล้ว (22 ต.ค. 2569) · สำรวจแอปจริงแล้ว 21 ต.ค. 2569 เติมค่าที่เคยไม่รู้ครบ (ดู "ผลสำรวจแอปจริง" ท้ายไฟล์)
-- รวม: **1 EXE, 2 Scenario, 11 Test Case** (11 Required, 0 Optional) · ผลรอบรัน 22 ต.ค. 2569: **Passed 8 · Failed 3** (TC-005, 006, 008 — ขึ้น "เกิดข้อผิดพลาดในระบบ" หลังจ่ายยา รอ QA retest manual · ยังไม่สร้างการ์ด bug)
+- รวม: **1 EXE, 2 Scenario, 11 Test Case** (11 Required, 0 Optional) · ผลรอบรัน 22 ต.ค. 2569: **Passed 8 · Failed 3** (TC-005, 006, 008 — ขึ้น "เกิดข้อผิดพลาดในระบบ" หลังจ่ายยา QA retest manual แล้วยังพบ · Bug: SBH-2885)
 - TC granularity: **Atomic** (ค่าเริ่มต้นของ skill — ยังไม่ได้ถาม QA ถ้าอยากได้ flow-style ให้บอก)
 - Run Type: `CT` · Scope/Version: `2.8.0` (label `VERSION 2.8.0`) · Environment: `DEV-X`
 - Label ตอนสร้างจริง (QA ระบุ Sub-module = Dispense 22 ต.ค. 2569): label ของการ์ดแม่ + `QA Module : Pharmacy` + `QA Sub-module / Feature : Dispense` (มีอยู่แล้วใน Linear ทั้งคู่) · Scenario/TC + `QA Case : Happy` / `QA Case : Unhappy` · TC + `QA Type : Functional` + `QA Execution Type: Manual` · EXE + `QA Run : Cycle Test`
@@ -240,7 +240,7 @@ Actual Result
 
 #### [Required] TC-SBH-1308-005 - ตรวจสอบติ๊กหน้ายาครบทุกรายการทีละตัว แล้วกดปุ่ม "จ่ายยา" ได้
 
-- Linear: SBH-2878
+- Linear: SBH-2878 · Bug: SBH-2885
 
 ```
 ข้อมูลอ้างอิง
@@ -283,7 +283,7 @@ Actual Result
 
 #### [Required] TC-SBH-1308-006 - ตรวจสอบเลือกครบทุกรายการด้วย checkbox ที่ header แล้วกดปุ่ม "จ่ายยา" ได้
 
-- Linear: SBH-2879
+- Linear: SBH-2879 · Bug: SBH-2885
 
 ```
 ข้อมูลอ้างอิง
@@ -368,7 +368,7 @@ Actual Result
 
 #### [Required] TC-SBH-1308-008 - ตรวจสอบกด "จ่ายยา" หลังเลือกครบ แล้วสถานะใบยาเปลี่ยนตาม flow จ่ายยาเดิม
 
-- Linear: SBH-2881
+- Linear: SBH-2881 · Bug: SBH-2885
 
 ```
 ข้อมูลอ้างอิง
