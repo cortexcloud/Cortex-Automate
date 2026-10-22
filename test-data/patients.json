@@ -187,5 +187,37 @@
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-22T07:03:15.714Z",
     "address": "593 หมู่ 1 ต.เนินปอ อ.สามง่าม จ.พิจิตร (ทะเบียนบ้าน = ปัจจุบัน)"
+  },
+  {
+    "seq": "n",
+    "citizenId": "6653586153604",
+    "namePrefix": "นาย",
+    "firstName": "AIทดสอบnf",
+    "familyName": "AIทดสอบnl",
+    "gender": "ชาย",
+    "birthDate": "10/02/1991",
+    "age": 35,
+    "hn": "6932052",
+    "channel": "reception",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T07:40:00.000Z",
+    "address": "659 หมู่ 2 ต.เกาะหมาก อ.เกาะกูด จ.ตราด (ทะเบียนบ้าน = ปัจจุบัน)",
+    "note": "สร้างจากสคริปต์วินิจฉัย temp_scripts/fix-j/probe-required.spec.ts (ฟอร์มเวชระเบียนแบบเดิม) — createdAt ประมาณจากเวลารัน"
+  },
+  {
+    "seq": "o",
+    "citizenId": "1057534088991",
+    "namePrefix": "น.ส.",
+    "firstName": "AIทดสอบof",
+    "familyName": "AIทดสอบol",
+    "gender": "หญิง",
+    "birthDate": "20/04/1990",
+    "age": 36,
+    "hn": "6932053",
+    "channel": "reception",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T07:45:00.000Z",
+    "address": "977 หมู่ 4 ต.นพรัตน์ อ.หนองเสือ จ.ปทุมธานี (ทะเบียนบ้าน = ปัจจุบัน)",
+    "note": "สร้างจากสคริปต์วินิจฉัย temp_scripts/fix-j/probe-new-layout.spec.ts (เปิดมาเป็นฟอร์มแบบใหม่ แต่ตอนกรอกกลายเป็นแบบเดิม) — createdAt ประมาณจากเวลารัน"
   }
 ]
