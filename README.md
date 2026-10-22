@@ -18,7 +18,7 @@ QA Automation สำหรับ Cortex Cloud HIS (dev-x) ด้วย Playwrigh
 | `npx playwright test --grep @SBH-1013` | รันเฉพาะการ์ด (ใส่เลข TC ก็ได้ เช่น `@SBH-1709`) |
 | `npm run test:module:er` | รันเฉพาะเทสของ module ER (`tests/modules/er`) — module ใหม่เพิ่ม script คู่กันตาม pattern นี้ |
 | `npm run test:e2e` | รันเทส flow e2e ที่ข้ามหลาย module ทั้งหมด (`tests/E2E`) |
-| `npm run data:patients` | สร้างผู้ป่วย mock data `AIทดสอบ…` บน dev-x แล้วต่อท้าย `test-data/patients.json` (ดูหัวข้อด้านล่าง) |
+| `npm run data:patients:er` / `npm run data:patients:reception` | สร้างผู้ป่วย mock data `AIทดสอบ…` บน dev-x ผ่านหน้าคัดกรอง ER หรือเวชระเบียน แล้วต่อท้าย `test-data/patients.json` (ดูหัวข้อด้านล่าง) |
 | `npm run test:headed` | รันแบบเปิดจอให้เห็น |
 | `npm run test:ui` | โหมด UI เลือกเทสและดูทีละ step (เตรียม session ให้ก่อน) — อย่าใช้ `npx playwright test --ui` เฉยๆ จะเห็นแค่ขั้นล็อกอิน |
 | `npm run report` | เปิดรายงานผลล่าสุด |
@@ -39,20 +39,27 @@ TC ที่เช็คหลายสถานะ (เช่น เลือ�
 
 ## Mock data ผู้ป่วย (`test-data/patients.json`)
 
-`npm run data:patients` ลงทะเบียนผู้ป่วยใหม่ที่หน้าคัดกรอง ER แล้วกด "ยกเลิก" ที่หน้าต่างเปิด Visit → ได้ผู้ป่วย**มี HN แต่ไม่มี Visit** ไว้ใช้กับงานถัดไป (ER / OPD เปิด Visit เองได้)
+ลงทะเบียนผู้ป่วยใหม่ได้ผู้ป่วย**มี HN แต่ไม่มี Visit** ไว้ใช้กับงานถัดไป (ER / OPD เปิด Visit เองได้) — ต้องเลือกช่องทางเองทุกครั้ง:
+
+| คำสั่ง | ช่องทาง | ที่อยู่ |
+|--------|---------|---------|
+| `npm run data:patients:er` | หน้าคัดกรอง ER → ลงทะเบียน → กด "ยกเลิก" ที่หน้าต่างเปิด Visit | ไม่มี |
+| `npm run data:patients:reception` | เวชระเบียน → "สร้างผู้ป่วยใหม่" | สุ่ม (ทะเบียนบ้าน = ปัจจุบัน) |
 
 - ชื่อ `AIทดสอบ<seq>f` / นามสกุล `AIทดสอบ<seq>l` — seq นับต่อจากคนล่าสุดในไฟล์ (a … z → aa, ab …)
 - เพศสุ่ม + คำนำหน้าตามเพศ (ชาย นาย / หญิง น.ส.) · อายุสุ่ม 18–80 ปี · เลขบัตรประชาชนสุ่ม (checksum ถูก)
+- วันเกิดในไฟล์เป็น ค.ศ. (สคริปต์แปลงเป็น พ.ศ. ตอนกรอก) และเช็คกับค่าที่ระบบบันทึกทุกคน
 - แต่ละคนถูกบันทึกลงไฟล์ทันทีที่ได้ HN (เทสพังกลางทาง คนที่สร้างแล้วยังอยู่ในไฟล์) — commit ไฟล์นี้หลังสร้างเพื่อให้คนอื่นใช้ได้
-- ปรับจำนวน/ช่วงอายุผ่าน env: `PATIENT_COUNT` (ค่าเริ่ม 1) · `PATIENT_MIN_AGE` / `PATIENT_MAX_AGE` (18 / 80)
+- ปรับจำนวน/ช่วงอายุผ่าน env: `PATIENT_COUNT` (ค่าเริ่ม 1) · `PATIENT_MIN_AGE` / `PATIENT_MAX_AGE` (18 / 80) · เลือกช่องทางผ่าน env ก็ได้: `PATIENT_CHANNEL=er|reception`
 
 ```bash
-PATIENT_COUNT=3 npm run data:patients                          # macOS / Linux
-$env:PATIENT_COUNT=3; npm run data:patients                    # PowerShell
+PATIENT_COUNT=3 npm run data:patients:er                       # macOS / Linux
+$env:PATIENT_COUNT=3; npm run data:patients:reception          # PowerShell
 ```
 
-ใช้ในโค้ด: `readPatients()` จาก `helpers/functions/patient-store.ts` · สร้างจาก spec อื่น: `createPatients(page, { count })` ใน `helpers/flows/patient.flows.ts`
-`npm test` ปกติจะข้ามเทสนี้ (ไม่สร้างผู้ป่วยทุกครั้งที่รันเทส)
+ใช้ในโค้ด: `readPatients()` จาก `helpers/data/patient-store.ts` · สร้างจาก spec อื่น: `createPatients(page, { channel: 'er', count })` ใน `helpers/flows/patient.flows.ts`
+ไม่ได้เลือกช่องทาง (รวมถึง `npm test` ปกติ) เทสนี้จะข้าม — ไม่สร้างผู้ป่วยทุกครั้งที่รันเทส
+หมายเหตุ 22 ต.ค. 2026: บางช่วง dev-x แสดงฟอร์มเวชระเบียนแบบใหม่ที่ปุ่มบันทึกไม่ทำงาน — ช่องทาง reception จะพังที่ขั้นบันทึก ให้ลองใหม่ภายหลัง
 
 ทุกรอบจะเตรียม session ก่อน (`tests/auth.setup.ts`): session เดิมใน `.auth/<Role>.json` ยังไม่หมดอายุก็ใช้ต่อ (~1 วินาที) ไม่งั้นล็อกอินใหม่ (~22 วินาที)
 บังคับล็อกอินใหม่: ลบไฟล์ใน `.auth/` (แก้ `.env` ก็ล็อกอินใหม่เอง)
