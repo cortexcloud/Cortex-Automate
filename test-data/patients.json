@@ -8,6 +8,7 @@
     "birthDate": "27/12/1980",
     "age": 45,
     "hn": "6931978",
+    "channel": "er",
     "namePrefix": "นาย",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:36:33.705Z"
@@ -21,6 +22,7 @@
     "birthDate": "07/06/1972",
     "age": 54,
     "hn": "6931980",
+    "channel": "er",
     "namePrefix": "น.ส.",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:37:23.525Z"
@@ -34,6 +36,7 @@
     "birthDate": "14/11/1983",
     "age": 42,
     "hn": "6931981",
+    "channel": "er",
     "namePrefix": "น.ส.",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:37:25.584Z"
@@ -47,6 +50,7 @@
     "birthDate": "08/12/1982",
     "age": 43,
     "hn": "6931982",
+    "channel": "er",
     "namePrefix": "นาย",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:37:27.852Z",
@@ -62,6 +66,7 @@
     "birthDate": "05/02/2002",
     "age": 24,
     "hn": "6931984",
+    "channel": "er",
     "namePrefix": "น.ส.",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:42:27.978Z"
@@ -76,6 +81,7 @@
     "birthDate": "11/01/1982",
     "age": 44,
     "hn": "6931985",
+    "channel": "er",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:53:05.034Z"
   },
@@ -89,6 +95,7 @@
     "birthDate": "21/10/1967",
     "age": 58,
     "hn": "6931986",
+    "channel": "er",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:54:39.294Z"
   },
@@ -102,6 +109,7 @@
     "birthDate": "07/10/1986",
     "age": 40,
     "hn": "6931987",
+    "channel": "er",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:54:44.198Z"
   },
@@ -115,7 +123,38 @@
     "birthDate": "06/08/1982",
     "age": 44,
     "hn": "6931988",
+    "channel": "er",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-20T07:54:48.267Z"
+  },
+  {
+    "seq": "j",
+    "citizenId": "2353365022787",
+    "namePrefix": "นาย",
+    "firstName": "AIทดสอบjf",
+    "familyName": "AIทดสอบjl",
+    "gender": "ชาย",
+    "birthDate": "05/05/1986",
+    "age": 40,
+    "hn": "6932042",
+    "channel": "er",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T06:10:29.012Z",
+    "address": "37 หมู่ 3 ต.บางขัน อ.บางขัน จ.นครศรีธรรมราช (ทะเบียนบ้าน = ปัจจุบัน)",
+    "note": "22 ต.ค. 2026 ฟอร์ม ER เปลี่ยนเป็นรับปี พ.ศ. ระบบบันทึกวันเกิดเป็น 1443-05-05 → แก้เป็น 1986-05-05 ที่เวชระเบียน (ฟอร์มแก้ไขบังคับที่อยู่ จึงใส่ที่อยู่สุ่ม)"
+  },
+  {
+    "seq": "k",
+    "citizenId": "7581917579724",
+    "namePrefix": "น.ส.",
+    "firstName": "AIทดสอบkf",
+    "familyName": "AIทดสอบkl",
+    "gender": "หญิง",
+    "birthDate": "01/10/2006",
+    "age": 20,
+    "hn": "6932043",
+    "channel": "er",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T06:20:54.469Z"
   }
 ]
