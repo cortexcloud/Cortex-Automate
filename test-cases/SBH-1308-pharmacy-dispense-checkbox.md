@@ -2,8 +2,8 @@
 
 - Requirement: https://linear.app/cortexcloud/issue/SBH-1308
 - สร้างจาก Acceptance Criteria ของการ์ด (AC 1–5) ตาม skill `linear-testcase-writer`
-- สถานะไฟล์นี้: **ร่าง รอ QA review** — สำรวจแอปจริงแล้ว 21 ต.ค. 2569 เติมค่าที่เคยไม่รู้ครบ (ดู "ผลสำรวจแอปจริง" ท้ายไฟล์) · ยังไม่สร้างการ์ดใน Linear · ยังไม่ได้รัน TC จริง
-- รวม: **1 EXE, 2 Scenario, 11 Test Case** (11 Required, 0 Optional)
+- สถานะไฟล์นี้: **QA approve แล้ว (22 ต.ค. 2569) · รันครบ 11 TC แล้ว** — สำรวจแอปจริงแล้ว 21 ต.ค. 2569 เติมค่าที่เคยไม่รู้ครบ (ดู "ผลสำรวจแอปจริง" ท้ายไฟล์) · ยังไม่สร้างการ์ดใน Linear · ยังไม่ได้รัน TC จริง
+- รวม: **1 EXE, 2 Scenario, 11 Test Case** (11 Required, 0 Optional) · ผลรอบรัน 22 ต.ค. 2569: **Passed 8 · Failed 3** (TC-005, 006, 008 — ขึ้น "เกิดข้อผิดพลาดในระบบ" หลังจ่ายยา รอ QA retest manual · ยังไม่สร้างการ์ด bug)
 - TC granularity: **Atomic** (ค่าเริ่มต้นของ skill — ยังไม่ได้ถาม QA ถ้าอยากได้ flow-style ให้บอก)
 - Run Type: `CT` · Scope/Version: `2.8.0` (label `VERSION 2.8.0`) · Environment: `DEV-X`
 - Label ตอนสร้างจริง (QA ระบุ Sub-module = Dispense 22 ต.ค. 2569): label ของการ์ดแม่ + `QA Module : Pharmacy` + `QA Sub-module / Feature : Dispense` (มีอยู่แล้วใน Linear ทั้งคู่) · Scenario/TC + `QA Case : Happy` / `QA Case : Unhappy` · TC + `QA Type : Functional` + `QA Execution Type: Manual` · EXE + `QA Run : Cycle Test`
@@ -112,7 +112,10 @@ Expected Result
 - รายการยาที่ 2 และ 3 ยังเป็นเทา
 
 Actual Result
-- -
+- ผล: **Passed**
+- คลิกไอคอนหน้ายารายการที่ 1 ครั้งเดียว เปลี่ยนจากเทาเป็นเขียวทันที ไม่ต้องเปิดเมนู "…" · รายการที่ 2 และ 3 ยังเทา
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc001-before.png` / `tc001-after.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 1
@@ -144,7 +147,10 @@ Expected Result
 - checkbox รายการยาที่ 1 เปลี่ยนจากเขียวกลับเป็นเทา (ไม่เลือก) ในคลิกเดียว
 
 Actual Result
-- -
+- ผล: **Passed**
+- คลิกไอคอนหน้ายารายการที่ 1 ที่เขียวอยู่ซ้ำ กลับเป็นเทาในคลิกเดียว
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc002-before.png` / `tc002-after.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 1
@@ -176,7 +182,10 @@ Expected Result
 - รายการยาทั้ง 3 รายการเปลี่ยนเป็นเขียว (เลือกแล้ว) พร้อมกัน
 
 Actual Result
-- -
+- ผล: **Passed**
+- คลิก checkbox ที่ header ครั้งเดียว ไอคอนหน้ายาเขียวพร้อมกันครบ 3 รายการ และ checkbox ที่ header ติ๊กอยู่
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc003-before.png` / `tc003-after.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 2
@@ -208,7 +217,10 @@ Expected Result
 - รายการยาทั้ง 3 รายการกลับเป็นเทา (ไม่เลือก) พร้อมกัน
 
 Actual Result
-- -
+- ผล: **Passed**
+- คลิก checkbox ที่ header ซ้ำ ไอคอนหน้ายากลับเป็นเทาพร้อมกันครบ 3 รายการ
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc004-before.png` / `tc004-after.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 2
@@ -243,7 +255,13 @@ Expected Result
 - ยืนยันครบ 2 dialog แล้วขึ้นข้อความ "จ่ายยาสำเร็จ"
 
 Actual Result
-- -
+- ผล: **Failed** (QA ให้ตีเป็น Failed ไว้ก่อน รอ retest manual)
+- คลิกไอคอนหน้ายาทีละรายการจนครบ ไอคอนหน้ายาเขียวครบ 3 รายการ และปุ่ม "จ่ายยา" เปลี่ยนเป็นกดได้ — ตรง Expected
+- กด "จ่ายยา" → ยืนยัน dialog "ยืนยันการทบทวนก่อนจ่ายยา" และ "ยืนยันการจ่ายยาก่อนชำระเงิน" → ขึ้น "จ่ายยาสำเร็จ" แต่ตามด้วยข้อความแดง "เกิดข้อผิดพลาดในระบบ" ทันที
+- ใบยาถูกจ่ายจริง: ย้ายไปแท็บ "จ่ายยาแล้ว" สถานะ "จ่ายยาแล้ว"
+- รายละเอียดสำหรับ dev: `POST /cortex-api/prescriptions/691022-01003/dispense` → 204 · `POST /emr-api/queues/7468/complete` → 404 · ต้องให้ dev ยืนยันว่าข้อความ error มาจาก request นี้
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01003
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc005-before.png` / `-dialog1.png` / `-dialog2.png` / `-after-toast.png` / `-after-tab-dispensed.png` / `-after-status.png` · คลิป `04-tc005-dispense.webm`
 
 หมายเหตุ
 - AC 3
@@ -278,7 +296,13 @@ Expected Result
 - ยืนยันครบ 2 dialog แล้วขึ้นข้อความ "จ่ายยาสำเร็จ"
 
 Actual Result
-- -
+- ผล: **Failed** (QA ให้ตีเป็น Failed ไว้ก่อน รอ retest manual)
+- คลิก checkbox ที่ header ครั้งเดียว ไอคอนหน้ายาเขียวครบ 3 รายการ และปุ่ม "จ่ายยา" เปลี่ยนเป็นกดได้ — ตรง Expected
+- กด "จ่ายยา" → ยืนยัน dialog "ยืนยันการทบทวนก่อนจ่ายยา" และ "ยืนยันการจ่ายยาก่อนชำระเงิน" → ขึ้น "จ่ายยาสำเร็จ" แต่ตามด้วยข้อความแดง "เกิดข้อผิดพลาดในระบบ" ทันที
+- ใบยาถูกจ่ายจริง: ย้ายไปแท็บ "จ่ายยาแล้ว" สถานะ "จ่ายยาแล้ว"
+- รายละเอียดสำหรับ dev: `POST /cortex-api/prescriptions/691022-01004/dispense` → 204 · `POST /emr-api/queues/7470/complete` → 404 · ต้องให้ dev ยืนยันว่าข้อความ error มาจาก request นี้
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01004
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc006-before.png` / `-dialog1.png` / `-dialog2.png` / `-after-toast.png` / `-after-tab-dispensed.png` / `-after-status.png` · คลิป `06-tc006-dispense.webm`
 
 หมายเหตุ
 - AC 2 + AC 3 · แยกจาก TC-005 เพราะเป็นวิธีเลือกครบคนละทาง
@@ -313,7 +337,12 @@ Expected Result
 - เปิดใบยาแล้วสถานะยังเป็น "ใบรอจ่าย"
 
 Actual Result
-- -
+- ผล: **Passed**
+- เลือกครบด้วย checkbox ที่ header แล้วออกจากใบยาโดยไม่กด "จ่ายยา"
+- ใบยายังอยู่ในแท็บ "ใบรอจ่าย" และไม่อยู่ในแท็บ "จ่ายยาแล้ว" · เปิดใบยาซ้ำสถานะยังเป็น "ใบรอจ่าย"
+- ข้อสังเกต (นอก scope): เปิดใบยาซ้ำแล้วไอคอนหน้ายากลับเป็นเทาทั้งหมด — สถานะติ๊กไม่ถูกเก็บ
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc007-before.png` / `tc007-after-tab-waiting.png` / `tc007-after-tab-dispensed.png` / `tc007-after-reopen.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 5 · ไม่ตรวจว่าสถานะติ๊กยังคงอยู่หรือไม่หลังออกจากใบยา (นอก scope)
@@ -348,7 +377,13 @@ Expected Result
 - เปิดใบยาแล้วสถานะเป็น "จ่ายยาแล้ว"
 
 Actual Result
-- -
+- ผล: **Failed** (QA ให้ตีเป็น Failed ไว้ก่อน รอ retest manual)
+- คลิก checkbox ที่ header ครั้งเดียว ไอคอนหน้ายาเขียวครบ 3 รายการ และปุ่ม "จ่ายยา" เปลี่ยนเป็นกดได้ — ตรง Expected
+- กด "จ่ายยา" → ยืนยัน dialog "ยืนยันการทบทวนก่อนจ่ายยา" และ "ยืนยันการจ่ายยาก่อนชำระเงิน" → ขึ้น "จ่ายยาสำเร็จ" แต่ตามด้วยข้อความแดง "เกิดข้อผิดพลาดในระบบ" ทันที
+- ใบยาไม่อยู่ในแท็บ "ใบรอจ่าย" แล้ว ย้ายไปแท็บ "จ่ายยาแล้ว" และสถานะเป็น "จ่ายยาแล้ว" — ส่วนนี้ตรง Expected
+- รายละเอียดสำหรับ dev: `POST /cortex-api/prescriptions/691022-01002/dispense` → 204 · `POST /emr-api/queues/7466/complete` → 404 · ต้องให้ dev ยืนยันว่าข้อความ error มาจาก request นี้
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc008-before.png` / `-dialog1.png` / `-dialog2.png` / `-after-toast.png` / `-after-tab-dispensed.png` / `-after-status.png` · คลิป `02-tc008-dispense.webm`
 
 หมายเหตุ
 - AC 5 + Business Rule 7
@@ -406,7 +441,10 @@ Expected Result
 - ปุ่ม "จ่ายยา" เป็น disabled กดแล้วไม่มีอะไรเกิดขึ้น ใบยายังอยู่ในแท็บ "ใบรอจ่าย"
 
 Actual Result
-- -
+- ผล: **Passed**
+- ไม่เลือกรายการยาเลย ปุ่ม "จ่ายยา" เป็นสีเทา disabled · ลองกดแล้วไม่มี dialog ไม่มีข้อความแจ้งเตือน · สถานะยังเป็น "ใบรอจ่าย"
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc009-before.png` / `tc009-after.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 3 + AC 4
@@ -439,7 +477,11 @@ Expected Result
 - ปุ่ม "จ่ายยา" เป็น disabled กดแล้วไม่มีอะไรเกิดขึ้น ใบยายังอยู่ในแท็บ "ใบรอจ่าย"
 
 Actual Result
-- -
+- ผล: **Passed**
+- เลือกรายการที่ 1 และ 2 ปล่อยรายการที่ 3 เป็นเทา ปุ่ม "จ่ายยา" ยัง disabled · ลองกดแล้วไม่มี dialog ไม่มีข้อความแจ้งเตือน · สถานะยังเป็น "ใบรอจ่าย"
+- ข้อสังเกต (นอก scope): checkbox ที่ header แสดงเป็นขีด (indeterminate) ตอนเลือกบางรายการ
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc010-before.png` / `tc010-after.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 4
@@ -473,7 +515,10 @@ Expected Result
 - หลังยกเลิกรายการที่ 2 ปุ่ม "จ่ายยา" กลับเป็น disabled กดแล้วไม่มีอะไรเกิดขึ้น
 
 Actual Result
-- -
+- ผล: **Passed**
+- เลือกครบด้วย header แล้วปุ่ม "จ่ายยา" กดได้ · ยกเลิกรายการที่ 2 แล้วปุ่มกลับเป็น disabled ทันที · ลองกดแล้วไม่มี dialog
+- ข้อมูลรอบทดสอบ: รอบรัน 22 ต.ค. 2569 · DEV-X · user1 · HN 6932027 · ใบยา 691022-01002
+- หลักฐาน: `.playwright-mcp/SBH-1308/run/` `tc011-step1-all-selected.png` / `tc011-after.png` · คลิป `01-tc-nondispense.webm`
 
 หมายเหตุ
 - AC 4 · coverage เพิ่มนอก AC ตรง ๆ เพราะเสี่ยงที่ปุ่มค้างสถานะกดได้หลังเคยเลือกครบ
@@ -482,13 +527,13 @@ Actual Result
 ---
 ### ตาราง AC → TC
 
-| AC | Expected | TC |
-| -- | -- | -- |
-| 1 | คลิก checkbox รายการยาเพื่อเลือก/ยกเลิกได้ | 001, 002 |
-| 2 | มี checkbox ที่ header สำหรับเลือก/ยกเลิกทั้งหมด | 003, 004, 006 |
-| 3 | กด "จ่ายยา" ได้เมื่อเลือกครบทุกรายการเท่านั้น | 005, 006, 009 |
-| 4 | ถ้ามีรายการที่ยังไม่เลือก ระบบไม่ให้จ่ายทั้งใบ | 009, 010, 011 |
-| 5 | การติ๊ก checkbox ยังไม่ถือเป็นการจ่ายยา จ่ายจริงเมื่อกด "จ่ายยา" | 007, 008 |
+| AC | Expected | TC | ผลรอบ 22 ต.ค. 2569 |
+| -- | -- | -- | -- |
+| 1 | คลิก checkbox รายการยาเพื่อเลือก/ยกเลิกได้ | 001, 002 | Passed (001, 002) |
+| 2 | มี checkbox ที่ header สำหรับเลือก/ยกเลิกทั้งหมด | 003, 004, 006 | Passed (003, 004) · Failed (006) |
+| 3 | กด "จ่ายยา" ได้เมื่อเลือกครบทุกรายการเท่านั้น | 005, 006, 009 | Passed (009) · Failed (005, 006) |
+| 4 | ถ้ามีรายการที่ยังไม่เลือก ระบบไม่ให้จ่ายทั้งใบ | 009, 010, 011 | Passed (009, 010, 011) |
+| 5 | การติ๊ก checkbox ยังไม่ถือเป็นการจ่ายยา จ่ายจริงเมื่อกด "จ่ายยา" | 007, 008 | Passed (007) · Failed (008) |
 
 ### Requirement gap
 
