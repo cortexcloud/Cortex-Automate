@@ -103,6 +103,16 @@ test.use({ storageState: authFile('Doctor') });
 | `npm run er:close-visits` | **SBH Prod** — แสดงรายชื่อที่จะปิดอย่างเดียว |
 | `npm run er:close-visits -- --confirm` | **SBH Prod** — ปิดจริง |
 
+### ปิด Visit ท้ายเทสอัตโนมัติ (fixture `closeVisits`)
+
+spec ที่เปิด Visit ER เองและต้องการให้ปิดทุกครั้งที่เทสจบ (ทั้งตอนผ่านและตอนพัง) ใส่บรรทัดเดียว:
+
+```ts
+test.use({ closeVisits: true });
+```
+
+fixture จะจด Visit ที่เทสเปิด แล้วปิดที่หน้าการเงินหลัง `afterEach` (ปิดสิทธิที่ยังเปิดก่อน แล้วกด `ปิด Visit`) · ผลแต่ละรายอยู่ใน annotation `หลังเทส` ของรายงาน · ปิดไม่สำเร็จไม่ทำให้เทส fail · อ่าน Visit ที่จดไว้ได้จาก fixture `openedVisits` · ค่าเริ่มปิดอยู่ spec ที่ไม่ใส่ทำงานเหมือนเดิม
+
 ตัวเลือก (ใส่หลัง `--` · ใส่หลายตัวพร้อมกันได้):
 
 | ตัวเลือก | ความหมาย |
