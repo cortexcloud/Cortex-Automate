@@ -1,5 +1,14 @@
 # TODO
 
+## Fixture ปิด Visit ท้ายเทส (`closeVisits`) — 22 ต.ค. 2569
+
+ข้อตกลง: ทำเป็น fixture ใน `helpers/support/fixtures.ts` เปิดใช้ทีละไฟล์ด้วย `test.use({ closeVisits: true })` · ค่าเริ่ม `false` (spec เดิมไม่เปลี่ยน · R11 / R15 คงเดิม) · จด Visit ER ด้วย `trackOpenedErVisits()` แล้วปิดที่การเงินด้วย `closeVisitAtCashier()` ทั้งตอนผ่านและตอนพัง · ผลลง annotation `หลังเทส` + console · ปิดไม่สำเร็จไม่ทำให้เทส fail · ยังไม่แก้ spec ไหน
+
+- [ ] **P1 — fixture `closeVisits` + `openedVisits`** — ตรวจ: typecheck · รันจริงบน dev-x ด้วย spec ชั่วคราว (`temp_scripts/close-visits/`) ผู้ป่วย AUTO 1 ราย: เทสผ่าน 1 รอบ + เทสพังกลางทาง 1 รอบ แล้วเช็คว่า Visit ปิดจริง (ไม่อยู่บนบอร์ด ER)
+  - ความคืบหน้า: เขียน fixture แล้ว (typecheck ผ่าน) · รันจริง: fixture จดและพยายามปิดครบทั้งเทสผ่าน / เทสพัง · **ปิดไม่ได้ — dev-x ตอบ 400 `ErrCoverageMustBeClosed` ทั้งสิทธิเงินสดและ UC** (ต้องปิดสิทธิก่อน) · Visit ค้าง HN 6932071 (เงินสด) · 6932072 · 6932073 (UC) — ผู้ใช้ให้ทิ้ง 6932071 ไว้
+- [x] **P1 — เพิ่มขั้นปิดสิทธิใน `closeVisitAtCashier()`** (ผู้ใช้เลือก 22 ต.ค. 2569) — สำรวจหน้าการเงิน dev-x (อ่านอย่างเดียว + กดปิดสิทธิ HN 6932072): ปุ่ม `ปิดสิทธิ` ในแถวสิทธิ → `POST /cortex-api/coverage-usages/lock` 204 ไม่มี dialog / toast แล้วปุ่มเป็น `เปิดสิทธิ` · เพิ่ม `closeOpenCoverages()` ปิดทุกสิทธิที่ยังเปิดก่อนกดปิด Visit (regex กันชนกับ `เปิดสิทธิ` · ไม่เจอปุ่มใน 15 วินาที = ข้าม รองรับระบบรุ่นเก่า) · `ClosedVisit.coverages` = จำนวนสิทธิที่ปิด · ตรวจ: typecheck ผ่าน · ปิด HN 6932072 (สิทธิปิดไว้แล้ว → coverages 0) และ 6932073 (coverages 1) สำเร็จทั้งคู่ · SBH Prod ยังไม่ได้รันกับฟังก์ชันใหม่
+- [ ] **P2 — docs** — skill `cortex-automate` §2 / §10 · README ถ้ามีส่วนเกี่ยวข้อง
+
 ## ลงทะเบียนผู้ป่วยได้ 2 ช่องทาง (ER / Reception) + แก้ปีเกิด พ.ศ. — 22 ต.ค. 2569
 
 ข้อตกลง: `createPatients` รับ `channel: 'er' | 'reception'` · ไม่มีค่าเริ่ม ต้องเลือกเอง (เสนอ `npm run data:patients:er` / `:reception` แทน `data:patients` — รอยืนยันตอนผู้ใช้สั่งเริ่ม) · Reception สุ่มที่อยู่แบบ d และเก็บลง JSON · JSON เพิ่ม `channel` (a–j = `er`) · ER กรอกปี พ.ศ. + เช็ควันเกิดจาก response (กระทบ spec SBH-1013/1021) · แก้วันเกิด j (HN 6932042) เป็น 05/05/1986 ที่เวชระเบียน
