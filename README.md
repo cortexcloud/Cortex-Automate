@@ -59,7 +59,6 @@ $env:PATIENT_COUNT=3; npm run data:patients:reception          # PowerShell
 
 ใช้ในโค้ด: `readPatients()` จาก `helpers/data/patient-store.ts` · สร้างจาก spec อื่น: `createPatients(page, { channel: 'er', count })` ใน `helpers/flows/patient.flows.ts`
 ไม่ได้เลือกช่องทาง (รวมถึง `npm test` ปกติ) เทสนี้จะข้าม — ไม่สร้างผู้ป่วยทุกครั้งที่รันเทส
-หมายเหตุ 22 ต.ค. 2026: บางช่วง dev-x แสดงฟอร์มเวชระเบียนแบบใหม่ที่ปุ่มบันทึกไม่ทำงาน — ช่องทาง reception จะพังที่ขั้นบันทึก ให้ลองใหม่ภายหลัง
 
 ทุกรอบจะเตรียม session ก่อน (`tests/auth.setup.ts`): session เดิมใน `.auth/<Role>.json` ยังไม่หมดอายุก็ใช้ต่อ (~1 วินาที) ไม่งั้นล็อกอินใหม่ (~22 วินาที)
 บังคับล็อกอินใหม่: ลบไฟล์ใน `.auth/` (แก้ `.env` ก็ล็อกอินใหม่เอง)

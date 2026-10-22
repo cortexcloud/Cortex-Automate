@@ -26,7 +26,7 @@ test(`สร้างผู้ป่วย AIทดสอบ มี HN ไม่
       : 'เลือกช่องทางก่อน: npm run data:patients:er / npm run data:patients:reception',
   );
   if (!channel) return;
-  test.setTimeout(60_000 + count * 60_000);
+  test.setTimeout(60_000 + count * 90_000); // Reception ~70 วินาทีต่อคน
 
   const how = channel === 'er' ? 'หน้าคัดกรอง ER → ยกเลิก modal เปิด Visit' : 'เวชระเบียน "สร้างผู้ป่วยใหม่" + ที่อยู่สุ่ม';
   const patients = await checkStep(page, `ลงทะเบียนผู้ป่วยใหม่ ${count} คน (${how}) → บันทึกลง patients.json`, () =>
