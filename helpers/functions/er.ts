@@ -1,5 +1,5 @@
 import { expect, test, type APIResponse, type Locator, type Page, type Response } from '@playwright/test';
-import type { NewPatient } from '../data/test-data';
+import { toBuddhistDate, toIsoDate, type NewPatient } from '../data/test-data';
 
 // ขั้นตอนหน้าจอโมดูลห้องฉุกเฉิน (ER) ที่ใช้ซ้ำหลายการ์ด — locator ตรวจกับหน้าจอจริงบน dev-x 26 ก.ย. 2026
 
@@ -104,19 +104,24 @@ export async function registerNewPatient(
     await prefix.click();
     await antOption(page, patient.namePrefix).click();
   }
+  // ช่องวันเกิดรับปี พ.ศ. (ปฏิทินแสดง พ.ศ.) — เจอ 22 ต.ค. 2026: พิมพ์ ค.ศ. แล้วระบบบันทึกปีน้อยไป 543 ปี (20 ต.ค. ยังรับ ค.ศ.)
   const birthDate = page.getByRole('textbox', { name: '* วัน/เดือน/ปีเกิด', exact: true });
-  await birthDate.fill(patient.birthDate);
+  const typedBirthDate = toBuddhistDate(patient.birthDate);
+  await birthDate.fill(typedBirthDate);
   // ห้ามกด Enter: ถ้าช่องบังคับครบแล้ว Enter จะส่งฟอร์มลงทะเบียนทันที (ไม่ได้ผ่านปุ่ม)
   await birthDate.press('Tab');
-  await expect(birthDate).toHaveValue(patient.birthDate);
+  await expect(birthDate).toHaveValue(typedBirthDate);
 
   const registered = waitForApi(page, 'POST', '/cortex-api/patients/er-registration');
   await page.getByRole('button', { name: 'ลงทะเบียนผู้ป่วย' }).click();
   const res = await registered;
   await expectOk(res, 'ลงทะเบียนผู้ป่วยใหม่ที่ ER');
-  const body = (await res.json()) as { patient?: { data?: { hn?: string; namePrefix?: { display?: string } } } };
+  const body = (await res.json()) as {
+    patient?: { data?: { hn?: string; birthDate?: string; namePrefix?: { display?: string } } };
+  };
   const hn = body.patient?.data?.hn;
   if (!hn) throw new Error(`ไม่เจอ patient.data.hn ใน response ลงทะเบียน: ${JSON.stringify(body).slice(0, 300)}`);
+  expect(body.patient?.data?.birthDate, `วันเกิดที่ระบบบันทึกของ HN ${hn}`).toBe(toIsoDate(patient.birthDate));
 
   const dialog = openVisitDialog(page);
   await expect(dialog.getByText(`HN ${hn}`, { exact: true })).toBeVisible();

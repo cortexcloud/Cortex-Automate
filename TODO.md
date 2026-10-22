@@ -1,5 +1,17 @@
 # TODO
 
+## ลงทะเบียนผู้ป่วยได้ 2 ช่องทาง (ER / Reception) + แก้ปีเกิด พ.ศ. — 22 ต.ค. 2569
+
+ข้อตกลง: `createPatients` รับ `channel: 'er' | 'reception'` · ไม่มีค่าเริ่ม ต้องเลือกเอง (เสนอ `npm run data:patients:er` / `:reception` แทน `data:patients` — รอยืนยันตอนผู้ใช้สั่งเริ่ม) · Reception สุ่มที่อยู่แบบ d และเก็บลง JSON · JSON เพิ่ม `channel` (a–j = `er`) · ER กรอกปี พ.ศ. + เช็ควันเกิดจาก response (กระทบ spec SBH-1013/1021) · แก้วันเกิด j (HN 6932042) เป็น 05/05/1986 ที่เวชระเบียน
+
+- [x] **P1 — ER: กรอกปีเป็น พ.ศ.** — `helpers/data/test-data.ts` เพิ่ม `toBuddhistDate()` / `toIsoDate()` · `registerNewPatient` พิมพ์ปี พ.ศ. แล้วเช็ค `patient.data.birthDate` จาก response ต้องเท่ากับวันเกิด ค.ศ. (response มี field นี้ — ยืนยันจากรันจริง) · ข้อมูลใน `NewPatient`/JSON ยังเป็น ค.ศ. · ตรวจ: typecheck ผ่าน · รันจริง 1 คนได้ k (HN 6932043, หญิง) กรอก 01/10/2549 → API คืน `2006-10-01` ตรงกับไฟล์
+- [ ] **P1 — สำรวจหน้า "สร้างผู้ป่วยใหม่" ของ Reception** (อ่านอย่างเดียว ไม่บันทึก): ช่องบังคับ, รูปแบบวันเกิด, ปุ่มบันทึก, หลังบันทึกไปหน้าไหน/เปิด Visit ไหม, API ที่ยิง
+- [ ] **P1 — `helpers/functions/reception.ts`**: เปิดหน้าค้นหา (iframe) · กรอกฟอร์มสร้างผู้ป่วย · กรอกที่อยู่สุ่ม · แก้ข้อมูลผู้ป่วย (คำนำหน้า/วันเกิด) · `helpers/data/test-data.ts` เพิ่มตัวสุ่มบ้านเลขที่/หมู่ · `createPatients` รับ `channel` · `StoredPatient.channel` + เติม `er` ให้ a–j
+- [ ] **P1 — แก้วันเกิด j** ด้วย function แก้ข้อมูลของ Reception → เช็ค API ได้ `1986-05-05` → อัปเดต JSON (ที่อยู่ + note)
+- [ ] **P2 — npm script + spec**: `data:patients:er` / `data:patients:reception` · spec อ่าน `PATIENT_CHANNEL` · ไม่ระบุช่องทาง = ข้ามพร้อมข้อความบอกวิธีเลือก
+- [ ] **P2 — รันจริง**: ER 1 คน · Reception 1 คน · SBH-1013 เคสผู้ป่วยใหม่ (`--grep @SBH-1709`) → เทียบกับ API ทุกคน (วันเกิด, คำนำหน้า, encounters = 0)
+- [ ] **P3 — docs**: skill `cortex-automate` (§2, §3, §7 R29, §9 วันเกิด พ.ศ. + Reception, §10) · README · commit แยกตาม task (ไม่ push)
+
 ## Refactor รอบ 2 — แยกไฟล์ที่ไม่ใช่ page action ออกจาก `helpers/functions/` — 20 ต.ค. 2569
 
 ข้อตกลง: `functions/` เหลือเฉพาะ Layer 1 page action (`er.ts`, `er-triage.ts`) · เพิ่ม `helpers/data/` (`test-data.ts`, `patient-store.ts`) + `helpers/support/` (`fixtures.ts`, `evidence.ts`) · ยังไม่แยก `er.ts` · ย้ายไฟล์ + แก้ import เท่านั้น ไม่แก้ logic

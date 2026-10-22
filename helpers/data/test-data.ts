@@ -4,7 +4,7 @@ export interface NewPatient {
   firstName: string;
   familyName: string;
   gender: 'ชาย' | 'หญิง';
-  /** DD/MM/YYYY เป็น ค.ศ. — พิมพ์ลงช่องวันเกิดได้เลย ไม่ต้องเปิดปฏิทิน */
+  /** DD/MM/YYYY เป็น ค.ศ. — ฟอร์มที่รับปี พ.ศ. ให้แปลงด้วย toBuddhistDate() ก่อนพิมพ์ */
   birthDate: string;
   /** ช่อง "คำนำหน้าชื่อ" (บังคับในฟอร์ม) — ไม่ใส่ = ปล่อยให้ระบบเติมจากเพศ ซึ่งบางครั้งไม่เติม/ค้างจากคนก่อน */
   namePrefix?: string;
@@ -83,6 +83,18 @@ export function aiTestPatient(seq: string, { minAge = 18, maxAge = 80 } = {}): A
     gender,
     ...randomBirthDate(minAge, maxAge),
   };
+}
+
+/** DD/MM/YYYY ค.ศ. → DD/MM/YYYY พ.ศ. (ช่องวันเกิดของ Cortex รับปี พ.ศ.) */
+export function toBuddhistDate(date: string): string {
+  const [d, m, y] = date.split('/');
+  return `${d}/${m}/${Number(y) + 543}`;
+}
+
+/** DD/MM/YYYY ค.ศ. → YYYY-MM-DD (รูปแบบ birthDate ที่ API คืน) */
+export function toIsoDate(date: string): string {
+  const [d, m, y] = date.split('/');
+  return `${y}-${m}-${d}`;
 }
 
 /** เลขบัตรประชาชนสุ่ม 13 หลัก checksum ถูกต้อง (R8) — หลักที่ 13 = (11 - Σ dᵢ·(14-i) mod 11) mod 10 */
