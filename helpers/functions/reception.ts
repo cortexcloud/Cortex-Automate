@@ -1,5 +1,5 @@
 import { expect, type FrameLocator, type Locator, type Page, type Response } from '@playwright/test';
-import { randomHouseNumber, randomMoo, toBuddhistDate, toIsoDate, type NewPatient } from '../data/test-data';
+import { randomHouseNumber, randomMoo, randomPostalPrefix, toBuddhistDate, toIsoDate, type NewPatient } from '../data/test-data';
 import { expectOk } from './er';
 
 // ขั้นตอนหน้าจอโมดูลเวชระเบียน (Reception) — ตรวจกับ dev-x 20–22 ต.ค. 2026
@@ -70,38 +70,48 @@ export async function fillReceptionPatient(page: Page, patient: NewPatient) {
 }
 
 /**
- * ที่อยู่ทะเบียนบ้านแบบสุ่ม (ผู้ใช้สั่ง "สุ่มไปเลย" 20 ต.ค. 2026): บ้านเลขที่ · หมู่ · จังหวัด/อำเภอ/ตำบลสุ่มจากรายการในระบบ
- * แล้วกด "บ้านเดียวกัน" ให้ที่อยู่ปัจจุบัน → คืนข้อความที่อยู่ไว้เก็บลง mock data
+ * ที่อยู่ทะเบียนบ้านแบบสุ่ม (ผู้ใช้สั่ง "สุ่มไปเลย" 20 ต.ค. 2026) แล้วกด "บ้านเดียวกัน" ให้ที่อยู่ปัจจุบัน → คืนข้อความที่อยู่ไว้เก็บลง mock data
+ * ฟอร์มเปลี่ยน 22 ต.ค. 2026 (~13:27): ช่องเดียว "บ้านเลขที่ / หมู่ / ซอย / ถนน" → "<บ้านเลขที่> หมู่ <หมู่>" ·
+ * ปุ่ม "ค้นหาที่อยู่" (ตำบล อำเภอ จังหวัด รหัสไปรษณีย์ในตัวเลือกเดียว) → พิมพ์รหัสไปรษณีย์ 2 หลักแรกแบบสุ่ม แล้วสุ่มจากผลค้นหา
  */
 export async function fillRandomReceptionAddress(page: Page): Promise<string> {
   const f = receptionFrame(page);
-  const houseNo = randomHouseNumber();
-  const moo = randomMoo();
-  await f.getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).first().fill(houseNo);
-  // exact: ไม่งั้นจับช่อง "ชื่อหมู่บ้าน"
-  await f.getByRole('textbox', { name: 'หมู่', exact: true }).first().fill(moo);
-  const province = await pickRandomAddressItem(page, 'เลือกจังหวัด');
-  const district = await pickRandomAddressItem(page, 'เลือกอำเภอ');
-  const subdistrict = await pickRandomAddressItem(page, 'เลือกตำบล');
+  const street = `${randomHouseNumber()} หมู่ ${randomMoo()}`;
+  await f.getByRole('textbox', { name: 'บ้านเลขที่ / หมู่ / ซอย / ถนน' }).first().fill(street);
+  const area = await pickRandomArea(page);
   await f.getByRole('button', { name: 'บ้านเดียวกัน' }).first().click();
-  return `${houseNo} หมู่ ${moo} ต.${subdistrict} อ.${district} จ.${province} (ทะเบียนบ้าน = ปัจจุบัน)`;
+  return `${street} ${area} (ทะเบียนบ้าน = ปัจจุบัน)`;
 }
 
-/** dropdown จังหวัด/อำเภอ/ตำบล = popover cmdk — บางครั้งเปิดแล้วไม่ขึ้นรายการ ต้องคลิกซ้ำ */
-async function pickRandomAddressItem(page: Page, trigger: string): Promise<string> {
+/** "ค้นหาที่อยู่" ช่องแรก (ทะเบียนบ้าน) → พิมพ์รหัสไปรษณีย์ 2 หลักแรกแบบสุ่ม (10–96) → สุ่มเลือกจากผล — ไม่มีผลก็สุ่มเลขใหม่ */
+async function pickRandomArea(page: Page): Promise<string> {
   const f = receptionFrame(page);
-  const items = f.locator('[data-radix-popper-content-wrapper] [cmdk-item]');
+  // popover บางครั้งไม่เปิดตอนคลิกครั้งแรก (เหมือน dropdown ที่อยู่แบบเดิม) → คลิกซ้ำได้ 1 ครั้ง
+  const search = f.getByPlaceholder('ค้นหาที่อยู่', { exact: true });
   for (let attempt = 0; attempt < 2; attempt++) {
-    await f.getByRole('button', { name: trigger }).first().click();
-    if (await items.first().waitFor({ timeout: 15_000 }).then(() => true, () => false)) break;
-    await page.keyboard.press('Escape');
+    await f.getByRole('button', { name: 'ค้นหาที่อยู่' }).first().click();
+    if (await search.waitFor({ timeout: 10_000 }).then(() => true, () => false)) break;
   }
-  const count = await items.count();
-  expect(count, `ตัวเลือกใน "${trigger}"`).toBeGreaterThan(0);
-  const item = items.nth(Math.floor(Math.random() * count));
-  const text = (await item.innerText()).trim();
-  await item.click();
-  return text;
+  const items = f.locator('[data-radix-popper-content-wrapper]').filter({ has: search }).locator('[cmdk-item]');
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const prefix = randomPostalPrefix();
+    await search.fill(prefix);
+    // ผลค้นหาโหลดแบบ async — รอให้ทุกตัวขึ้นต้นด้วยเลขที่พิมพ์ (ไม่ใช่รายการตั้งต้น)
+    const ready = await expect
+      .poll(async () => {
+        const texts = await items.allInnerTexts();
+        return texts.length > 0 && texts.every((t) => new RegExp(`\\b${prefix}\\d{3}$`).test(t.trim()));
+      }, { timeout: 5_000 })
+      .toBe(true)
+      .then(() => true, () => false);
+    if (!ready) continue;
+    const count = await items.count();
+    const item = items.nth(Math.floor(Math.random() * count));
+    const text = (await item.innerText()).trim();
+    await item.click();
+    return text;
+  }
+  throw new Error('สุ่มรหัสไปรษณีย์ 10 ครั้งแล้วไม่มีผลค้นหาที่อยู่');
 }
 
 /** ข้อมูลผู้ป่วยใน response ของ new-demographic-api หลังบันทึก */

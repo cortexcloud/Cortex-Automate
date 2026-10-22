@@ -95,6 +95,11 @@ export function randomMoo(): string {
   return String(1 + Math.floor(Math.random() * 15));
 }
 
+/** รหัสไปรษณีย์ 2 หลักแรกแบบสุ่ม (10–96) ใช้ค้นหาตำบลในฟอร์มเวชระเบียน */
+export function randomPostalPrefix(): string {
+  return String(10 + Math.floor(Math.random() * 87));
+}
+
 /** DD/MM/YYYY ค.ศ. → DD/MM/YYYY พ.ศ. (ช่องวันเกิดของ Cortex รับปี พ.ศ.) */
 export function toBuddhistDate(date: string): string {
   const [d, m, y] = date.split('/');
