@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0020/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 23:10",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000020",
+            "cid": "1101700204201",
+            "title_name": "นาย",
+            "first_name": "อนุชา",
+            "middle_name": "",
+            "last_name": "ทองดี",
+            "gender": "M",
+            "birthdate": "1998-07-07",
+            "mobile_no": "0812346340"
+        },
+        "address": {
+            "no": "7/222",
+            "village_no": "4",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว ดื่มสุราเป็นประจำ",
+    "record_illness_present": "ถูกแทงด้วยมีดบริเวณทรวงอกซ้าย ICS 5 mid-axillary line 1 แผล เหนื่อยหอบ เสียงหายใจซ้ายลดลง",
+    "test_results": "CXR: massive left hemothorax | Chest drain output 1,200 ml ทันที | Hb 9.1",
+    "initial_diagnosis_free_text": "Stab wound left chest with massive hemothorax; assault by sharp object (X99)",
+    "initial_diagnosis": [
+        {
+            "icd10": "S27.1",
+            "dx_name": "Traumatic haemothorax",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "3404",
+            "datetime": "2026-09-24 22:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Intercostal chest drain left"
+        },
+        {
+            "icd9": "8744",
+            "datetime": "2026-09-24 22:30",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Chest X-ray portable"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 22:35",
+            "end_time": "2026-09-24 23:10",
+            "code": "RLS1000",
+            "name": "Ringer lactate 1000 ml",
+            "description": "IV load"
+        },
+        {
+            "start_time": "2026-09-24 22:45",
+            "end_time": "2026-09-24 23:10",
+            "code": "CEFA1",
+            "name": "Cefazolin 1 g",
+            "description": "2 g IV stat"
+        },
+        {
+            "start_time": "2026-09-24 22:45",
+            "end_time": "2026-09-24 23:10",
+            "code": "TT05",
+            "name": "Tetanus toxoid 0.5 ml",
+            "description": "IM stat"
+        }
+    ],
+    "treatment_provided": "ICD left no.32 Fr, drain 1,200 ml, ongoing 250 ml/hr, O2 mask with bag 10 LPM",
+    "reason_refer": "Massive hemothorax อาจต้อง thoracotomy ส่งต่อศัลยแพทย์ทรวงอก",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | แจ้งเจ้าหน้าที่ตำรวจแล้ว (คดีทำร้ายร่างกาย)",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "88",
+        "diastolic_bp": "56",
+        "heart_rate": "126",
+        "oxygen_saturation": "90",
+        "pain_score": "8",
+        "respiratory_rate": "30",
+        "temperature": "36.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "60",
+        "height": "168",
+        "entry_datetime": "2026-09-24 23:10"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

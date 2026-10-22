@@ -78,3 +78,24 @@ export async function chooseGcs(page: Page, option: string, current?: string) {
   await form.getByRole('button', { name: option, exact: true }).click();
   await expect(form.getByRole('button', { name: option, exact: true }), `GCS ต้องแสดง "${option}"`).toHaveCount(1);
 }
+
+/** ชื่อปุ่มระดับความเร่งด่วนตาม ESI (ชื่อปุ่มจริงมีเลขนำหน้า เช่น "1 กู้ชีพ") */
+export const ESI_BUTTON: Record<number, string> = { 1: '1 กู้ชีพ', 2: '2 ฉุกเฉิน', 3: '3 เร่งด่วน', 4: '4 กึ่งเร่งด่วน', 5: '5 ไม่เร่งด่วน' };
+
+/**
+ * กรอกเฉพาะช่องบังคับของฟอร์มคัดกรอง (ไม่มี / ญาติ · GCS E4V5M6 · CC ปวดท้อง) → เลือกระดับ ESI → บันทึก
+ * ใช้กับ ESI 1–4 (ESI 5 มี modal "ส่งต่อไปคลินิก" ตามมา) · โซนใช้ค่าที่ระบบแนะนำ
+ */
+export async function saveTriage(page: Page, visit: ErVisit, level: 1 | 2 | 3 | 4) {
+  const form = triageForm(page);
+  await selectArrivalDetail(page, 'อุปกรณ์ช่วยเหลือ', 'ไม่มี', visit);
+  await selectArrivalDetail(page, 'ผู้ที่มาด้วย', 'ญาติ', visit);
+  await chooseGcs(page, '4 — ลืมตาได้เอง (Spontaneous)');
+  await chooseGcs(page, '5 — พูดคุยรู้เรื่อง ตอบคำถามถูกต้อง (Oriented)');
+  await chooseGcs(page, '6 — ทำตามคำสั่งได้ (Obeys commands)');
+  await form.getByRole('button', { name: 'ปวดท้อง', exact: true }).click();
+  await form.getByRole('button', { name: ESI_BUTTON[level] }).click();
+  const saved = waitForApi(page, 'PATCH', `/cortex-api/er/encounters/${visit.en}/triage-result`);
+  await saveButton(page).click();
+  await expectOk(await saved, `บันทึกผล Triage ESI ${level} ของ ${visit.en}`);
+}

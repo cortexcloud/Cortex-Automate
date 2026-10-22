@@ -46,7 +46,10 @@ export async function expectOk(res: Response | APIResponse, what: string) {
 /** รอ response ของ API ตาม method + path (ตรงทั้ง path หรือ RegExp สำหรับ path ที่มีเลขเปลี่ยนไป) — เริ่มรอก่อนกดปุ่มที่ยิง API */
 export function waitForApi(page: Page, method: string, path: string | RegExp, timeout?: number) {
   const matches = (pathname: string) => (typeof path === 'string' ? pathname === path : path.test(pathname));
-  return page.waitForResponse((res) => res.request().method() === method && matches(new URL(res.url()).pathname), { timeout });
+  const response = page.waitForResponse((res) => res.request().method() === method && matches(new URL(res.url()).pathname), { timeout });
+  // ขั้นก่อนถึงบรรทัดที่ await พัง (เช่น กดปุ่มไม่ได้) promise นี้จะ reject ทีหลังโดยไม่มีใครรับ แล้วทำให้ทั้งเทสจบกลางคัน → รับไว้ก่อน (คนที่ await ยังได้ error ตามปกติ)
+  response.catch(() => undefined);
+  return response;
 }
 
 async function readDashboardEncounters(res: Response): Promise<ErDashboardEncounter[]> {
@@ -202,17 +205,19 @@ export async function selectExistingPatient(page: Page, hn: string): Promise<Loc
   return dialog;
 }
 
-/** ใน modal "เปิด Visit ER": เลือกสิทธิ H01 เงินสด → ยืนยันเปิด visit → คืน HN/VN/EN จาก API */
-export async function confirmOpenErVisit(page: Page, dialog: Locator): Promise<ErVisit> {
+/** ใน modal "เปิด Visit ER": เลือกสิทธิ (ค่าตั้งต้น H01 เงินสด — ใส่ชื่อเต็มตามตัวเลือก "<รหัส> - <ชื่อ>") → ยืนยันเปิด visit → คืน HN/VN/EN จาก API */
+export async function confirmOpenErVisit(page: Page, dialog: Locator, coverageTitle = 'H01 - เงินสด'): Promise<ErVisit> {
   // ต้องมีสิทธิอย่างน้อย 1 รายการ ไม่งั้น API ตอบ 422 CoverageInput และหน้าจอไม่บอกสาเหตุ
   const coverage = dialog.locator('.ant-select').filter({ hasText: 'สิทธิการรักษา' }).getByRole('combobox');
-  await coverage.fill('H01');
-  await antOption(page, 'H01 - เงินสด').click();
-  await expect(dialog.getByRole('cell', { name: 'H01 - เงินสด', exact: true })).toBeVisible();
+  await coverage.fill(coverageTitle.split(' - ')[0]);
+  await antOption(page, coverageTitle).click();
+  await expect(dialog.getByRole('cell', { name: coverageTitle, exact: true })).toBeVisible();
   // dropdown สิทธิยังค้างอยู่ → คลิกหัว modal ให้ปิด (กด Esc จะปิดทั้ง modal)
   await dialog.getByText('เปิด Visit ER', { exact: true }).click();
 
-  const created = waitForApi(page, 'POST', '/cortex-api/er/visits');
+  // SBH Prod ตอบช้าเป็นพักๆ (3 ต.ค. 2026 เกิน 20 วินาที) → รอนานกว่าค่าตั้งต้น
+  const created = waitForApi(page, 'POST', '/cortex-api/er/visits', 60_000);
+  created.catch(() => undefined); // ปุ่มกดไม่ได้จนหมดเวลา จะได้ไม่มี unhandled rejection ซ้อน
   await dialog.getByTestId('create-visit-submit').click();
   const res = await created;
   await expectOk(res, 'เปิด Visit ER');
@@ -221,7 +226,8 @@ export async function confirmOpenErVisit(page: Page, dialog: Locator): Promise<E
   if (!body.registration) throw new Error(`ไม่เจอ registration ใน response เปิด Visit: ${JSON.stringify(body).slice(0, 300)}`);
   const { hn, vn, en } = body.registration;
 
-  await expect(page.getByText('สร้าง Visit สำเร็จ')).toBeVisible();
+  // SBH Prod บางครั้งขึ้นแจ้งเตือนซ้อน 2 อัน: "สร้าง Visit สำเร็จ" + "สร้าง Visit สำเร็จ แต่ไม่สามารถกำหนดระดับ ESI เริ่มต้นได้"
+  await expect(page.getByText('สร้าง Visit สำเร็จ').first()).toBeVisible();
   return { hn, vn, en };
 }
 
@@ -287,12 +293,48 @@ export function dashboardCard(page: Page, hn: string): Locator {
     .last();
 }
 
+/**
+ * เมนูในแถบขวา "การดำเนินการดูแลผู้ป่วย" ของหน้าผู้ป่วย (เช่น Disposition, สร้าง Admit Order) → รอ `ready` ของแผงนั้น
+ * หน้าผู้ป่วยที่เพิ่งโหลดจะเปิดแผงตั้งต้น (ER Physician Note) ตามหลัง แล้วทับแผงที่เพิ่งกด → กดซ้ำจนแผงที่ต้องการขึ้น
+ * แถบเมนูกางค้างบังปุ่มมุมขวาบนของแผง → คลิกเนื้อหาให้หุบ แล้วย้ายเมาส์ออก
+ */
+export async function openCarePanel(page: Page, name: string, ready: Locator) {
+  const item = page.getByRole('navigation', { name: 'การดำเนินการดูแลผู้ป่วย' }).getByRole('menuitem', { name: new RegExp(`${name}$`) }).first();
+  await expect(async () => {
+    await item.click({ force: true });
+    await expect(ready).toBeVisible({ timeout: 8_000 });
+  }).toPass({ timeout: 60_000 });
+  await ready.click({ timeout: 3_000 }).catch(() => undefined);
+  await page.mouse.move(600, 600);
+}
+
+/**
+ * เปิดแถบนำทาง → เมนูห้องฉุกเฉิน → กดเมนูย่อยตามลำดับ (เช่น 'รายงานทางสถิติ', 'รายงานรายเดือน')
+ * อยู่หน้าในโมดูล ER แล้วเมนู "ห้องฉุกเฉิน" กางไว้ให้ — กดซ้ำจะหุบ จึงกดเฉพาะตอนเมนูย่อยตัวแรกยังไม่ขึ้น
+ * เมนูกลุ่ม (เช่น "รายงานทางสถิติ" ตอนอยู่หน้ารายงาน) ที่กางอยู่แล้วก็ไม่กดซ้ำ · แถบนำทางกางค้างอยู่แล้ว (เช่นหลังกดเมนู "ตั้งค่า") ไม่ต้องกดขยาย
+ * คืน locator ของเมนูย่อยตัวสุดท้าย (ไว้ตีกรอบในภาพหลักฐาน — แถบนำทางปิดเองหลังเปลี่ยนหน้า)
+ */
+export async function openErMenu(page: Page, ...items: string[]): Promise<Locator> {
+  const expand = page.getByRole('button', { name: 'ขยายแถบนำทาง' });
+  if (await expand.isVisible()) await expand.click();
+  // ชื่อจริง "alert ห้องฉุกเฉิน" (ไอคอนนำหน้า) — regex กันชนกับเมนูย่อย "คุณภาพห้องฉุกเฉิน"
+  const er = page.getByRole('menuitem', { name: /^(\S+ )?ห้องฉุกเฉิน$/ });
+  await expect(er).toBeVisible();
+  // ชื่อเมนูบางตัวมีชื่อไอคอนนำหน้า (เช่น "bar-chart รายงานทางสถิติ") → ไม่ใช้ exact
+  const menu = (name: string) => page.getByRole('menuitem', { name });
+  if (!(await menu(items[0]).isVisible())) await er.click();
+  for (const [i, name] of items.entries()) {
+    const next = items[i + 1];
+    if (next && (await menu(next).isVisible())) continue; // กลุ่มนี้กางอยู่แล้ว
+    await menu(name).click();
+  }
+  return menu(items[items.length - 1]);
+}
+
 /** กลับหน้าแดชบอร์ด / คิว ผ่านแถบนำทาง (ไม่โหลดแอปใหม่) → คืนรายการผู้ป่วยที่บอร์ดโหลดมา */
 export async function openErDashboardFromMenu(page: Page): Promise<ErDashboardEncounter[]> {
   const loaded = waitForApi(page, 'GET', '/cortex-api/er/dashboard/encounters');
-  await page.getByRole('button', { name: 'ขยายแถบนำทาง' }).click();
-  await page.getByRole('menuitem', { name: 'ห้องฉุกเฉิน' }).click();
-  await page.getByRole('menuitem', { name: 'แดชบอร์ด / คิว' }).click();
+  await openErMenu(page, 'แดชบอร์ด / คิว');
   await expect(page).toHaveURL(/\/cortex\/er\/dashboard/);
   return readDashboardEncounters(await loaded);
 }

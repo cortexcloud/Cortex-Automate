@@ -1,0 +1,137 @@
+{
+    "refer_out_no": "0028/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 03:30",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000028",
+            "cid": "1101700204286",
+            "title_name": "นาย",
+            "first_name": "ชาญ",
+            "middle_name": "",
+            "last_name": "สายสุวรรณ",
+            "gender": "M",
+            "birthdate": "1951-08-08",
+            "mobile_no": "0812346636"
+        },
+        "address": {
+            "no": "56/3",
+            "village_no": "8",
+            "street": "ถนนเพชรเกษม",
+            "subdistrict": "หนองค้างพลู",
+            "district": "หนองแขม",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "COPD, เบาหวานชนิดที่ 2, ติดเตียงหลัง stroke 2 ปี",
+    "record_illness_present": "ไข้สูง ไอมีเสมหะเหลืองข้น 3 วัน วันนี้ซึมลง หายใจเหนื่อย ปัสสาวะออกน้อย",
+    "test_results": "Lactate 5.2 | WBC 22,400 (N 90%) | Cr 2.4 | CXR: RLL consolidation | H/C x2 sent",
+    "initial_diagnosis_free_text": "Septic shock from community-acquired pneumonia RLL; AKI; COPD; T2DM; post-stroke bedridden",
+    "initial_diagnosis": [
+        {
+            "icd10": "A41.9",
+            "dx_name": "Sepsis, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9604",
+            "datetime": "2026-09-24 02:50",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Endotracheal intubation"
+        },
+        {
+            "icd9": "3893",
+            "datetime": "2026-09-24 02:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Central venous catheter right IJ"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 02:30",
+            "end_time": "2026-09-24 03:30",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV stat (within 1 hr)"
+        },
+        {
+            "start_time": "2026-09-24 02:35",
+            "end_time": "2026-09-24 03:30",
+            "code": "AZI500",
+            "name": "Azithromycin 500 mg",
+            "description": "500 mg IV"
+        },
+        {
+            "start_time": "2026-09-24 02:45",
+            "end_time": "2026-09-24 03:30",
+            "code": "NE4",
+            "name": "Norepinephrine 4 mg/4 ml",
+            "description": "4 mg in D5W 250 ml IV 0.1 mcg/kg/min"
+        },
+        {
+            "start_time": "2026-09-24 02:30",
+            "end_time": "2026-09-24 03:30",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1000 ml",
+            "description": "30 ml/kg (1,500 ml) ใน 1 ชม."
+        }
+    ],
+    "treatment_provided": "Sepsis fast track: H/C x2 ก่อนให้ ATB, Ceftriaxone + Azithromycin, IV fluid 30 ml/kg, NE titrate MAP >= 65",
+    "reason_refer": "ส่งต่อ MICU ต้นทางไม่มีเตียง ICU ว่าง",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | On ETT, NE 0.15 mcg/kg/min ขณะนำส่ง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "82",
+        "diastolic_bp": "46",
+        "heart_rate": "128",
+        "oxygen_saturation": "88",
+        "pain_score": "",
+        "respiratory_rate": "30",
+        "temperature": "39.4",
+        "e": "2",
+        "v": "T",
+        "m": "5",
+        "weight": "50",
+        "height": "165",
+        "entry_datetime": "2026-09-24 03:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        },
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

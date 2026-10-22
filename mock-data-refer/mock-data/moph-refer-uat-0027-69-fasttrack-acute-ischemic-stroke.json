@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0027/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 11:05",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "OFC",
+        "ref_name": "สิทธิข้าราชการ/รัฐวิสาหกิจ",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000027",
+            "cid": "1101700204278",
+            "title_name": "นาง",
+            "first_name": "สุนทรี",
+            "middle_name": "",
+            "last_name": "วงศ์ใหญ่",
+            "gender": "F",
+            "birthdate": "1959-10-12",
+            "mobile_no": "0812346599"
+        },
+        "address": {
+            "no": "301",
+            "village_no": "1",
+            "street": "ถนนพหลโยธิน",
+            "subdistrict": "สามเสนใน",
+            "district": "พญาไท",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ความดันโลหิตสูง AF ไม่ได้รับยาต้านการแข็งตัวของเลือด",
+    "record_illness_present": "แขนขาขวาอ่อนแรง พูดไม่ชัด ปากเบี้ยว last seen normal 10:05 น. (onset 60 นาที) NIHSS 14",
+    "test_results": "CT brain 10:35: no hemorrhage, ASPECTS 9 | DTX 124 | Plt 245,000 | INR 1.0",
+    "initial_diagnosis_free_text": "Acute ischemic stroke left MCA territory, NIHSS 14, onset 60 min; AF; HT",
+    "initial_diagnosis": [
+        {
+            "icd10": "I63.9",
+            "dx_name": "Cerebral infarction, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8703",
+            "datetime": "2026-09-24 10:35",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "CT brain non-contrast"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 10:50",
+            "end_time": "2026-09-24 11:05",
+            "code": "RTPA50",
+            "name": "Alteplase (rt-PA) 50 mg",
+            "description": "0.9 mg/kg (54 mg): bolus 5.4 mg แล้ว drip 48.6 mg ใน 60 นาที"
+        },
+        {
+            "start_time": "2020-05-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "LOSA50",
+            "name": "Losartan 50 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "Stroke fast track: door-to-needle 42 นาที, rt-PA เริ่ม 10:50 น., keep BP < 180/105",
+    "reason_refer": "ส่งต่อทำ mechanical thrombectomy (สงสัย LVO) และ stroke unit",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ให้ rt-PA ระหว่างนำส่ง พยาบาลติดตาม neuro sign q 15 นาที",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "172",
+        "diastolic_bp": "98",
+        "heart_rate": "92",
+        "oxygen_saturation": "97",
+        "pain_score": "",
+        "respiratory_rate": "20",
+        "temperature": "36.9",
+        "e": "4",
+        "v": "3",
+        "m": "6",
+        "weight": "60",
+        "height": "155",
+        "entry_datetime": "2026-09-24 11:05"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

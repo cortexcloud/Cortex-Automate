@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0049/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-05 15:30",
+    "refer_expire_date": "2026-11-04 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "1",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000049",
+            "cid": "1101700204499",
+            "title_name": "น.ส.",
+            "first_name": "ปาริชาต",
+            "middle_name": "",
+            "last_name": "นิลวงศ์",
+            "gender": "F",
+            "birthdate": "2007-03-09",
+            "mobile_no": "0812347413"
+        },
+        "address": {
+            "no": "69/74",
+            "village_no": "5",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว ปฏิเสธแพ้ยา LMP 20 ก.ย. 2569",
+    "record_illness_present": "ปวดท้องรอบสะดือ 1 วัน ย้ายมาปวดท้องน้อยด้านขวา 8 ชม. คลื่นไส้ อาเจียน 2 ครั้ง ไข้ต่ำๆ",
+    "test_results": "CBC: WBC 15,800, N 86% | UA: WBC 1-2 | UPT negative | Alvarado score 8",
+    "initial_diagnosis_free_text": "Acute appendicitis, Alvarado score 8",
+    "initial_diagnosis": [
+        {
+            "icd10": "K35.8",
+            "dx_name": "Acute appendicitis, other and unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8876",
+            "datetime": "2026-10-05 14:50",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Diagnostic ultrasound of abdomen and retroperitoneum"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-05 15:00",
+            "end_time": "2026-10-05 15:00",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV"
+        },
+        {
+            "start_time": "2026-10-05 15:05",
+            "end_time": "2026-10-05 15:25",
+            "code": "METR500",
+            "name": "Metronidazole 500 mg/100 ml",
+            "description": "500 mg IV drip"
+        }
+    ],
+    "treatment_provided": "NPO, 5% D/N/2 1,000 ml rate 100 ml/hr, Ceftriaxone 2 g IV, Metronidazole 500 mg IV",
+    "reason_refer": "ส่งต่อศัลยแพทย์เพื่อผ่าตัด appendectomy (ต้นทางไม่มีศัลยแพทย์ / ห้องผ่าตัด)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "112",
+        "diastolic_bp": "70",
+        "heart_rate": "96",
+        "oxygen_saturation": "99",
+        "pain_score": "7",
+        "respiratory_rate": "18",
+        "temperature": "37.9",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "52",
+        "height": "160",
+        "entry_datetime": "2026-10-05 15:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

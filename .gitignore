@@ -1,13 +1,26 @@
 node_modules/
 /test-results/
+/test-results-*/
 /playwright-report/
+/playwright-report-*/
 /blob-report/
 /playwright/.cache/
 /.playwright-mcp/
+/.cache/
 
 # ความลับ — ห้ามขึ้น git
 .env
+.env.*
+!.env.example
+!.env.*.example
 .auth/
 
 # สคริปต์/หลักฐานชั่วคราว (วิดีโอ ภาพ ผลรัน) — ใหญ่และเป็นของเฉพาะเครื่อง
 /temp_scripts/
+
+# คลิปผลการเล่น Scenario (มีข้อมูลผู้ป่วยทดสอบ)
+/clips/
+
+# ไฟล์ขยะของ macOS (ติดมากับไฟล์ zip / โฟลเดอร์ที่คัดลอกจาก Mac)
+__MACOSX/
+.DS_Store

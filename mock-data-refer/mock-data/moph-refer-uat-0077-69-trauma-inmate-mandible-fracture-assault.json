@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0077/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-08 10:30",
+    "refer_expire_date": "2026-11-07 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000077",
+            "cid": "1101700204774",
+            "title_name": "นาย",
+            "first_name": "สิทธิชัย",
+            "middle_name": "",
+            "last_name": "แสงอรุณ",
+            "gender": "M",
+            "birthdate": "1992-08-04",
+            "mobile_no": "0812348449"
+        },
+        "address": {
+            "no": "เรือนจำจังหวัดสระบุรี",
+            "village_no": "-",
+            "street": "-",
+            "subdistrict": "ปากเพรียว",
+            "district": "เมืองสระบุรี",
+            "province": "สระบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT (ผู้ต้องขัง)"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ผู้ต้องขังชาย ต้องโทษ 4 ปี ปฏิเสธโรคประจำตัว สูบบุหรี่",
+    "record_illness_present": "ถูกชกที่คางและใบหน้าด้านซ้ายระหว่างทะเลาะวิวาทในเรือนนอนเมื่อคืน 21:00 น. ไม่สลบ อ้าปากได้น้อย สบฟันไม่สนิท ชาริมฝีปากล่างซ้าย กลืนน้ำลายลำบาก",
+    "test_results": "อ้าปากได้ 1.5 ซม. | Malocclusion, step deformity ที่ left parasymphysis | Sublingual hematoma | GCS 15 ไม่มีอาการทางระบบประสาท | ยังไม่ได้ X-ray (สถานพยาบาลเรือนจำไม่มีเครื่อง)",
+    "initial_diagnosis_free_text": "Suspected fracture of left parasymphysis of mandible with malocclusion from assault",
+    "initial_diagnosis": [
+        {
+            "icd10": "S02.6",
+            "dx_name": "Fracture of mandible",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9359",
+            "datetime": "2026-10-08 09:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Other immobilization, pressure, and attention to wound (Barton bandage)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-08 09:45",
+            "end_time": "2026-10-08 09:45",
+            "code": "AMCL1",
+            "name": "Amoxicillin/clavulanate 1 g",
+            "description": "1 เม็ด stat"
+        },
+        {
+            "start_time": "2026-10-08 09:45",
+            "end_time": "2026-10-08 09:45",
+            "code": "IBUP400",
+            "name": "Ibuprofen 400 mg",
+            "description": "1 เม็ด stat"
+        }
+    ],
+    "treatment_provided": "Barton bandage พยุงขากรรไกร, Amoxicillin/clavulanate 1 g, Ibuprofen 400 mg, Chlorhexidine บ้วนปาก, อาหารเหลว",
+    "reason_refer": "ส่งต่อทันตแพทย์ศัลยกรรมช่องปากและแม็กซิลโลเฟเชียล เพื่อ X-ray / CT และผ่าตัดยึดกระดูกขากรรไกร",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ผู้ต้องขัง เจ้าหน้าที่ราชทัณฑ์ควบคุมตัว 2 นาย ใส่เครื่องพันธนาการที่ข้อเท้า แยกคู่กรณีแล้ว",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "128",
+        "diastolic_bp": "80",
+        "heart_rate": "84",
+        "oxygen_saturation": "99",
+        "pain_score": "6",
+        "respiratory_rate": "18",
+        "temperature": "37.2",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "66",
+        "height": "168",
+        "entry_datetime": "2026-10-08 10:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

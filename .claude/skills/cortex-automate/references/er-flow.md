@@ -32,6 +32,13 @@ function randomThaiId(): string {
 }
 ```
 
+## 1.1) ผู้ป่วยระบุตัวตนไม่ได้ (Dummy) — ตรวจ UAT-ER-03 ผ่าน MCP 30 ก.ย. 2026
+
+- radio `page.locator('label').filter({ hasText: 'ผู้ป่วยระบุตัวตนไม่ได้' })` → ช่อง: textbox `ชื่อชั่วคราว` (placeholder "ระบุชื่อชั่วคราวของผู้ป่วย") · `นามสกุล (ไม่บังคับ)` · **`* อายุโดยประมาณ`** (ปี — ช่องบังคับเดียวที่มี *) · combobox `เพศ (ไม่บังคับ)` · เบอร์มือถือ · รูป · ที่อยู่
+- ปุ่ม `ลงทะเบียนผู้ป่วยไม่ทราบชื่อ` (Ctrl + Enter) → `POST /cortex-api/patients/er-registration` 200 → modal เปิด Visit ER เหมือนผู้ป่วยใหม่
+  - ได้ **HN เลขปกติตามลำดับ** (6931579) · `identityVerificationMode.code = anonymous` ("ไม่ระบุตัวตน") · วันเกิด = วันนี้ย้อนตามอายุ (`1986-09-30`) · Visit มี `registration.isUnidentified: true`
+  - หัว modal / หัวจอผู้ป่วยแสดงชื่อชั่วคราว + HN แต่**ไม่มีป้ายบอกว่าเป็น Dummy / ไม่ระบุตัวตน** (ข้อสังเกต — ชีตคาด "HN ชั่วคราว (Dummy)")
+
 ## 2) เปิด Visit ER (modal)
 
 - `getByRole('dialog', { name: 'เปิด Visit ER' })` · หัว modal แสดง `HN <เลข>` + ชื่อ · ปุ่มล่าง `ยกเลิก` / `ยืนยันเปิด visit` · ปุ่ม `Close` (X) มุมบน
@@ -101,7 +108,7 @@ function randomThaiId(): string {
 
 ค่าทดสอบที่ใช้แล้วผ่าน: ไม่มี / ญาติ / BP 120/80 · PR 80 · RR 18 · T 37 · SpO2 98 / GCS E4V5M6 / CC ปวดท้อง / ESI 4 / โซนเหลือง (แนะนำ)
 
-### 3.0) รายละเอียดฟอร์ม (สำรวจตอนเขียน spec SBH-1021 — 26 ก.ย. 2026) · helper อยู่ที่ `helpers/er-triage.ts`
+### 3.0) รายละเอียดฟอร์ม (สำรวจตอนเขียน spec SBH-1021 — 26 ก.ย. 2026) · helper อยู่ที่ `helpers/functions/er-triage.ts`
 
 - ขอบเขตฟอร์ม: `getByRole('tabpanel', { name: 'Triage' })` (แท็บอื่น: Trauma / Non-Trauma / เด็ก / สัตว์มีพิษ — นอก scope SBH-1021) ·
   ช่องฝั่งซ้าย (วิธีการมาถึง / อุปกรณ์ช่วยเหลือ* / ผู้ที่มาด้วย*) อยู่ใน `getByRole('region', { name: 'วิธีการมาถึง' })` นอก tabpanel — combobox ไม่มีชื่อ ลำดับ 0 = อุปกรณ์, 1 = ผู้ที่มาด้วย
@@ -149,7 +156,7 @@ function randomThaiId(): string {
 
 - **พิมพ์ป้ายปลายเตียง** (ปุ่ม `getByRole('button', { name: 'พิมพ์ป้ายปลายเตียง' })` ข้างฟอร์มคัดกรอง / แท็บ Triage ใน Overview):
   1. แอปขอ PDF: **`POST /cortex-api/er/encounters/<EN>/bedside-name-badge/pdf`** → 200 `application/pdf` (~33 KB, 1 หน้า 210×148 mm = A5 แนวนอน = ครึ่ง A4)
-  2. แล้วส่งไปพิมพ์ที่ `http://localhost:8081/print/laser?size=A5&orientation=landscape` (print agent ในเครื่อง) → เครื่องที่ไม่มีได้ `ERR_CONNECTION_REFUSED` + toast แดง "ไม่สามารถพิมพ์ป้ายผู้ป่วยได้" — **ไม่ถือว่า fail (R18)**
+  2. แล้วส่งไปพิมพ์ที่ `http://localhost:8081/print/laser?size=A5&orientation=landscape` (print agent ในเครื่อง) → เครื่องที่ไม่มีได้ `ERR_CONNECTION_REFUSED` + toast แดง "ไม่สามารถพิมพ์ป้ายชื่อผู้ป่วยได้" — **ไม่ถือว่า fail (R18)**
   - **วิธีเช็ค (R18)**: `waitForResponse(r => r.url().includes('/bedside-name-badge/pdf'))` → `res.body()` → แท็บใหม่ `tab.route(url, r => r.fulfill({ contentType: 'application/pdf', body }))` + `tab.goto(url)` → PDF viewer ของ Chrome แสดง (ตรวจ 28 ก.ย. 2026 ผ่าน MCP headed)
   - เนื้อหา: หัว "ป้ายชื่อผู้ป่วยห้องฉุกเฉิน" · ชื่อ-สกุล (มีคำนำหน้า) · `EN <EN>` · `วันเวลารับเข้า DD/MM/พ.ศ., HH:mm` (= เวลาเปิด Visit) · เส้นประตัดครึ่งล่าง
   - ใน spec: เช็คข้อความใน PDF ได้จาก body (หรือ screenshot แท็บ PDF เป็นหลักฐาน R13 — viewer ของ Chrome ใช้ได้เฉพาะ headed)
@@ -166,6 +173,13 @@ function randomThaiId(): string {
   - **"Finalize" ในชีต UAT = ปุ่มลงนามนี้** (R20) — ไม่มีปุ่ม Finalize แยก · ตัวเลือก Routine Discharge/AMA/Escape ในชีตให้ใช้ตัวเลือกที่มีในฟอร์ม (R19)
   - หลังลงนาม ผู้ป่วยยังอยู่บนบอร์ดโซนเดิม · การ์ดบนบอร์ดขึ้น `Diagnosis: -` ทั้งที่มี K30 → **บั๊ก** ผู้ใช้เปิดการ์ดแล้ว รอ Dev แก้ (28 ก.ย. 2026) ยังไม่ assert
   - Physician Note ส่ง contribution 2 ครั้ง/การบันทึก — ผู้ใช้ให้ถือว่าไม่เป็นไร (R22)
+  - (ตรวจ 29 ก.ย. 2026 SBH-1401) เมนู Disposition = `navigation "การดำเนินการดูแลผู้ป่วย"` → `menuitem "Disposition"` (`click({force:true})`) · ทุกขั้นเป็น graphql mutation:
+    `StartErDischarge` → `SaveErDischargeDraft` (statusCode DRAFT, dischargeTypeCode With Approval = "1", By Transfer = "4") → `FinalizeErDischarge` (statusCode COMPLETE + `completedAt` ปัดเป็นวินาที) · helper `helpers/functions/er-disposition.ts`
+  - **By Transfer**: ช่อง "โรงพยาบาลปลายทาง" ไม่บังคับ ("หากเป็นการย้ายภายในโรงพยาบาล ไม่ต้องระบุ") ลงนามได้เลย
+  - **หลังลงนาม Encounter ยังเป็น in-progress** (สถานะบนหัวจอ เช็คอิน · ตัวเลือกมีแค่ เช็คอิน / พร้อมตรวจ / ยกเลิก) → ค้นผู้ป่วยคนเดิมที่หน้าคัดกรองจะพาไป Encounter เดิม เปิด Visit ใหม่วันเดียวกันไม่ได้ ·
+    Encounter ปิดเป็น completed โดย `system` ตอน 22:00 (15:00 UTC) หรือโดยผู้ใช้ (ยังไม่รู้ว่าปิดจากเมนูไหน — ถามผู้ใช้แล้ว)
+  - **Acknowledge** (Door-to-doc) = ปุ่มแรกใน ER Physician Note ส่วน MEWS → `PATCH /er/encounters/<EN>/treatment-start` → ขึ้น "Acknowledged โดย …"
+  - ยกเลิก Encounter จากตัวเลือก "ยกเลิก" ของสถานะบนหัวจอ → dialog "ต้องการยกเลิก 'EN …' ใช่หรือไม่?" (เหตุผล * ≤ 80 ตัว) → 29 ก.ย. 2026 ขึ้น "ไม่สามารถยกเลิก EN ได้ — null value in column branch_id …" (พังเหมือนปุ่มบนบอร์ด)
 
 ### 3.4) สั่งยา / สั่ง Lab / พิมพ์ใบสั่งยา / Disposition แบบอื่น (สำรวจ UAT-ER-01 ผ่าน MCP 29 ก.ย. 2026)
 
@@ -228,7 +242,8 @@ function randomThaiId(): string {
 | แพทย์ใน modal / Overview เป็น `ไม่ระบุแพทย์ ไม่ระบุแพทย์` (16 ก.ย. ตั้งให้เป็น "นาย ทดสอบ มานะ") | ข้อสังเกต |
 | `GET /cortex-api/drafts/...` → 404 ตอนยังไม่มี draft | ปกติ ไม่ใช่บั๊ก |
 | การ์ดบนบอร์ดขึ้น `Diagnosis: -` ทั้งที่ Physician Note / Disposition มี Dx แล้ว (HN 6931534, 28 ก.ย. 2026) | **บั๊ก** — ผู้ใช้เปิดการ์ดแล้ว รอ Dev แก้ · ยังไม่ assert |
-| พิมพ์ป้ายปลายเตียงขึ้น toast "ไม่สามารถพิมพ์ป้ายผู้ป่วยได้" | ไม่ใช่บั๊ก — เครื่องไม่มี print agent `localhost:8081` · เช็คจาก PDF แทน (R18) |
+| พิมพ์ป้ายปลายเตียงขึ้น toast "ไม่สามารถพิมพ์ป้ายชื่อผู้ป่วยได้" | ไม่ใช่บั๊ก — เครื่องไม่มี print agent `localhost:8081` · เช็คจาก PDF แทน (R18) |
+| **บันทึก Triage ไม่ได้ทั้งระบบ** (30 ก.ย. 2026 ~13:31, APP_VERSION v2.2.4): API ฟอร์มย้ายจาก `/ehrbase/rest/openehr/...` ไป `/cortex-api/clinical-form-legacy/rest/openehr/...` · กดบันทึก → `POST …/clinical-form-legacy/rest/openehr/v1/ehr/<ehrId>/contribution` **403 `{"message":"clinical form access denied"}`** · หน้าจอไม่มี toast / ข้อความใดๆ ฟอร์มค้างเหมือนไม่ได้กด · ไม่มี `PUT drafts` แล้ว (ค่าที่กรอกหายเมื่อโหลดหน้าใหม่) · เป็นทั้ง user1 (Super_User) และ x-nurse · ทั้งผู้ป่วยไม่ระบุตัวตน (6931579) และผู้ป่วยปกติ (6931582) · `get_present_illness_history` เปลี่ยนจาก 500 เป็น 422 | **Blocker** — แจ้งผู้ใช้ 30 ก.ย. 2026 · spec SBH-1021 fail ที่ TC-007 (ยังรอ path เดิม `/ehrbase/…`) — แก้ path เมื่อ Dev แก้ 403 แล้ว |
 
 ## 6) ข้อมูลทดสอบที่สร้างบน dev-x
 
@@ -262,3 +277,18 @@ function randomThaiId(): string {
 ตั้งแต่ spec SBH-1021 ทุกรอบที่รัน: สร้างผู้ป่วย `AUTO Triage…` 1 ราย + บันทึก Triage ESI 4 → อยู่คอลัมน์โซนเหลือง ER (R17)
 ตั้งแต่ spec SBH-1013 ทุกรอบที่รัน: สร้างผู้ป่วย `AUTO` ใหม่ 1 ราย + Visit ER ค้างไว้ (R11) · และเปิด Visit ให้ผู้ป่วยทีม 1 ราย แล้วยกเลิกท้ายเทส (R15)
 — ไม่ต้องจดลงตารางนี้แล้ว ดูเลข HN/VN/EN และผู้ป่วยทีมที่สุ่มได้จาก annotation ใน HTML report หรือบรรทัดใน terminal
+
+ตั้งแต่ spec SBH-1400 (29 ก.ย. 2026) ทุกรอบที่รัน: สร้างผู้ป่วย `AUTO Report…` 1 ราย + Visit ER (Walk-in) + Triage ESI 2 → อยู่โซนแดง ER ทิ้งไว้ (R11/R17) · รอบเขียน spec สร้าง HN 6931553–6931556 — เลขของรอบต่อไปดูจาก annotation ใน HTML report
+
+**29 ก.ย. 2026 17:48 — ยกเลิก Encounter ไม่ได้ (ค้างอยู่):** รัน SBH-1013 เช็คว่า `openErMenu` ไม่ทำ flow เดิมพัง → ปุ่มยกเลิก Encounter ได้ `POST /cortex-api/er/encounters/<EN>/cancel` → **500 "Failed to cancel ER encounter"** ทั้งในเทส, ใน afterEach และตอนลองใหม่อีก 1 ครั้ง ·
+Visit ของผู้ป่วยทีม **6931175 คนไข้ชาย 01 · V69092926866 / E69092931352** (in-progress, คอลัมน์คัดกรอง) จึงค้างอยู่ — แจ้งผู้ใช้แล้ว · ถ้า cancel ยังได้ 500 อย่ารัน flow ผู้ป่วยทีมของ SBH-1013 เพิ่ม (จะทิ้ง Visit ค้างให้ผู้ป่วยทีม)
+
+ตั้งแต่ spec SBH-1401 (29 ก.ย. 2026) ทุกรอบที่รันเทส "ข้อมูลควบคุม": สร้างผู้ป่วย `AUTO QualityP1/P3/P4…` 3 ราย — P1 ESI 1 (ไม่ Acknowledge ค้างโซนแดง) · P3 ESI 3 Acknowledge + จำหน่าย With Approval ลงนาม · P4 ESI 4 จำหน่าย By Transfer ลงนาม ·
+และปิด ESI 5 เป็นไม่จำกัดชั่วคราวแล้วคืน 150 นาที (afterEach คืนผ่าน API ถ้าพัง) · รอบเขียน spec สร้าง HN 6931558–6931574 (รวมรอบสำรวจ: 6931558 Visit ค้างยังไม่ Triage · 6931559–6931561 ESI 3 · 6931561 จำหน่าย With Approval ลงนาม · 6931560 ร่างจำหน่าย By Transfer ยังไม่ลงนาม)
+
+| 30 ก.ย. 2026 13:29 | AUTO UATER03-09301329 (ผู้ป่วยระบุตัวตนไม่ได้ · ชาย · อายุ ~40 · UAT-ER-03 ผ่าน MCP) | 6931579 | V69093026898 / E69093031389 / aw22548 · H01 | Triage ESI 1 บันทึกไม่ได้ (403) → **ค้างคอลัมน์คัดกรอง** · เปลนอน / ไม่มีผู้มาด้วย ถูกบันทึกเข้า Encounter แล้ว |
+| 30 ก.ย. 2026 13:37 | AUTO Diag403-… (ตรวจว่า 403 เป็นกับผู้ป่วยปกติด้วย · x-nurse) | 6931582 | V69093026901 / E69093031392 · H01 | Triage ESI 4 บันทึกไม่ได้ (403) → ค้างคอลัมน์คัดกรอง |
+- 2026-10-02 (ลองรูปแบบชื่อ Mock Data UAT — R31): `UAT 04 01` HN 6931640 (มี HN ไม่มี Visit — ค้างที่ modal เปิด Visit) · `UAT 04 02` HN 6931641 / V69100226990 / E69100231506 Triage ESI 3 แล้ว (บันทึก Triage บน dev-x กลับมาใช้ได้ `PATCH triage-result` 200) · สิทธิ UC ใน modal เปิด Visit = `H03 - สิทธิ UC` (มี H04–H10, H33 UCEP ด้วย)
+- 2026-10-03 (Mock Data UAT ER บน dev-x — รายการเต็มอยู่ที่ `mock-data/created-patients.md`): `UAT ER04-01` 6931645 / E69100331514 (Triage ไม่มีสัญญาณชีพ · Order CBC + CHEST ส่งแล้ว · Physician Note บันทึกไม่ได้ 500) · `UAT ER04-02` 6931646 / E69100331518 (Note บันทึกแล้ว · Order ค้างตะกร้า) · `UAT ER04-03` 6931650 / E69100331521 (Note แล้ว ไม่มี Order) · `UAT ER04-04` 6931651 / E69100331522 (ครบ: Triage ESI 3 + Note + Order ส่งแล้ว + งานพยาบาลรอรับงาน 2) · `UAT ER05-01` 6931647 / E69100331519 (ยังไม่คัดกรอง) · `UAT ER10-01` 6931648 (ไม่มี Visit · แพ้ paracetamol) · `UAT ER13-01` 6931649 / V69100327000 / E69100331520 (Visit OPD MED รอเช็คอิน) · `UAT 04 01` 6931640 ที่ใช้สำรวจ: แพ้ paracetamol + potassium citrate · Visit OPD MED V69100326997 / E69100331517
+- 2026-10-03 13:30–15:05 (เล่นชีต Scenario- ER ทั้งชุดบน dev-x — รายการเต็มอยู่ที่ `mock-data/created-patients.md` แถว "เล่น xx"): Mock `UAT ER04-08` 6931661 (Disposition รับไว้รักษาต่อIPD ลงนามแล้ว · พยาบาล1 ทดสอบ) · `UAT ER05-04` 6931662 (ESI 5 ส่งต่อ OPD อายุรกรรมแล้ว) · `UAT ER10-04` 6931663 (E69100331546 ยกเลิก → Visit ใหม่ E69100331548 ESI 4 จำหน่าย With Approval + Reopen + ใบรับรองแพทย์ + Consult 3 คำขอ + แพ้ ibuprofen) · `UAT ER13-04` 6931664 (Visit OPD เดิม + Encounter ER E69100331555 ESI 3) ·
+  เปิดใหม่: `UAT ER01-01` 6931665 (ปฏิเสธการรักษา ลงนามแล้ว) · `UAT ER02-01` 6931666 (With Approval ลงนามแล้ว) · `UAT ER03-01` 6931667 (ไม่ระบุตัวตน ESI 1 · CPR 2 events · รับไว้รักษาต่อIPD ลงนามแล้ว) · `UAT ER05-05` 6931668 (ESI 2 → คัดกรองซ้ำ ESI 1) · `UAT ER05-06` 6931669 (ESI 2 Trauma + Fast Track Sepsis Acknowledge แล้ว) · `UAT ER07-01` 6931670 (มี HN ไม่มี Visit) · `UAT ER07-02` 6931671 ESI 2 / `UAT ER07-03` 6931672 ESI 3 (เหตุการณ์ MCI-20261003-592D68)

@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0053/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-06 11:50",
+    "refer_expire_date": "2026-11-05 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000053",
+            "cid": "1101700204537",
+            "title_name": "นาย",
+            "first_name": "อดิศักดิ์",
+            "middle_name": "",
+            "last_name": "ภูมิพันธ์",
+            "gender": "M",
+            "birthdate": "1993-09-02",
+            "mobile_no": "0812347561"
+        },
+        "address": {
+            "no": "73/12",
+            "village_no": "9",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว ปฏิเสธแพ้ยา",
+    "record_illness_present": "เศษเหล็กกระเด็นเข้าตาซ้ายขณะเจียรเหล็กไม่สวมแว่นนิรภัย 11:00 น. ปวดตา ตามัวลงทันที น้ำตาไหล",
+    "test_results": "VA RE 20/20, LE hand motion | Lt eye: corneal laceration 4 mm with iris prolapse, shallow AC, Seidel test positive | X-ray orbit: no radiopaque foreign body",
+    "initial_diagnosis_free_text": "Penetrating injury of left eyeball with corneal laceration and iris prolapse",
+    "initial_diagnosis": [
+        {
+            "icd10": "S05.2",
+            "dx_name": "Ocular laceration and rupture with prolapse or loss of intraocular tissue",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8716",
+            "datetime": "2026-10-06 11:20",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Other x-ray of facial bones (orbit)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-06 11:25",
+            "end_time": "2026-10-06 11:25",
+            "code": "CEFA1",
+            "name": "Cefazolin 1 g",
+            "description": "1 g IV"
+        },
+        {
+            "start_time": "2026-10-06 11:30",
+            "end_time": "2026-10-06 11:30",
+            "code": "TT05",
+            "name": "Tetanus toxoid 0.5 ml",
+            "description": "0.5 ml IM"
+        },
+        {
+            "start_time": "2026-10-06 11:30",
+            "end_time": "2026-10-06 11:30",
+            "code": "ONDA4",
+            "name": "Ondansetron 4 mg/2 ml",
+            "description": "4 mg IV"
+        }
+    ],
+    "treatment_provided": "ครอบตาด้วย eye shield ไม่กดลูกตา ไม่หยอดยา, NPO, Cefazolin 1 g IV, TT 0.5 ml IM, Ondansetron 4 mg IV กันอาเจียน",
+    "reason_refer": "ส่งต่อจักษุแพทย์เพื่อผ่าตัดเย็บซ่อมกระจกตาฉุกเฉิน",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "126",
+        "diastolic_bp": "80",
+        "heart_rate": "88",
+        "oxygen_saturation": "99",
+        "pain_score": "7",
+        "respiratory_rate": "18",
+        "temperature": "36.7",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "65",
+        "height": "169",
+        "entry_datetime": "2026-10-06 11:50"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

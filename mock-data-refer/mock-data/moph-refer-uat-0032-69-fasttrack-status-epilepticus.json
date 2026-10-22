@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0032/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 06:40",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000032",
+            "cid": "1101700204324",
+            "title_name": "นาย",
+            "first_name": "กิตติศักดิ์",
+            "middle_name": "",
+            "last_name": "ปานทอง",
+            "gender": "M",
+            "birthdate": "1988-03-17",
+            "mobile_no": "0812346784"
+        },
+        "address": {
+            "no": "7/222",
+            "village_no": "4",
+            "street": "ถนนรังสิต-นครนายก",
+            "subdistrict": "ประชาธิปัตย์",
+            "district": "ธัญบุรี",
+            "province": "ปทุมธานี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "โรคลมชัก รับประทาน Phenytoin ขาดยา 1 สัปดาห์",
+    "record_illness_present": "ชักเกร็งกระตุกทั้งตัว 3 ครั้งติดกันไม่รู้สึกตัวระหว่างชัก รวมกว่า 30 นาที",
+    "test_results": "DTX 98 | Na 138, Ca 9.1, Mg 2.0 | Phenytoin level < 2 mcg/ml",
+    "initial_diagnosis_free_text": "Generalized convulsive status epilepticus due to antiepileptic non-adherence",
+    "initial_diagnosis": [
+        {
+            "icd10": "G41.0",
+            "dx_name": "Grand mal status epilepticus",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9604",
+            "datetime": "2026-09-24 06:15",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Endotracheal intubation"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 05:55",
+            "end_time": "2026-09-24 05:55",
+            "code": "DZP10",
+            "name": "Diazepam 10 mg/2 ml",
+            "description": "10 mg IV x 2 ครั้ง"
+        },
+        {
+            "start_time": "2026-09-24 06:05",
+            "end_time": "2026-09-24 06:40",
+            "code": "PHT250",
+            "name": "Phenytoin 250 mg/5 ml",
+            "description": "20 mg/kg (1,300 mg) IV drip rate < 50 mg/min"
+        },
+        {
+            "start_time": "2024-01-01 08:00",
+            "end_time": "2026-09-17 08:00",
+            "code": "PHT100",
+            "name": "Phenytoin 100 mg",
+            "description": "3 แคปซูล ก่อนนอน"
+        }
+    ],
+    "treatment_provided": "Diazepam 10 mg IV x2, Phenytoin loading 20 mg/kg, intubation หลังชักซ้ำ",
+    "reason_refer": "ส่งต่อ ICU / neurologist ต้นทางไม่มีเตียง ICU",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "150",
+        "diastolic_bp": "90",
+        "heart_rate": "112",
+        "oxygen_saturation": "99",
+        "pain_score": "",
+        "respiratory_rate": "16",
+        "temperature": "38.1",
+        "e": "1",
+        "v": "T",
+        "m": "4",
+        "weight": "65",
+        "height": "173",
+        "entry_datetime": "2026-09-24 06:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

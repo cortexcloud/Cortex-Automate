@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0067/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 19:30",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "2",
+    "emergency": "4",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "OFC",
+        "ref_name": "สิทธิข้าราชการ/รัฐวิสาหกิจ",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000067",
+            "cid": "1101700204677",
+            "title_name": "นาย",
+            "first_name": "ธนพล",
+            "middle_name": "",
+            "last_name": "วัฒนศิริ",
+            "gender": "M",
+            "birthdate": "1988-01-27",
+            "mobile_no": "0812348079"
+        },
+        "address": {
+            "no": "87/20",
+            "village_no": "5",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว เคยฉีดสเตียรอยด์ที่ส้นเท้าขวา 1 ครั้งเมื่อ 3 เดือนก่อน",
+    "record_illness_present": "ขณะกระโดดตีแบดมินตัน 18:30 น. ได้ยินเสียงดังที่ข้อเท้าขวาเหมือนถูกเตะ ปวด เดินเขย่งปลายเท้าไม่ได้",
+    "test_results": "Thompson test positive Rt | คลำได้ร่อง 4 ซม. เหนือ calcaneus | X-ray Rt ankle: no fracture",
+    "initial_diagnosis_free_text": "Complete rupture of right Achilles tendon",
+    "initial_diagnosis": [
+        {
+            "icd10": "S86.0",
+            "dx_name": "Injury of Achilles tendon",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8828",
+            "datetime": "2026-10-07 18:55",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Skeletal x-ray of ankle and foot"
+        },
+        {
+            "icd9": "9354",
+            "datetime": "2026-10-07 19:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Application of splint (short leg slab in equinus)"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-07 19:00",
+            "end_time": "2026-10-07 19:00",
+            "code": "PARA500",
+            "name": "Paracetamol 500 mg",
+            "description": "2 เม็ด stat"
+        }
+    ],
+    "treatment_provided": "Short leg slab ในท่า equinus, ไม้ค้ำยัน ห้ามลงน้ำหนัก, ประคบเย็น ยกขาสูง, Paracetamol 1 g รับประทาน",
+    "reason_refer": "ส่งต่อศัลยแพทย์ออร์โธปิดิกส์เพื่อผ่าตัดเย็บซ่อมเอ็นร้อยหวาย",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "124",
+        "diastolic_bp": "78",
+        "heart_rate": "82",
+        "oxygen_saturation": "99",
+        "pain_score": "6",
+        "respiratory_rate": "16",
+        "temperature": "36.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "75",
+        "height": "174",
+        "entry_datetime": "2026-10-07 19:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

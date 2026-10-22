@@ -1,0 +1,139 @@
+{
+    "refer_out_no": "0066/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 15:10",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000066",
+            "cid": "1101700204669",
+            "title_name": "นาย",
+            "first_name": "จักรพันธ์",
+            "middle_name": "",
+            "last_name": "ดวงแก้ว",
+            "gender": "M",
+            "birthdate": "1997-06-09",
+            "mobile_no": "0812348042"
+        },
+        "address": {
+            "no": "86/13",
+            "village_no": "4",
+            "street": "ถนนพระราม 4",
+            "subdistrict": "ลุมพินี",
+            "district": "ปทุมวัน",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว ปฏิเสธแพ้ยา",
+    "record_illness_present": "ถูกไฟฟ้าแรงสูง 22 kV ช็อตขณะซ่อมสายไฟบนเสา 14:05 น. หมดสติ 2 นาที แผลไหม้มือขวา (ทางเข้า) และเท้าซ้าย (ทางออก) ปัสสาวะสีน้ำล้างเนื้อ",
+    "test_results": "EKG: sinus tachycardia, occasional PVC | CPK 18,400 | Troponin-T 48 ng/L | K 5.4, Cr 1.3 | UA: blood 3+, RBC 0-1 (myoglobinuria) | C-spine X-ray: no fracture",
+    "initial_diagnosis_free_text": "High-voltage electrical injury with entry wound right hand and exit wound left foot, 8% TBSA deep burn, rhabdomyolysis",
+    "initial_diagnosis": [
+        {
+            "icd10": "T75.4",
+            "dx_name": "Effects of electric current",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8952",
+            "datetime": "2026-10-07 14:25",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        },
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-07 14:35",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        },
+        {
+            "icd9": "8722",
+            "datetime": "2026-10-07 14:45",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Other x-ray of cervical spine"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-07 14:20",
+            "end_time": "2026-10-07 15:10",
+            "code": "LRS1000",
+            "name": "Lactated Ringer 1,000 ml",
+            "description": "IV load 2,000 ml"
+        },
+        {
+            "start_time": "2026-10-07 14:30",
+            "end_time": "2026-10-07 14:30",
+            "code": "MORP10",
+            "name": "Morphine 10 mg/ml",
+            "description": "4 mg IV"
+        },
+        {
+            "start_time": "2026-10-07 14:50",
+            "end_time": "2026-10-07 14:50",
+            "code": "NAHCO3",
+            "name": "Sodium bicarbonate 7.5% 50 ml",
+            "description": "50 ml IV"
+        },
+        {
+            "start_time": "2026-10-07 14:55",
+            "end_time": "2026-10-07 14:55",
+            "code": "TT05",
+            "name": "Tetanus toxoid 0.5 ml",
+            "description": "0.5 ml IM"
+        }
+    ],
+    "treatment_provided": "LRS 2,000 ml IV load เป้าหมาย urine output 100 ml/hr, 7.5% NaHCO3 50 ml IV, Morphine 4 mg IV, TT 0.5 ml IM, ปิดแผล sterile dressing, monitor EKG ต่อเนื่อง, retain Foley catheter",
+    "reason_refer": "ส่งต่อศัลยแพทย์ / หน่วยแผลไหม้ เฝ้าระวัง compartment syndrome และ arrhythmia ต้องการ ICU",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ประเมินชีพจรปลายมือปลายเท้าทุก 30 นาทีระหว่างนำส่ง",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "112",
+        "diastolic_bp": "70",
+        "heart_rate": "118",
+        "oxygen_saturation": "98",
+        "pain_score": "8",
+        "respiratory_rate": "22",
+        "temperature": "37.1",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "64",
+        "height": "171",
+        "entry_datetime": "2026-10-07 15:10"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

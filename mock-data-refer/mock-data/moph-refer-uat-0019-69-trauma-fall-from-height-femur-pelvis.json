@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0019/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 09:30",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000019",
+            "cid": "1101700204197",
+            "title_name": "นาย",
+            "first_name": "สมศักดิ์",
+            "middle_name": "",
+            "last_name": "บุญมา",
+            "gender": "M",
+            "birthdate": "1979-02-20",
+            "mobile_no": "0812346303"
+        },
+        "address": {
+            "no": "145",
+            "village_no": "6",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ไม่มีโรคประจำตัว",
+    "record_illness_present": "ตกจากนั่งร้านก่อสร้างสูงประมาณ 4 เมตร ขาขวาผิดรูป ปวดสะโพก ไม่หมดสติ ชีพจรปลายเท้าขวาคลำได้",
+    "test_results": "X-ray: closed fracture shaft right femur, fracture right superior pubic ramus | Hb 11.5",
+    "initial_diagnosis_free_text": "Closed fracture shaft of right femur; fracture right pubic ramus; fall from scaffolding (W12)",
+    "initial_diagnosis": [
+        {
+            "icd10": "S72.3",
+            "dx_name": "Fracture of shaft of femur",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9346",
+            "datetime": "2026-09-24 08:50",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Skin traction right leg"
+        },
+        {
+            "icd9": "8726",
+            "datetime": "2026-09-24 08:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "X-ray pelvis and femur"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 08:40",
+            "end_time": "2026-09-24 09:30",
+            "code": "MO10",
+            "name": "Morphine 10 mg/ml",
+            "description": "3 mg IV prn q 4 hr"
+        },
+        {
+            "start_time": "2026-09-24 08:45",
+            "end_time": "2026-09-24 09:30",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1000 ml",
+            "description": "IV rate 100 ml/hr"
+        }
+    ],
+    "treatment_provided": "Skin traction, pelvic binder, Morphine 3 mg IV x 2 doses",
+    "reason_refer": "ส่งต่อเพื่อผ่าตัด ORIF โดยแพทย์ออร์โธปิดิกส์",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | ประกันสังคม อุบัติเหตุจากการทำงาน (กองทุนเงินทดแทน)",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "108",
+        "diastolic_bp": "68",
+        "heart_rate": "110",
+        "oxygen_saturation": "98",
+        "pain_score": "8",
+        "respiratory_rate": "22",
+        "temperature": "37.0",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "72",
+        "height": "170",
+        "entry_datetime": "2026-09-24 09:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

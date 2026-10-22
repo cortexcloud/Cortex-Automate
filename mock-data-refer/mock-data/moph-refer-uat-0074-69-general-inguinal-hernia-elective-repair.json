@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0074/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 13:45",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "OPD",
+    "patient_type": "1",
+    "emergency": "5",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "OFC",
+        "ref_name": "สิทธิข้าราชการ/รัฐวิสาหกิจ",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "13475",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000074",
+            "cid": "1101700204740",
+            "title_name": "นาย",
+            "first_name": "วิชิต",
+            "middle_name": "",
+            "last_name": "เพ็งสว่าง",
+            "gender": "M",
+            "birthdate": "1965-02-14",
+            "mobile_no": "0812348338"
+        },
+        "address": {
+            "no": "94/69",
+            "village_no": "3",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ความดันโลหิตสูง ต่อมลูกหมากโต ไอเรื้อรังจากสูบบุหรี่",
+    "record_illness_present": "ก้อนนูนที่ขาหนีบขวา 8 เดือน โตขึ้นเวลายืนหรือไอ ดันกลับได้ ปวดหน่วงเวลายกของหนัก ไม่เคยติดคา",
+    "test_results": "Rt inguinal bulging 4 cm, reducible, cough impulse positive, ไม่ลงถุงอัณฑะ | CXR: no active lesion | EKG: normal sinus rhythm | Cr 1.0",
+    "initial_diagnosis_free_text": "Right indirect inguinal hernia, reducible; HT; BPH",
+    "initial_diagnosis": [
+        {
+            "icd10": "K40.9",
+            "dx_name": "Unilateral or unspecified inguinal hernia, without obstruction or gangrene",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8744",
+            "datetime": "2026-10-07 13:00",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Routine chest x-ray"
+        },
+        {
+            "icd9": "8952",
+            "datetime": "2026-10-07 13:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "12-lead Electrocardiogram"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2020-01-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "AMLO5",
+            "name": "Amlodipine 5 mg",
+            "description": "1 เม็ด หลังอาหารเช้า"
+        },
+        {
+            "start_time": "2024-01-01 08:00",
+            "end_time": "2026-10-07 08:00",
+            "code": "DOXA2",
+            "name": "Doxazosin 2 mg",
+            "description": "1 เม็ด ก่อนนอน"
+        }
+    ],
+    "treatment_provided": "แนะนำหลีกเลี่ยงยกของหนัก งดสูบบุหรี่ ตรวจ pre-op เบื้องต้น",
+    "reason_refer": "ส่งต่อศัลยแพทย์เพื่อผ่าตัด herniorrhaphy with mesh (elective)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "138",
+        "diastolic_bp": "84",
+        "heart_rate": "76",
+        "oxygen_saturation": "98",
+        "pain_score": "2",
+        "respiratory_rate": "16",
+        "temperature": "36.5",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "69",
+        "height": "167",
+        "entry_datetime": "2026-10-07 13:45"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

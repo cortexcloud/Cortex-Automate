@@ -1,0 +1,111 @@
+{
+    "refer_out_no": "0021/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 14:20",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000021",
+            "cid": "1101700204219",
+            "title_name": "นาย",
+            "first_name": "ประเสริฐ",
+            "middle_name": "",
+            "last_name": "คงมั่น",
+            "gender": "M",
+            "birthdate": "1990-12-01",
+            "mobile_no": "0812346377"
+        },
+        "address": {
+            "no": "301",
+            "village_no": "1",
+            "street": "ถนนพหลโยธิน",
+            "subdistrict": "สามเสนใน",
+            "district": "พญาไท",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ไม่มีโรคประจำตัว",
+    "record_illness_present": "ถังแก๊สหุงต้มระเบิดในร้านอาหาร ไฟไหม้ใบหน้า ลำตัวด้านหน้า แขนทั้งสองข้าง ขนคิ้วไหม้ เสียงแหบ",
+    "test_results": "COHb 8% | ABG: pH 7.33, pCO2 38, HCO3 20 | Cr 1.0",
+    "initial_diagnosis_free_text": "2nd-3rd degree burn 30% TBSA (face, anterior trunk, both arms) with suspected inhalation injury; explosion of gas cylinder (W40)",
+    "initial_diagnosis": [
+        {
+            "icd10": "T31.3",
+            "dx_name": "Burns involving 30-39% of body surface",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9604",
+            "datetime": "2026-09-24 13:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Early endotracheal intubation for airway protection"
+        },
+        {
+            "icd9": "8628",
+            "datetime": "2026-09-24 13:55",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Burn wound cleansing and dressing"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 13:30",
+            "end_time": "2026-09-24 14:20",
+            "code": "RLS1000",
+            "name": "Ringer lactate 1000 ml",
+            "description": "Parkland: 8,640 ml/24 hr ให้ครึ่งหนึ่งใน 8 ชม.แรก (540 ml/hr)"
+        },
+        {
+            "start_time": "2026-09-24 13:35",
+            "end_time": "2026-09-24 14:20",
+            "code": "MO10",
+            "name": "Morphine 10 mg/ml",
+            "description": "3 mg IV q 2 hr prn"
+        }
+    ],
+    "treatment_provided": "Intubation, Parkland formula fluid resuscitation, Foley keep urine 0.5 ml/kg/hr, silver sulfadiazine dressing",
+    "reason_refer": "ส่งต่อหออภิบาลผู้ป่วยไฟไหม้ (Burn unit)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | เวลาเกิดเหตุ 13:05 น.",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "112",
+        "diastolic_bp": "70",
+        "heart_rate": "124",
+        "oxygen_saturation": "96",
+        "pain_score": "",
+        "respiratory_rate": "18",
+        "temperature": "37.2",
+        "e": "3",
+        "v": "T",
+        "m": "6",
+        "weight": "72",
+        "height": "175",
+        "entry_datetime": "2026-09-24 14:20"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

@@ -1,0 +1,104 @@
+{
+    "refer_out_no": "0024/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 17:30",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000024",
+            "cid": "1101700204243",
+            "title_name": "ด.ญ.",
+            "first_name": "ปุณยวีร์",
+            "middle_name": "",
+            "last_name": "มีสุข",
+            "gender": "F",
+            "birthdate": "2021-03-15",
+            "mobile_no": "0812346488"
+        },
+        "address": {
+            "no": "88/19",
+            "village_no": "2",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "คลอดครบกำหนด ไม่มีโรคประจำตัว",
+    "record_illness_present": "พลัดตกสระน้ำในหมู่บ้าน จมน้ำประมาณ 2 นาที ผู้ปกครองช่วยขึ้นมาและทำ CPR 1 รอบ ร้องได้ ไอ อาเจียน 1 ครั้ง ปัจจุบันหายใจเร็ว",
+    "test_results": "CXR: bilateral perihilar infiltration | DTX 142 | VBG pH 7.30, pCO2 48",
+    "initial_diagnosis_free_text": "Drowning and nonfatal submersion with aspiration pneumonitis; fall into swimming pool (W67)",
+    "initial_diagnosis": [
+        {
+            "icd10": "T75.1",
+            "dx_name": "Drowning and nonfatal submersion",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9394",
+            "datetime": "2026-09-24 17:05",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Oxygen via high flow nasal cannula"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 17:00",
+            "end_time": "2026-09-24 17:30",
+            "code": "D5N2",
+            "name": "5% D/N/2 1000 ml",
+            "description": "IV rate 50 ml/hr"
+        }
+    ],
+    "treatment_provided": "HFNC 20 LPM FiO2 0.5, keep warm, NPO",
+    "reason_refer": "ส่งต่อ PICU เฝ้าระวังภาวะ ARDS",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "98",
+        "diastolic_bp": "60",
+        "heart_rate": "148",
+        "oxygen_saturation": "92",
+        "pain_score": "",
+        "respiratory_rate": "44",
+        "temperature": "35.8",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "16",
+        "height": "102",
+        "entry_datetime": "2026-09-24 17:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

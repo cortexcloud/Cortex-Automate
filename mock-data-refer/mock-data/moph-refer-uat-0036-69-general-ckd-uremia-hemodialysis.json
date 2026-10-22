@@ -1,0 +1,110 @@
+{
+    "refer_out_no": "0036/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 09:00",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "1",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000036",
+            "cid": "1101700204367",
+            "title_name": "นาง",
+            "first_name": "สมจิตร",
+            "middle_name": "",
+            "last_name": "ทองประเสริฐ",
+            "gender": "F",
+            "birthdate": "1962-03-08",
+            "mobile_no": "0812346932"
+        },
+        "address": {
+            "no": "88/19",
+            "village_no": "2",
+            "street": "ถนนติวานนท์",
+            "subdistrict": "ตลาดขวัญ",
+            "district": "เมืองนนทบุรี",
+            "province": "นนทบุรี",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "เบาหวาน 15 ปี ความดันโลหิตสูง CKD stage 5 ยังไม่ได้ทำ RRT",
+    "record_illness_present": "เหนื่อยง่าย บวมขา 2 ข้าง ปัสสาวะออกน้อย คลื่นไส้ รับประทานอาหารไม่ได้ 1 สัปดาห์",
+    "test_results": "BUN 118, Cr 11.2, eGFR 3 | K 6.1, HCO3 14 | Hb 7.8",
+    "initial_diagnosis_free_text": "CKD stage 5 with uremic syndrome and hyperkalemia; diabetic nephropathy; HT; anemia of CKD",
+    "initial_diagnosis": [
+        {
+            "icd10": "N18.5",
+            "dx_name": "Chronic kidney disease, stage 5",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 08:10",
+            "end_time": "2026-09-24 08:40",
+            "code": "CAGLU",
+            "name": "10% Calcium gluconate 10 ml",
+            "description": "IV slow push"
+        },
+        {
+            "start_time": "2026-09-24 08:15",
+            "end_time": "2026-09-24 09:00",
+            "code": "RI100",
+            "name": "Regular insulin 10 U + 50% glucose 50 ml",
+            "description": "IV"
+        },
+        {
+            "start_time": "2020-01-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "FURO40",
+            "name": "Furosemide 40 mg",
+            "description": "2 เม็ด หลังอาหารเช้า"
+        }
+    ],
+    "treatment_provided": "Treat hyperkalemia, restrict fluid",
+    "reason_refer": "ส่งต่อทำ hemodialysis และวางแผน RRT ระยะยาว",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "176",
+        "diastolic_bp": "96",
+        "heart_rate": "90",
+        "oxygen_saturation": "95",
+        "pain_score": "2",
+        "respiratory_rate": "24",
+        "temperature": "36.6",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "64",
+        "height": "155",
+        "entry_datetime": "2026-09-24 09:00"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0039/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 11:30",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "1",
+    "emergency": "3",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "OFC",
+        "ref_name": "สิทธิข้าราชการ/รัฐวิสาหกิจ",
+        "hcode_main": "10661",
+        "hcode_sub": "10661",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000039",
+            "cid": "1101700204391",
+            "title_name": "นาย",
+            "first_name": "ประยูร",
+            "middle_name": "",
+            "last_name": "ศักดิ์ศรี",
+            "gender": "M",
+            "birthdate": "1940-06-06",
+            "mobile_no": "0812347043"
+        },
+        "address": {
+            "no": "301",
+            "village_no": "1",
+            "street": "ถนนพหลโยธิน",
+            "subdistrict": "สามเสนใน",
+            "district": "พญาไท",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "หัวใจล้มเหลว (EF 35%) ความดันโลหิตสูง ต่อมลูกหมากโต",
+    "record_illness_present": "ไข้ ไอมีเสมหะ 2 วัน รับประทานอาหารได้น้อย สับสนเล็กน้อย",
+    "test_results": "CXR: LLL infiltration | WBC 15,200 | CURB-65 = 3 | BNP 820",
+    "initial_diagnosis_free_text": "Community-acquired pneumonia LLL, CURB-65 3; chronic heart failure HFrEF; HT; BPH",
+    "initial_diagnosis": [
+        {
+            "icd10": "J18.9",
+            "dx_name": "Pneumonia, unspecified",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8744",
+            "datetime": "2026-09-24 10:40",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Chest X-ray"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 10:50",
+            "end_time": "2026-09-24 11:30",
+            "code": "CEFT2",
+            "name": "Ceftriaxone 2 g",
+            "description": "2 g IV OD"
+        },
+        {
+            "start_time": "2021-01-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "CARV",
+            "name": "Carvedilol 6.25 mg",
+            "description": "1 เม็ด เช้า-เย็น"
+        },
+        {
+            "start_time": "2021-01-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "ENAL5",
+            "name": "Enalapril 5 mg",
+            "description": "1 เม็ด เช้า"
+        },
+        {
+            "start_time": "2021-01-01 08:00",
+            "end_time": "2026-09-24 08:00",
+            "code": "TAMS",
+            "name": "Tamsulosin 0.4 mg",
+            "description": "1 แคปซูล ก่อนนอน"
+        }
+    ],
+    "treatment_provided": "O2 cannula 3 LPM, Ceftriaxone 2 g IV, H/C x2, sputum G/S C/S",
+    "reason_refer": "ส่งต่อรักษาต่อเนื่องในหอผู้ป่วยอายุรกรรม ใกล้บ้านผู้ป่วย",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "104",
+        "diastolic_bp": "62",
+        "heart_rate": "104",
+        "oxygen_saturation": "92",
+        "pain_score": "2",
+        "respiratory_rate": "26",
+        "temperature": "38.6",
+        "e": "4",
+        "v": "4",
+        "m": "6",
+        "weight": "56",
+        "height": "163",
+        "entry_datetime": "2026-09-24 11:30"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAADICAIAAABZHvsFAAABj0lEQVR42u3SMQ0AAAgEsVfDwIx/bThAAGlSBZdL9cAbkQBDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQGFoFDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBoMjaHB0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6ExtAoYGgwNhgZDY2gwNBgaDA2GxtBgaDA0GBpuCzk3s6HzVFpbAAAAAElFTkSuQmCC",
+            "file_name": "x-ray.png",
+            "file_type": "X-RAY"
+        }
+    ]
+}

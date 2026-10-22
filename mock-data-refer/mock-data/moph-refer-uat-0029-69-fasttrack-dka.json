@@ -1,0 +1,110 @@
+{
+    "refer_out_no": "0029/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-09-24 20:15",
+    "refer_expire_date": "2026-10-24 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "UCS",
+        "ref_name": "สิทธิหลักประกันสุขภาพแห่งชาติ",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000029",
+            "cid": "1101700204294",
+            "title_name": "น.ส.",
+            "first_name": "กมลชนก",
+            "middle_name": "",
+            "last_name": "สุวรรณรัตน์",
+            "gender": "F",
+            "birthdate": "2006-02-28",
+            "mobile_no": "0812346673"
+        },
+        "address": {
+            "no": "12/5",
+            "village_no": "3",
+            "street": "ถนนพระราม 4",
+            "subdistrict": "ลุมพินี",
+            "district": "ปทุมวัน",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "เบาหวานชนิดที่ 1 ฉีดอินซูลิน ขาดยา 3 วัน",
+    "record_illness_present": "ปวดท้อง คลื่นไส้อาเจียน หายใจหอบลึก ซึมลง 1 วัน",
+    "test_results": "DTX HI (> 600) | VBG pH 7.05, HCO3 6 | Serum ketone 5.8 mmol/L | Na 131, K 5.6, Cl 98, AG 27",
+    "initial_diagnosis_free_text": "Diabetic ketoacidosis, severe; type 1 DM with poor adherence",
+    "initial_diagnosis": [
+        {
+            "icd10": "E10.1",
+            "dx_name": "Type 1 diabetes mellitus with ketoacidosis",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [],
+    "medication_history": [
+        {
+            "start_time": "2026-09-24 19:15",
+            "end_time": "2026-09-24 20:15",
+            "code": "NSS1000",
+            "name": "0.9% NaCl 1000 ml",
+            "description": "1,000 ml IV ใน 1 ชม."
+        },
+        {
+            "start_time": "2026-09-24 19:40",
+            "end_time": "2026-09-24 20:15",
+            "code": "RI100",
+            "name": "Regular insulin (RI) 100 U/ml",
+            "description": "0.1 U/kg/hr IV drip (5 U/hr)"
+        },
+        {
+            "start_time": "2025-01-01 07:00",
+            "end_time": "2026-09-21 07:00",
+            "code": "GLAR",
+            "name": "Insulin glargine 100 U/ml",
+            "description": "20 U SC ก่อนนอน"
+        }
+    ],
+    "treatment_provided": "DKA protocol: NSS 1 L/hr, RI drip 5 U/hr, check DTX q 1 hr, K q 2 hr",
+    "reason_refer": "ส่งต่อดูแลใน ICU ต้นทางไม่มีเตียง",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "96",
+        "diastolic_bp": "58",
+        "heart_rate": "124",
+        "oxygen_saturation": "98",
+        "pain_score": "5",
+        "respiratory_rate": "32",
+        "temperature": "37.4",
+        "e": "3",
+        "v": "4",
+        "m": "6",
+        "weight": "50",
+        "height": "158",
+        "entry_datetime": "2026-09-24 20:15"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

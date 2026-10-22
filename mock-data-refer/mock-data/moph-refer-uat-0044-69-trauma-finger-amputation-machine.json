@@ -1,0 +1,118 @@
+{
+    "refer_out_no": "0044/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-05 10:40",
+    "refer_expire_date": "2026-11-04 23:59",
+    "hcode_origin": "C0016",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "2",
+    "emergency": "2",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000044",
+            "cid": "1101700204448",
+            "title_name": "นาย",
+            "first_name": "สมบัติ",
+            "middle_name": "",
+            "last_name": "แก้วกาญจน์",
+            "gender": "M",
+            "birthdate": "1985-11-05",
+            "mobile_no": "0812347228"
+        },
+        "address": {
+            "no": "64/39",
+            "village_no": "9",
+            "street": "ถนนเทพารักษ์",
+            "subdistrict": "บางพลีใหญ่",
+            "district": "บางพลี",
+            "province": "สมุทรปราการ",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "ปฏิเสธโรคประจำตัว สูบบุหรี่ 10 มวน/วัน",
+    "record_illness_present": "มือซ้ายถูกเครื่องปั๊มโลหะทับ 09:50 น. นิ้วชี้และนิ้วกลางขาดระดับ proximal phalanx เลือดออกมาก ชิ้นส่วนนิ้วเก็บใส่ถุงแช่น้ำแข็งมาด้วย",
+    "test_results": "X-ray Lt hand: amputation through proximal phalanx of index and middle fingers | Hct 38%",
+    "initial_diagnosis_free_text": "Traumatic amputation of left index and middle fingers at proximal phalanx level, ischemic time 50 min",
+    "initial_diagnosis": [
+        {
+            "icd10": "S68.2",
+            "dx_name": "Traumatic amputation of two or more fingers alone",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "9356",
+            "datetime": "2026-10-05 10:00",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Application of pressure dressing"
+        },
+        {
+            "icd9": "8823",
+            "datetime": "2026-10-05 10:10",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Skeletal x-ray of wrist and hand"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-05 10:05",
+            "end_time": "2026-10-05 10:05",
+            "code": "MORP10",
+            "name": "Morphine 10 mg/ml",
+            "description": "4 mg IV"
+        },
+        {
+            "start_time": "2026-10-05 10:15",
+            "end_time": "2026-10-05 10:15",
+            "code": "CEFA1",
+            "name": "Cefazolin 1 g",
+            "description": "1 g IV"
+        },
+        {
+            "start_time": "2026-10-05 10:20",
+            "end_time": "2026-10-05 10:20",
+            "code": "TT05",
+            "name": "Tetanus toxoid 0.5 ml",
+            "description": "0.5 ml IM"
+        }
+    ],
+    "treatment_provided": "Pressure dressing ยกมือสูง, ชิ้นส่วนนิ้วห่อก๊อซชุบ NSS ใส่ถุงพลาสติกแช่น้ำแข็ง, Cefazolin 1 g IV, TT 0.5 ml IM, Morphine 4 mg IV, NPO",
+    "reason_refer": "ส่งต่อศัลยแพทย์ตกแต่ง/จุลศัลยกรรม เพื่อพิจารณา replantation (golden period 6 ชม.)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "134",
+        "diastolic_bp": "82",
+        "heart_rate": "98",
+        "oxygen_saturation": "99",
+        "pain_score": "9",
+        "respiratory_rate": "20",
+        "temperature": "36.8",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "70",
+        "height": "168",
+        "entry_datetime": "2026-10-05 10:40"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": []
+}

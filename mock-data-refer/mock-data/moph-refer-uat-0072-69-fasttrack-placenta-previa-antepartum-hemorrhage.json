@@ -1,0 +1,125 @@
+{
+    "refer_out_no": "0072/69",
+    "his_id": "ea80c6fd-718d-494e-b3a3-9d3ab641358f",
+    "refer_expire_type": "date",
+    "refer_date": "2026-10-07 05:35",
+    "refer_expire_date": "2026-11-06 23:59",
+    "hcode_origin": "22810",
+    "hcode_destination": "10661",
+    "opd_or_ipd": "IPD",
+    "patient_type": "3",
+    "emergency": "1",
+    "doctor_cid": "1101700203450",
+    "medical_coverage": {
+        "maininscl": "SSS",
+        "ref_name": "สิทธิประกันสังคม",
+        "hcode_main": "10661",
+        "hcode_sub": "10695",
+        "no": "13471",
+        "hcode_payment": "10661"
+    },
+    "hospital_origin_phone": "022577000",
+    "patient": {
+        "profile": {
+            "hn": "UAT000072",
+            "cid": "1101700204723",
+            "title_name": "นาง",
+            "first_name": "เบญจมาศ",
+            "middle_name": "",
+            "last_name": "พลเยี่ยม",
+            "gender": "F",
+            "birthdate": "1993-03-03",
+            "mobile_no": "0812348264"
+        },
+        "address": {
+            "no": "92/55",
+            "village_no": "1",
+            "street": "ถนนพระราม 4",
+            "subdistrict": "ลุมพินี",
+            "district": "ปทุมวัน",
+            "province": "กรุงเทพมหานคร",
+            "remark": "ข้อมูลสมมติสำหรับ UAT"
+        }
+    },
+    "request_type": "1",
+    "record_illness_past": "G3P2 GA 32 สัปดาห์ ผ่าตัดคลอด 2 ครั้ง ฝากครรภ์พบรกเกาะต่ำตั้งแต่ GA 28 สัปดาห์",
+    "record_illness_present": "เลือดสดออกทางช่องคลอดไม่ปวดท้อง ตั้งแต่ 04:10 น. ชุ่มผ้าอนามัย 4 ผืน ประมาณ 600 ml เด็กดิ้นดี ไม่มีน้ำเดิน",
+    "test_results": "Hct 28% (เดิม 34%) | Plt 210,000 | U/S: placenta previa totalis, anterior, FHS 152 bpm, EFW 1,850 g | ไม่ตรวจภายใน | Blood group B Rh positive",
+    "initial_diagnosis_free_text": "Placenta previa totalis with antepartum hemorrhage, G3P2 GA 32 wk, previous cesarean section x2 (suspected placenta accreta spectrum)",
+    "initial_diagnosis": [
+        {
+            "icd10": "O44.1",
+            "dx_name": "Placenta praevia with haemorrhage",
+            "dx_type": "PP"
+        }
+    ],
+    "procedure": [
+        {
+            "icd9": "8878",
+            "datetime": "2026-10-07 04:35",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Diagnostic ultrasound of gravid uterus"
+        },
+        {
+            "icd9": "5794",
+            "datetime": "2026-10-07 04:50",
+            "anaesthesia_type": "3",
+            "ansesthesia_other_description": "",
+            "description": "Insertion of indwelling urinary catheter"
+        }
+    ],
+    "medication_history": [
+        {
+            "start_time": "2026-10-07 04:30",
+            "end_time": "2026-10-07 05:30",
+            "code": "LRS1000",
+            "name": "Lactated Ringer 1,000 ml",
+            "description": "IV drip 1,000 ml"
+        },
+        {
+            "start_time": "2026-10-07 04:45",
+            "end_time": "2026-10-07 04:45",
+            "code": "DEXA4",
+            "name": "Dexamethasone 4 mg/ml",
+            "description": "6 mg IM (เข็มที่ 1)"
+        },
+        {
+            "start_time": "2026-10-07 05:00",
+            "end_time": "2026-10-07 05:20",
+            "code": "MGSO4",
+            "name": "Magnesium sulfate 10% 10 ml",
+            "description": "4 g IV ใน 20 นาที (neuroprotection)"
+        }
+    ],
+    "treatment_provided": "On IV 2 เส้น LRS 1,000 ml, Dexamethasone 6 mg IM (เข็มที่ 1), MgSO4 4 g IV เพื่อ neuroprotection, นอนพัก ไม่ตรวจภายใน, retain Foley catheter",
+    "reason_refer": "ส่งต่อสูติแพทย์เพื่อผ่าตัดคลอดฉุกเฉิน ต้องการธนาคารเลือด ICU และ NICU (ต้นทางมีเลือดไม่เพียงพอ)",
+    "more_detail": "ข้อมูลสมมติสำหรับทดสอบ UAT | พยาบาลห้องคลอดนำส่ง ฟัง FHS ทุก 15 นาที",
+    "infective_disease": "",
+    "vital_sign": {
+        "systolic_bp": "100",
+        "diastolic_bp": "60",
+        "heart_rate": "112",
+        "oxygen_saturation": "98",
+        "pain_score": "1",
+        "respiratory_rate": "20",
+        "temperature": "36.7",
+        "e": "4",
+        "v": "5",
+        "m": "6",
+        "weight": "68",
+        "height": "156",
+        "entry_datetime": "2026-10-07 05:35"
+    },
+    "is_signing": false,
+    "is_test_signing": false,
+    "is_close_qrcode_signing": false,
+    "signature": [],
+    "illness_file_list": [
+        {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAPAAAACgCAIAAAC9uXYyAAABRUlEQVR42u3SMQ0AAAgEsfcvkJEZGahgIU2q4HKpHngjEmBoMDQYGgyNocHQYGgwNBgaQ4OhwdBgaDA0hgZDg6HB0GBoDA2GBkODocHQGBoMDYYGQ4OhMTQYGgwNhgZDY2gwNBgaDI2hwdBgaDA0GBpDg6HB0GBoMDSGBkODocHQYGgMDYYGQ4OhwdAYGgwNhgZDg6ExNBgaDA2GBkNjaDA0GBoMDYbG0GBoMDQYGkODocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaQ6uAocHQYGgwNIYGQ4OhwdBgaAwNhgZDg6HB0BgaDA2GBkODoTE0GBoMDYYGQ2NoMDQYGgwNhsbQYGgwNBgaDI2hwdBgaDA0hgZDg6HB0GBoDA2GBkPDjQUzwH7qLGW4UQAAAABJRU5ErkJggg==",
+            "file_name": "lab-result.png",
+            "file_type": "LAB"
+        }
+    ]
+}

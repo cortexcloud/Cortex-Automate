@@ -14,11 +14,20 @@
     "data:patients:reception": "playwright test tests/data",
     "report": "playwright show-report",
     "codegen": "playwright codegen --channel=chrome --viewport-size=1920,1080 --load-storage=.auth/Super_User.json https://dev-x.cortexcloud.co/cortex/apps",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "mock:uat-er": "playwright test -c playwright.sbh-prod.config.ts UAT-ER-mock-data",
+    "mock:uat-er:dev": "playwright test -c playwright.mock.config.ts UAT-ER-mock-data",
+    "mock:refer": "node mock-data-refer/send-refer.mjs",
+    "mock:refer:new": "node mock-data-refer/make-refer-files.mjs",
+    "er:close-visits": "node mock-data/close-er-visits.mjs sbh-prod",
+    "er:close-visits:dev": "node mock-data/close-er-visits.mjs dev-x",
+    "card:prod": "playwright test -c playwright.sbh-prod.cards.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.19.0",
+    "exceljs": "^4.4.0",
+    "pdfjs-dist": "^6.4.299",
     "typescript": "^7.0.2"
   }
 }
