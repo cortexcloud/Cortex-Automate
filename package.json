@@ -10,6 +10,8 @@
     "test:debug": "playwright test --debug",
     "test:module:er": "playwright test tests/modules/er",
     "test:e2e": "playwright test tests/E2E",
+    "data:patients:er": "playwright test tests/data",
+    "data:patients:reception": "playwright test tests/data",
     "report": "playwright show-report",
     "codegen": "playwright codegen --channel=chrome --viewport-size=1920,1080 --load-storage=.auth/Super_User.json https://dev-x.cortexcloud.co/cortex/apps",
     "typecheck": "tsc --noEmit",

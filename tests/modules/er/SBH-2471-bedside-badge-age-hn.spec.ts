@@ -25,8 +25,8 @@ import {
 } from '../../../helpers/functions/er-badge';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { triageForm } from '../../../helpers/functions/er-triage';
-import { alerted, checkStep, clicked, expected, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
-import { newTestPatient, type NewPatient } from '../../../helpers/functions/test-data';
+import { alerted, checkStep, clicked, expected, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/support/evidence';
+import { newTestPatient, type NewPatient } from '../../../helpers/data/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { SYSTEM, recordMockPatient, registerAndOpenErVisit } from '../../../mock-data/uat-er';
 import { VITALS_NORMAL, fillTriage, gotoVisit, saveTriageForm } from '../../../mock-data/uat-play';

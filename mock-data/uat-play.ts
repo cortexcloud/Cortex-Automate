@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expectOk, openTriagePage, openVisitDialog, registerNewPatient, waitForApi, type ErVisit } from '../helpers/functions/er';
 import { ESI_BUTTON, chooseGcs, fillVitalSigns, saveButton, selectArrivalDetail, triageForm, type VitalSigns } from '../helpers/functions/er-triage';
-import type { NewPatient } from '../helpers/functions/test-data';
+import type { NewPatient } from '../helpers/data/test-data';
 import { authFile } from '../utils/env';
 import { cacheAppAssets } from './fixtures';
 import { SYSTEM, confirmOrderAlert, orderAlert } from './uat-er';

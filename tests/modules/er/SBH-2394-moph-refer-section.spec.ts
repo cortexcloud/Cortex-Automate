@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expectVisitHeader } from '../../../helpers/functions/er';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
-import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/support/evidence';
 import {
   REFER_IN_PATH,
   REFER_SECTIONS,

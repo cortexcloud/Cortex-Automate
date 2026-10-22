@@ -65,9 +65,9 @@ import {
   type SheetValue,
 } from '../../../helpers/functions/er-report';
 import { saveTriage } from '../../../helpers/functions/er-triage';
-import { alerted, checkStep, clicked, expected, filled, markEvidence, snapEvidence } from '../../../helpers/functions/evidence';
-import { expect, test } from '../../../helpers/functions/fixtures';
-import { newTestPatient } from '../../../helpers/functions/test-data';
+import { alerted, checkStep, clicked, expected, filled, markEvidence, snapEvidence } from '../../../helpers/support/evidence';
+import { expect, test } from '../../../helpers/support/fixtures';
+import { newTestPatient } from '../../../helpers/data/test-data';
 
 // SBH-1401 [ER][ER Statistics Report] 4. รายงานแสดงคุณภาพของห้องฉุกเฉิน (TOR 4.9.8.10.4)
 // แปลงจากชุด Manual: EXE SBH-2338 → TC-001–008 (SBH-2343–SBH-2350) · 2 เทสตาม flow (R9):

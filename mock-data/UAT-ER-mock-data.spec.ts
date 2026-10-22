@@ -11,9 +11,9 @@ import {
 } from '../helpers/functions/er';
 import { trackAuthorization } from '../helpers/functions/er-report';
 import { triageForm } from '../helpers/functions/er-triage';
-import { checkStep, expected, markEvidence } from '../helpers/functions/evidence';
+import { checkStep, expected, markEvidence } from '../helpers/support/evidence';
 import type { ErVisit } from '../helpers/functions/er';
-import type { NewPatient } from '../helpers/functions/test-data';
+import type { NewPatient } from '../helpers/data/test-data';
 import { expect, test } from './fixtures';
 import {
   SETTINGS,

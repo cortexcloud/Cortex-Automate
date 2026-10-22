@@ -41,7 +41,7 @@ export function buildConfig({ env, testDir = './tests', testMatch }: SystemOptio
       navigationTimeout: env ? 90_000 : 30_000,
       trace: 'retain-on-failure',
       // หลักฐาน (R13): วิดีโอทุกเทสทุกรอบ ขนาดเท่าจอ (ตัวหนังสือไทยในวิดีโออ่านออก) ·
-      // ภาพ ณ จุดที่เช็ค Expected / จุด Error แนบใต้ step ผ่าน checkStep() (helpers/evidence.ts)
+      // ภาพ ณ จุดที่เช็ค Expected / จุด Error แนบใต้ step ผ่าน checkStep() (helpers/support/evidence.ts)
       // screenshot ด้านล่าง = ภาพท้ายเทสตอน fail ของ Playwright เอง (กันกรณีพังนอก checkStep)
       screenshot: 'only-on-failure',
     },
@@ -56,7 +56,7 @@ export function buildConfig({ env, testDir = './tests', testMatch }: SystemOptio
       {
         // role ตั้งต้น = Super_User · เทสที่ต้องใช้ role อื่น: test.use({ storageState: authFile('Doctor') })
         // แล้วเพิ่ม role นั้นใน ROLES_IN_USE (utils/env.ts)
-        // วิดีโอของเทสอัดโดย fixture ใน helpers/fixtures.ts (เริ่มหลังแอปโหลดเสร็จ ตัดช่วงจอขาว) — ไม่ใช้ video ของ config
+        // วิดีโอของเทสอัดโดย fixture ใน helpers/support/fixtures.ts (เริ่มหลังแอปโหลดเสร็จ ตัดช่วงจอขาว) — ไม่ใช้ video ของ config
         // trace ไม่เก็บภาพ (screenshots: false): ภาพของ trace ใช้ screencast ตัวเดียวกับวิดีโอและเริ่มก่อน
         // วิดีโอจะได้ภาพขนาดของ trace (800×450) แทน 1920×1080 · trace ยังมี DOM snapshot ทุก action ไว้ไล่สาเหตุ
         name: 'chrome',

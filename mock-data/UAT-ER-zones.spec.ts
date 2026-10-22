@@ -1,8 +1,8 @@
 import { dismissToast, expectOk, expectTriageFormOpen, gotoErDashboard, type ErVisit } from '../helpers/functions/er';
 import { trackAuthorization } from '../helpers/functions/er-report';
 import { triageForm } from '../helpers/functions/er-triage';
-import { checkStep, expected, markEvidence } from '../helpers/functions/evidence';
-import type { NewPatient } from '../helpers/functions/test-data';
+import { checkStep, expected, markEvidence } from '../helpers/support/evidence';
+import type { NewPatient } from '../helpers/data/test-data';
 import { expect, test } from './fixtures';
 import { SYSTEM, nextPrefixedPatient, nextSetNumberOf, recordMockPatient, registerAndOpenErVisit } from './uat-er';
 import { VITALS_NORMAL, boardEncounter, fillTriage, gotoVisit, mockPatient, saveTriageForm } from './uat-play';

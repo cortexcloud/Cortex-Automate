@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { confirmOpenErVisit, expectOk, openTriagePage, registerNewPatient, selectExistingPatient, waitForApi, type ErVisit } from '../helpers/functions/er';
 import { graphqlMutation } from '../helpers/functions/er-disposition';
-import { randomThaiId, type NewPatient } from '../helpers/functions/test-data';
+import { randomThaiId, type NewPatient } from '../helpers/data/test-data';
 import { envName } from '../utils/env';
 
 // ส่วนใช้ร่วมของสคริปต์เตรียม Mock Data UAT ER (R31) — ลองบน dev-x ก่อน แล้วรันจริงบน SBH Prod

@@ -39,9 +39,9 @@ import {
   type Sheet,
 } from '../../../helpers/functions/er-report';
 import { chooseGcs, labelledBox, saveButton, selectArrivalDetail, triageForm } from '../../../helpers/functions/er-triage';
-import { checkStep, clicked, expected, filled, markEvidence, snapEvidence } from '../../../helpers/functions/evidence';
-import { expect, test } from '../../../helpers/functions/fixtures';
-import { newTestPatient } from '../../../helpers/functions/test-data';
+import { checkStep, clicked, expected, filled, markEvidence, snapEvidence } from '../../../helpers/support/evidence';
+import { expect, test } from '../../../helpers/support/fixtures';
+import { newTestPatient } from '../../../helpers/data/test-data';
 
 // SBH-1400 [ER][ER Statistics Report] 3. รายงานรายเดือน (TOR 4.9.8.10.3)
 // แปลงจากชุด Manual: EXE SBH-2313 → TC-001–004 (SBH-2316–SBH-2319) · 1 เทส = 1 flow (R9)

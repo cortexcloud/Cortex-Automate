@@ -8,7 +8,7 @@ import {
   registerNewPatient,
   type ErVisit,
 } from '../functions/er';
-import { newTestPatient } from '../functions/test-data';
+import { newTestPatient } from '../data/test-data';
 
 // Flow-level sequences ของ module ER (ใช้ซ้ำข้าม spec ได้) — 30 ก.ย. 2026
 // flow = sequence ของ page action ที่เป็นหน่วยงานหนึ่งชิ้นทาง business

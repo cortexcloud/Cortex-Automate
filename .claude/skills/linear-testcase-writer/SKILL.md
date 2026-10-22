@@ -9,6 +9,8 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
 
 สร้างเฉพาะลำดับชั้นนี้: Requirement → EXE → Scenario → Test Case (EXE อยู่ใต้ Requirement, Scenario อยู่ใต้ EXE, Test Case อยู่ใต้ Scenario) ห้ามสร้าง item นอกลำดับชั้นนี้
 
+> **สไตล์ภาษา**: ตาม skill `plain-writing-th` (`~/.agents/skills/plain-writing-th/SKILL.md`) — skill นี้กำหนดเฉพาะ **โครง EXE/Scenario/Test Case** (ชื่อ, template, label) ถ้าเรื่องภาษาขัดกัน ให้ยึด `plain-writing-th`
+
 > **หมายเหตุ**: สกิลนี้เคยมีเวอร์ชันขัดกันอยู่ 2 ชุด (ชุดนี้ กับสกิล `linear-execution-test`) ตั้งแต่ 30 ก.ย. 2026 ได้รวมเป็น ruleset เดียวแล้วตามที่เขียนในไฟล์นี้ — ห้ามใช้กฎเก่าของเวอร์ชันก่อนหน้า และห้ามอ้างอิง `linear-execution-test` แทนไฟล์นี้
 
 ## ขั้นตอน
@@ -18,11 +20,14 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
    - project, team, priority, state, labels, assignee
    - Clone context จาก requirement ทุกครั้งที่ทำได้
    - ดึง issue จาก Linear ตามที่โปรเจกต์มี: Linear MCP ถ้าต่ออยู่, ไม่เช่นนั้น `LINEAR_API_KEY` / helper ในโปรเจกต์ (เช่น `src/tools/linear.ts`) — ห้ามเดา field ที่ไม่ได้ดึงมาจริง
-2. วิเคราะห์ requirement ตาม **Generation rules**
-3. Resolve ค่าตาม **Resolve test attributes**
-4. สร้างโครงตาม **Naming rules**, **Body rules**, **Label rules**
-5. รัน **Final consistency check** ก่อนส่งคำตอบทุกครั้ง
-6. ทำตาม **Creation behavior** — อย่าสร้างอะไรจริงจนกว่าจะได้รับการยืนยันชัดเจน
+2. **ถาม QA 2 เรื่องนี้ก่อนเริ่มวิเคราะห์เสมอ** (ดูรายละเอียด/ตัวอย่างคำถามที่ **Generation rules → Test granularity: atomic vs flow-style**):
+   - อยากได้ Test Case แบบ **atomic** (ค่าเริ่มต้น, 1 TC = 1 พฤติกรรม) หรือ **flow-style** (รวมหลาย step ต่อเนื่องเข้า TC เดียว)
+   - มี business flow/logic เฉพาะของระบบที่ AC ไม่ได้เขียนตรงๆ แต่อยากให้รู้ก่อนไหม
+3. วิเคราะห์ requirement ตาม **Generation rules**
+4. Resolve ค่าตาม **Resolve test attributes**
+5. สร้างโครงตาม **Naming rules**, **Body rules**, **Label rules**
+6. รัน **Final consistency check** ก่อนส่งคำตอบทุกครั้ง
+7. ทำตาม **Creation behavior** — อย่าสร้างอะไรจริงจนกว่าจะได้รับการยืนยันชัดเจน
 
 ## กฎทั่วไป (บังคับ)
 
@@ -32,7 +37,7 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
 - ห้ามตัด section ที่ต้องมีออก
 - ห้ามเพิ่ม section พิเศษ เว้นแต่ผู้ใช้ขอเอง
 - ห้ามใส่ BDD เว้นแต่ผู้ใช้ขอเอง
-- ห้ามรวมหลาย check ไว้ใน Test Case เดียว (1 Test Case = 1 พฤติกรรมที่ตรวจ)
+- ห้ามรวมหลาย check ไว้ใน Test Case เดียว (1 Test Case = 1 พฤติกรรมที่ตรวจ) — ค่าเริ่มต้นเสมอ ยกเว้น QA เลือกโหมด flow-style ตามที่ถามไว้ในขั้นตอนข้อ 2 (ดู Generation rules → Test granularity)
 - ชื่อ Test Case ต้องเป็น**ภาษาไทยเท่านั้น**
 - เนื้อหาต้องกระชับ ใช้งานได้จริง เน้น execution
 - **รักษา template เดิมไว้เสมอแม้ข้อมูลจะขาด** — ถ้าข้อมูลไม่มี ให้คงหัวข้อ/ฟิลด์ไว้แล้วใส่ `-` แทน
@@ -56,6 +61,22 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
 3. ถ้าไม่เจอ business behavior เลย ห้ามสร้าง `[Required]` EXE/Scenario/Test Case และให้ถาม QA หา user flow, expected result, validation, error handling, หรือ permission/role ที่ต้องเทส
 
 รายงาน requirement gap แยกไว้นอกลำดับชั้น จัดกลุ่มตาม: expected behavior, validation, error handling, permission/role, edge cases
+
+### Test granularity: atomic vs flow-style
+
+ก่อนเริ่มวิเคราะห์ทุกครั้ง ต้องถาม QA ก่อนว่าต้องการ Test Case แบบไหน (ดู ขั้นตอน ข้อ 2):
+
+- **Atomic (ค่าเริ่มต้น)** — 1 Test Case ตรวจ 1 พฤติกรรม/1 การเช็คเท่านั้น (ตามกฎทั่วไปเดิม) เหมาะกับ unit-level behavior ที่ไม่ต่อเนื่องกัน หรือ QA ต้องการ traceability ละเอียดสุดต่อ AC bullet
+- **Flow-style** — รวมหลาย step ที่เป็น **sequential flow เดียวกันจริง** (output ของ step ก่อนหน้า = precondition ของ step ถัดไป, อยู่หน้า/session เดียวกัน) เข้าเป็น Test Case เดียว เหมาะกับ integration/functional test ที่ QA อยากเห็นภาพรวมการใช้งานจริงต่อเนื่อง ไม่ใช่ไล่ assertion ทีละจุด
+  - TC ที่เป็นทางเลือกคู่ขนาน (เช่น login method คนละตัวเลือกในฟอร์มเดียวกัน) หรือวิธีตรวจสอบคนละแบบ (DB vs UI vs API) ยังคงแยก Test Case เสมอ ไม่รวมแม้เลือกโหมด flow-style
+  - Expected Result ยังคงเป็น 1 bullet ต่อ checkpoint (ไม่รวมเป็นประโยคเดียว) เพื่อไม่ให้เสีย traceability ว่า step ไหนคาดผลอะไร
+  - Actual Result รายงานแยกต่อ checkpoint เหมือนเดิม (ถ้า checkpoint ไหน fail ยังรู้ว่าจุดไหนพังโดยไม่ต้องแยก TC)
+
+ถาม QA พร้อมตัวอย่างจริงจาก AC ของการ์ดนี้เสมอ (ไม่ใช่ถามลอยๆ) เพื่อให้ QA ตัดสินใจได้ง่าย เช่น "AC นี้มีหลาย step ต่อเนื่องกัน (สร้าง → ค้นหา → login) อยากแยกเป็น 3 TC หรือรวมเป็น 1 TC flow เดียว?"
+
+ถ้า QA เลือก flow-style ให้ยังใช้ Test Case body template เดิมทุกหัวข้อ (ห้ามเปลี่ยน/ตัด section) เพียงแต่ Test Steps ยาวขึ้นไล่ทุก step ของ flow ต่อเนื่อง
+
+**เรื่อง business flow/logic**: ถามแยกจากเรื่อง granularity เสมอ — เช่น "มี business rule หรือกลไกเฉพาะของระบบที่ไม่ได้เขียนไว้ใน AC ตรงๆ แต่อยากให้ผมรู้ก่อนไหม (เช่น state เริ่มต้นของข้อมูล, ลำดับที่ระบบประมวลผลจริง, เงื่อนไขพิเศษ)" — เพื่อลดการเดา/infer ผิดจาก AC ที่เขียนสั้นเกินไป (สอดคล้องกับกฎ "ห้าม infer/แต่ง/ขยายความเนื้อหาที่ขาดหายไปเอง" ที่มีอยู่แล้ว)
 
 ### Subject-only rules (การ์ดมีแค่หัวเรื่อง)
 
@@ -239,6 +260,25 @@ Actual Result
 
 Use plain text only for TC ID and Scenario ID.
 
+## สไตล์การเขียน content
+
+ใช้กับเนื้อหาที่คนอ่าน — Expected Result, Actual Result, หมายเหตุ, สรุปผลในการ์ดแม่ — ให้อ่านแล้วเข้าใจทันทีโดยไม่ต้องเป็น dev แต่รายละเอียดยังครบ (ไม่ได้เปลี่ยน template/หัวข้อเดิม)
+
+- หลักเดียวกับชื่อ Test Case: บอกให้ชัดว่า **อะไร + ที่ไหน + เงื่อนไข/อาการ**
+- **Actual Result** ที่ไม่ผ่าน ให้เล่าตามลำดับ: เกิดอะไรขึ้น → ที่ไหน → ผู้ใช้เห็นอาการแบบไหน → ผลคือข้อมูลบันทึก/ไม่บันทึก — เช่น "กด Save แล้วหน้าจอไม่แจ้งอะไรเลย แต่พอ reload คำตอบกลับเป็นค่าเดิม — ข้อมูลไม่ถูกบันทึก"
+- ประโยคสั้น 1 ใจความต่อ bullet, ชื่อเมนู/ปุ่มสะกดตามหน้าจอจริง
+- ศัพท์ technical (status code, endpoint, payload, graphql, composition) ห้ามตัดทิ้ง แต่ให้ตามหลังคำอธิบายภาษาผู้ใช้ หรือแยกเป็น bullet "รายละเอียดสำหรับ dev"
+- คำเฉพาะทางที่คนทั่วไปไม่รู้ เช่น "silent fail", "toast" → เขียนเป็นภาษาธรรมดา ("ไม่มีข้อความแจ้งเตือน", "ขึ้นข้อความแจ้งเตือนมุมจอ")
+- ข้อความ error ที่ระบบแสดง คัดลอกตามจริงในเครื่องหมายคำพูด
+- ห้ามเดาสาเหตุเป็นข้อสรุป ("น่าจะเพราะ ...") — ถ้ายังไม่ยืนยันให้เขียน "ต้องให้ dev ยืนยันว่า ..."
+
+ตัวอย่าง Actual Result:
+
+- ❌ `Save ไม่สำเร็จ — 412 Precondition Failed ที่ contribution, UI silent fail`
+- ✅ `กด Save แล้วหน้าจอไม่แจ้งอะไรเลย แต่หลัง reload ค่าที่เลือกกลับเป็นค่าเดิม — ข้อมูลไม่ถูกบันทึก (รายละเอียดสำหรับ dev: 412 POST /ehrbase/.../contribution)`
+
+การ์ด bug ที่เกิดจาก TC ไม่ผ่าน ให้เขียนด้วย skill `qa-bug-writer`
+
 ## Final consistency check (เช็คก่อนตอบทุกครั้ง)
 
 - titles ตรงรูปแบบที่กำหนดเป๊ะ
@@ -252,6 +292,7 @@ Use plain text only for TC ID and Scenario ID.
 - ไม่มี section ไหนหายไปหรือเกินที่ไม่ได้ขอ
 - ไม่มี Test Case ที่ตรวจหลายพฤติกรรมในอันเดียว
 - Test Case แบบ Optional technical/Unit ที่ไม่ได้รัน ต้องเป็นสถานะ `Not Test` และไม่มี label `QA Execution Type`
+- Expected/Actual Result อ่านเข้าใจได้โดยไม่ต้องเป็น dev (อะไร + ที่ไหน + อาการ) และรายละเอียด technical ยังอยู่ครบ
 
 ถ้าเจอจุดไม่ตรง ให้แก้ก่อนส่งคำตอบ
 
@@ -262,10 +303,17 @@ Use plain text only for TC ID and Scenario ID.
   1. เสนอโครงสร้างที่เตรียมไว้ก่อน (ถ้าไม่ใช่เคสง่าย ๆ)
   2. แก้ไขตามที่ขอถ้ามี
   3. สร้างจริงเฉพาะเมื่อได้รับการยืนยันชัดเจนแล้วเท่านั้น
+  4. ก่อนสร้างการ์ดจริงทุกครั้ง **ต้องถามชื่อคนที่จะเป็น assignee จากผู้ใช้ก่อนเสมอ** ห้ามเดา ห้ามคัดลอกจากการ์ดแม่ และห้ามปล่อยว่างเองโดยไม่ถาม · เช็คบัญชีที่ Linear connector ใช้ด้วย `get_user("me")` แล้วแจ้งผู้ใช้ว่าการ์ดจะขึ้นชื่อผู้สร้างเป็นใคร ถ้าไม่ใช่ตัวผู้ใช้ให้หยุดถามก่อน เพราะชื่อผู้สร้างแก้ทีหลังไม่ได้
 - ให้โครงสร้างกระชับและใช้งานได้จริงเสมอ
 
 ## Skill update log
 
 หลังแก้สกิลนี้สำเร็จทุกครั้ง เพิ่ม entry ใหม่ไว้บนสุดของ log นี้ รูปแบบ `YYYY-MM-DD` — สรุปสั้นๆ ว่าแก้กฎ/ขั้นตอนไหน แล้วแจ้งผู้ใช้ด้วยวันที่ + สรุปที่แก้ ห้ามบอกว่าอัปเดตแล้วถ้ายังไม่ได้ save จริง
+
+`2026-10-22` — Creation behavior ข้อ 4: ถามชื่อ assignee ก่อนสร้างการ์ดทุกครั้ง + เช็คบัญชี connector ด้วย `get_user("me")` (เหตุ: SBH-2885 ถูกสร้างเป็นชื่อบัญชีอื่นโดยไม่ได้ถาม)
+
+`2026-10-20` — เพิ่ม section "สไตล์การเขียน content" (ก่อน Final consistency check): เขียน Expected/Actual/หมายเหตุ ให้อ่านง่าย บอก อะไร + ที่ไหน + อาการ, ศัพท์ technical ไม่ตัดแต่ตามหลังคำอธิบายหรือแยกเป็น "รายละเอียดสำหรับ dev", ห้ามเดาสาเหตุ, ตัวอย่างดี/ไม่ดี, ชี้ไป skill `qa-bug-writer` สำหรับการ์ด bug + เพิ่ม 1 ข้อใน Final consistency check
+
+`2026-10-14` — เพิ่มขั้นตอนถาม QA ก่อนวิเคราะห์ทุกครั้ง (ขั้นตอนข้อ 2 ใหม่): (1) เลือกโหมด **atomic** (ค่าเริ่มต้น เหมือนเดิมทุกประการ) หรือ **flow-style** (รวมหลาย sequential step ที่ output ของ step ก่อนหน้า = precondition ของ step ถัดไป เข้าเป็น TC เดียว — เพิ่ม subsection "Test granularity: atomic vs flow-style" ใต้ Generation rules อธิบายเงื่อนไข/ข้อยกเว้นเต็ม) (2) ถาม business flow/logic เฉพาะของระบบแยกต่างหากเพื่อลดการเดา/infer ผิด — ปรับกฎ "ห้ามรวมหลาย check ไว้ใน TC เดียว" ให้มีข้อยกเว้นเมื่อ QA เลือก flow-style ชัดเจน (เดิมกฎนี้เคยผ่อนปรนแบบ one-off เฉพาะงาน COR-1724 ของโปรเจกต์ Cortex-Automate เท่านั้น บันทึกไว้ตอนนั้นว่า "ใช้เฉพาะงานนี้ก่อน ยังไม่แก้สกิลถาวร" — ผู้ใช้ยืนยันแล้วว่าเปลี่ยนใจให้เป็น default behavior ถาวรของสกิลนี้ทุกโปรเจกต์)
 
 `2026-09-30` — รวม ruleset กับสกิล `linear-execution-test` ที่เคยขัดกัน: บังคับ tag `[Required]`/`[Optional]` ทุก TC เสมอ, Test Level เลือกตาม TC จริงแทนที่จะตายตัวที่ System, Priority เพิ่มเป็น 4 ระดับ (มี Urgent), เปลี่ยนชุด label เป็น `QA Case Type`/`QA Type`/`QA Run`/`QA Execution Type` พร้อมบังคับยืนยัน QA Module/Sub-module ก่อนสร้าง, รับ Scope/Version resolution order และ Environment resolution มาใช้, เพิ่ม section นี้ (Skill update log) — คงไว้ field "อนุมัติโดย" ใน EXE และโน้ต auto-fill ของ Actual Result (ผูกกับ Node 6 Result Reporter) จากเวอร์ชันเดิมของโปรเจกต์นี้ · ไฟล์นี้ต้องเหมือนกันทุกตัวอักษรกับ `~/.claude/skills/linear-testcase-writer/SKILL.md` (global) — แก้ที่หนึ่ง ต้องแก้อีกที่ให้ตรงกันด้วยเสมอ
