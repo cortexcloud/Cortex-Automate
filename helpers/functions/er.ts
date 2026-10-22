@@ -91,7 +91,7 @@ export async function openTriagePage(page: Page) {
 export async function registerNewPatient(
   page: Page,
   patient: NewPatient,
-): Promise<{ hn: string; namePrefix?: string; dialog: Locator }> {
+): Promise<{ hn: string; namePrefix?: string; birthDate?: string; dialog: Locator }> {
   await page.locator('label').filter({ hasText: 'ผู้ป่วยใหม่' }).click();
   await page.getByRole('textbox', { name: '* เลขบัตรประชาชน', exact: true }).fill(patient.citizenId);
   await page.getByRole('textbox', { name: '* ชื่อ', exact: true }).fill(patient.firstName);
@@ -121,12 +121,13 @@ export async function registerNewPatient(
   };
   const hn = body.patient?.data?.hn;
   if (!hn) throw new Error(`ไม่เจอ patient.data.hn ใน response ลงทะเบียน: ${JSON.stringify(body).slice(0, 300)}`);
-  expect(body.patient?.data?.birthDate, `วันเกิดที่ระบบบันทึกของ HN ${hn}`).toBe(toIsoDate(patient.birthDate));
+  // soft: ผู้ป่วยถูกสร้างไปแล้ว ให้ผู้เรียกได้จดข้อมูลก่อนเทสจบเป็น fail
+  expect.soft(body.patient?.data?.birthDate, `วันเกิดที่ระบบบันทึกของ HN ${hn}`).toBe(toIsoDate(patient.birthDate));
 
   const dialog = openVisitDialog(page);
   await expect(dialog.getByText(`HN ${hn}`, { exact: true })).toBeVisible();
   // คำนำหน้าที่ระบบตั้งให้จากเพศ — ลงทะเบียนต่อในฟอร์มเดิมแล้วค่าค้างจากคนก่อน (เจอ 20 ต.ค. 2026)
-  return { hn, namePrefix: body.patient?.data?.namePrefix?.display, dialog };
+  return { hn, namePrefix: body.patient?.data?.namePrefix?.display, birthDate: body.patient?.data?.birthDate, dialog };
 }
 
 /**

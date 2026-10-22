@@ -2,16 +2,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AiTestPatient } from './test-data';
 
+export type PatientChannel = 'er' | 'reception';
+
 // mock data ผู้ป่วยที่สร้างจริงบน dev-x (ชุด "AIทดสอบ") — เก็บใน git ให้ spec / งานถัดไป import ไปใช้ได้
 
 /** ผู้ป่วย 1 รายที่ลงทะเบียนสำเร็จแล้ว (มี HN ไม่มี Visit) */
 export interface StoredPatient extends AiTestPatient {
   hn: string;
+  /** ช่องทางที่ลงทะเบียน: หน้าคัดกรอง ER หรือเวชระเบียน (Reception) */
+  channel: PatientChannel;
   /** host ที่สร้างผู้ป่วย เช่น dev-x.cortexcloud.co — ผู้ป่วยมีอยู่แค่ใน env นั้น */
   env: string;
   /** ISO 8601 */
   createdAt: string;
-  /** ที่อยู่ (ถ้ามี) — ลงทะเบียนจาก ER ไม่มีที่อยู่ จะมีเฉพาะคนที่แก้ข้อมูลทีหลังผ่านเวชระเบียน */
+  /** ที่อยู่ — ช่องทาง Reception มีทุกคน (สุ่ม) · ช่องทาง ER มีเฉพาะคนที่แก้ข้อมูลทีหลังผ่านเวชระเบียน */
   address?: string;
   /** หมายเหตุสิ่งที่ทำกับผู้ป่วยหลังสร้าง */
   note?: string;

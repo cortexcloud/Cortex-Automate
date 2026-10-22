@@ -85,6 +85,16 @@ export function aiTestPatient(seq: string, { minAge = 18, maxAge = 80 } = {}): A
   };
 }
 
+/** บ้านเลขที่สุ่ม 1–999 (ที่อยู่ของผู้ป่วยที่ลงทะเบียนทางเวชระเบียน) */
+export function randomHouseNumber(): string {
+  return String(1 + Math.floor(Math.random() * 999));
+}
+
+/** หมู่สุ่ม 1–15 */
+export function randomMoo(): string {
+  return String(1 + Math.floor(Math.random() * 15));
+}
+
 /** DD/MM/YYYY ค.ศ. → DD/MM/YYYY พ.ศ. (ช่องวันเกิดของ Cortex รับปี พ.ศ.) */
 export function toBuddhistDate(date: string): string {
   const [d, m, y] = date.split('/');
