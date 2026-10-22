@@ -129,7 +129,9 @@ Expected Result
 - badge `DRAFT`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ NUH Operative Note (Create) = PASS
+- **Passed** — ทดสอบจริงบน OR-69-000218 (14 ต.ค. 2569): เลือก Post-operation procedure Code 86.01 สำเร็จ, กรอก Operative Finding = "QA-AUTO-20261014-1641 create OPN", กด Save แล้ว POST /ehrbase/plugin/transform-composition/flat-to-json?templateId=nuh_operative_note_general_v1 = 200 และ POST /ehrbase/rest/openehr/v1/ehr/.../contribution = 201, badge DRAFT ปรากฏข้าง "NUH Operative Note" ตรงตาม Expected
+- หลักฐาน: วิดีโอ tc001-005-operative-note-full-flow.webm แนบที่การ์ด CTXN-10770 (ครอบคลุม TC-001 ถึง TC-005)
+- พบ UI quirk (ไม่ใช่ blocker): หลังเกิด validation error แล้วพิมพ์ "86" ในช่อง Post-operation procedure Code ทันที — dropdown ICD9CM ไม่ขึ้น แม้ API ตอบ 200 ถูกต้อง แก้ได้โดยไปแตะ field อื่นก่อนแล้วกลับมา
 
 หมายเหตุ
 - -
@@ -164,7 +166,8 @@ Expected Result
 - placeholder 'Operative finding' ไม่แสดงซ้อนกับข้อความ
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ NUH Operative Note (Edit) = PASS
+- **Passed** — ทดสอบจริงบน OR-69-000218 (14 ต.ค. 2569): ต่อท้ายข้อความ " - edited" ใน Operative Finding แล้วกด Save, จากนั้น page.goto() ไปที่ URL เดิม (reload ทั้งหน้าจริง ไม่ใช่ปุ่ม refresh ของ operation), หลัง reload ข้อความ "QA-AUTO-20261014-1641 create OPN - edited" ยังอยู่ครบ badge DRAFT ยังอยู่ ไม่มี record ซ้ำเกิดขึ้น ตรงตาม Expected ทุกจุด
+- หลักฐาน: screenshot ภาพ after-reload แนบที่การ์ด CTXN-10772, วิดีโอ full flow แนบที่การ์ด CTXN-10770
 
 หมายเหตุ
 - -
@@ -203,6 +206,7 @@ Actual Result
 - **Not Test** (Linear: CTXN-10774) — ไม่มีปุ่มหรือเมนูลบจริงในหน้าจอ (ตามกติกาใหม่: TC Delete ที่ไม่มีปุ่มลบจริงให้บันทึกเป็น Not Test)
 
 หมายเหตุ
+- **สถานะใน Linear เปลี่ยนเป็น Canceled** (19 ต.ค. 2569) — user ขอให้เอา TC นี้ออกจาก scope เพราะไม่มี delete feature จริง แต่เครื่องมือไม่มีสิทธิ์ลบ issue ได้ จึงเปลี่ยนเป็น Canceled + หมายเหตุรอผู้มีสิทธิ์ลบแทน (การ์ด: CTXN-10774)
 - ได้รับการยืนยันจาก QA ว่าระบบไม่มีฟังก์ชันลบจริง
 ```
 
@@ -772,6 +776,7 @@ Actual Result
 - หลักฐาน: `.playwright-mcp/CTXN-10711/images/044-TC021-no-delete-marked.png`
 
 หมายเหตุ
+- **สถานะใน Linear เปลี่ยนเป็น Canceled** (19 ต.ค. 2569) — user ขอให้เอา TC นี้ออกจาก scope เพราะไม่มี delete feature จริง แต่เครื่องมือไม่มีสิทธิ์ลบ issue ได้ จึงเปลี่ยนเป็น Canceled + หมายเหตุรอผู้มีสิทธิ์ลบแทน (การ์ด: CTXN-11769)
 - ยืนยันจากหน้าจอจริงว่าไม่มีปุ่ม/เมนูลบฟอร์ม Nurse Note
 ```
 
@@ -803,7 +808,7 @@ Expected Result
 - แสดง Sign In และ Time Out
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anes Safety Check (Load) = PASS
+- **Passed** (Linear: CTXN-11770) — ฟอร์ม render ครบ แสดง Sign In (Q1-Q5) และ Time Out ตาม Expected
 
 หมายเหตุ
 - -
@@ -838,7 +843,7 @@ Expected Result
 - badge `DRAFT`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anes Safety Check (Create) = PASS
+- **Passed** (Linear: CTXN-11771) — เลือก Q1 = No แล้ว Save สำเร็จ (200/201) badge DRAFT ขึ้นทันที
 
 หมายเหตุ
 - -
@@ -872,7 +877,7 @@ Expected Result
 - Q4 "Is the monitor on the patient and functioning?" = No ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anes Safety Check (Edit) = PASS
+- **Passed** (Linear: CTXN-11772) — เปลี่ยน Q4 เป็น No แล้ว Save สำเร็จ ยืนยันด้วย reload เต็มหน้าจริง ค่ายังอยู่
 
 หมายเหตุ
 - -
@@ -908,9 +913,10 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anes Safety Check (Delete) = FAIL, หมายเหตุ: ไม่มีปุ่มลบ
+- **Not Test** (Linear: CTXN-11773) — ไม่มีปุ่ม/เมนูลบจริงในระบบ (ตามกฎใหม่: TC Delete ที่ไม่มีปุ่มลบจริงให้บันทึกเป็น Not Test)
 
 หมายเหตุ
+- **สถานะใน Linear เปลี่ยนเป็น Canceled** (19 ต.ค. 2569) — user ขอให้เอา TC นี้ออกจาก scope เพราะไม่มี delete feature จริง แต่เครื่องมือไม่มีสิทธิ์ลบ issue ได้ จึงเปลี่ยนเป็น Canceled + หมายเหตุรอผู้มีสิทธิ์ลบแทน (การ์ด: CTXN-11773)
 - -
 ```
 
@@ -942,7 +948,7 @@ Expected Result
 - แสดง Sign In และ Time Out
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Surgical Safety Checklist (Load) = N/T, หมายเหตุ: ถูกล็อก
+- **Passed** (Linear: CTXN-11774) — สร้าง operation ใหม่ OR-69-000221 เพราะ sub-tab ถูกล็อกจริงหลัง Anes Safety Check — ฟอร์มแสดง SIGN IN/TIME OUT/SIGN OUT (ต้อง scroll ลง)
 
 หมายเหตุ
 - -
@@ -977,7 +983,7 @@ Expected Result
 - badge `DRAFT`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Surgical Safety Checklist (Create) = N/T
+- **Passed** (Linear: CTXN-11775) — เลือก checkbox แรก "Patient has confirmed" แล้ว Save สำเร็จ badge DRAFT ขึ้นทันที
 
 หมายเหตุ
 - -
@@ -1011,7 +1017,7 @@ Expected Result
 - Q4 "Is the monitor on the patient and functioning?" = No ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Surgical Safety Checklist (Edit) = N/T
+- **Passed** (Linear: CTXN-11776) — เปลี่ยนจาก "Patient has confirmed" เป็น "Site marked" แล้ว Save ยืนยันด้วย reload เต็มหน้าจริง ค่ายังอยู่ (หมายเหตุ: Expected Result ต้นฉบับคัดลอกข้อความ Q4 จาก Anes Safety Check มาผิด ฟอร์มนี้ไม่มี Q4 นั้น)
 
 หมายเหตุ
 - -
@@ -1047,9 +1053,10 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Surgical Safety Checklist (Delete) = N/T
+- **Not Test** (Linear: CTXN-11777) — ไม่มีปุ่ม/เมนูลบจริงในระบบ ตรงกับทุก template ที่เทสมาก่อนหน้า
 
 หมายเหตุ
+- **สถานะใน Linear เปลี่ยนเป็น Canceled** (19 ต.ค. 2569) — user ขอให้เอา TC นี้ออกจาก scope เพราะไม่มี delete feature จริง แต่เครื่องมือไม่มีสิทธิ์ลบ issue ได้ จึงเปลี่ยนเป็น Canceled + หมายเหตุรอผู้มีสิทธิ์ลบแทน (การ์ด: CTXN-11777)
 - -
 ```
 
@@ -1081,7 +1088,7 @@ Expected Result
 - แสดง Sign In และ Time Out
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Surgical Safety Checklist (Load) = N/T, หมายเหตุ: ถูกล็อก
+- **Failed** (Linear: CTXN-11778) — ฟอร์มที่ render เป็น "แบบตรวจสอบความปลอดภัยสำหรับผู้ป่วยผ่าตัด" ไม่มี Sign In/Time Out เลย (ยืนยันด้วย locator shadow-DOM-aware) โครงสร้างต่างจาก Expected Result โดยสิ้นเชิง
 
 หมายเหตุ
 - -
@@ -1116,7 +1123,7 @@ Expected Result
 - badge `DRAFT`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Surgical Safety Checklist (Create) = N/T
+- **Failed — บั๊กร้ายแรง** (Linear: CTXN-11779) — template `nuh_ipd_surgical_safety_checklist_v1` ไม่มีอยู่จริงบน ehrbase เลย (400 "Could not retrieve template") ไม่มีทาง save สำเร็จได้ไม่ว่ากรอกอะไร
 
 หมายเหตุ
 - -
@@ -1150,7 +1157,7 @@ Expected Result
 - Q4 "Is the monitor on the patient and functioning?" = No ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Surgical Safety Checklist (Edit) = N/T
+- **Blocked** (Linear: CTXN-11780) — TC-031 ล้มเหลวตั้งแต่ Create เพราะ template ไม่มีอยู่จริงบน backend
 
 หมายเหตุ
 - -
@@ -1186,7 +1193,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Surgical Safety Checklist (Delete) = N/T
+- **Blocked** (Linear: CTXN-11781) — TC-031 ล้มเหลวตั้งแต่ Create เพราะ template ไม่มีอยู่จริงบน backend
 
 หมายเหตุ
 - -
@@ -1220,7 +1227,7 @@ Expected Result
 - แสดง NARESUAN ECMO DATA SHEET
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ ECMO Form (Load) = PASS
+- **Passed** (Linear: CTXN-11782) — แสดง "NARESUAN ECMO DATA SHEET" ตรงตาม Expected
 
 หมายเหตุ
 - -
@@ -1254,7 +1261,7 @@ Expected Result
 - toast `Custom note saved`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ ECMO Form (Create) = PASS
+- **Passed** (Linear: CTXN-11783) — กรอก Diagnosis แล้ว Save สำเร็จ (200/201) badge DRAFT ขึ้นทันที
 
 หมายเหตุ
 - -
@@ -1289,7 +1296,7 @@ Expected Result
 - ค่าที่แก้ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ ECMO Form (Edit) = FAIL, หมายเหตุ: record ที่บันทึกแล้วไม่มีปุ่ม Save, ค่าที่แก้หายหลัง reload
+- **Failed** (Linear: CTXN-11784) — ยืนยันแล้วตรงกับ baseline เป๊ะ: ไม่มีปุ่ม Save เลยหลังบันทึก record แรก พิมพ์แก้ได้แต่ reload แล้วค่ากลับไปเดิม
 
 หมายเหตุ
 - -
@@ -1325,9 +1332,10 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ ECMO Form (Delete) = FAIL, หมายเหตุ: record ที่บันทึกแล้วไม่มีปุ่ม Save, ค่าที่แก้หายหลัง reload
+- **Not Test** (Linear: CTXN-11785) — ไม่มีปุ่ม/เมนูลบจริงในระบบ (ตามกฎ: ไม่มีปุ่มลบจริง = Not Test ไม่ใช่ Failed)
 
 หมายเหตุ
+- **สถานะใน Linear เปลี่ยนเป็น Canceled** (19 ต.ค. 2569) — user ขอให้เอา TC นี้ออกจาก scope เพราะไม่มี delete feature จริง แต่เครื่องมือไม่มีสิทธิ์ลบ issue ได้ จึงเปลี่ยนเป็น Canceled + หมายเหตุรอผู้มีสิทธิ์ลบแทน (การ์ด: CTXN-11785)
 - -
 ```
 
@@ -1359,7 +1367,7 @@ Expected Result
 - แสดงฟอร์ม NUH Perfusionist Form (เหมือนรูปแบบ ECMO Form)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ NUH Perfusionist Form (Load) = PASS
+- **Passed** (CTXN-11786) — ทดสอบจริงบน OR-69-000222 (14 ต.ค. 2569) เลือก "NUH Perfusionist Form" จาก dropdown Custom Note ฟอร์ม render ทันที แสดงหัว "Perfusionist Form" (template: `nuh_perfusionist_form_v1`) พร้อม field ครบ: Time in, Time out, Operative time, Type of anesthesia, Timing, Diagnosis, Operation type, CPB use, Operation, Result, Infection, Note — ยืนยัน baseline PASS
 
 หมายเหตุ
 - -
@@ -1393,7 +1401,7 @@ Expected Result
 - toast `Custom note saved`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ NUH Perfusionist Form (Create) = PASS
+- **Passed** (CTXN-11787) — กรอก Diagnosis = "QA-AUTO-20261014-2154 Perfusionist" แล้วกด Save: network `flat-to-json?templateId=nuh_perfusionist_form_v1` = 200, `contribution` = 201 — หลัง save badge DRAFT ขึ้นข้างชื่อ "NUH Perfusionist Form" ทันที record ECMO Form เดิมยังอยู่ครบด้านล่าง (multi-select ไม่ทับกัน) ยืนยันซ้ำด้วยการ reload หน้าทั้งหน้า: ค่า Diagnosis ยังถูกต้อง — ยืนยัน baseline PASS
 
 หมายเหตุ
 - -
@@ -1428,7 +1436,7 @@ Expected Result
 - ค่าที่แก้ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ NUH Perfusionist Form (Edit) = FAIL, หมายเหตุ: ปัญหาเดียวกับ ECMO Form
+- **Failed** (CTXN-11788) — record ที่บันทึกแล้วไม่มีปุ่ม Save เลย ตรงกับ baseline และตรงกับบั๊กเดียวกับ ECMO Form (TC-036) เป๊ะ: ช่อง Diagnosis ยังแก้ไขได้ (พิมพ์ต่อท้าย "edited" ได้ปกติ) แต่ไม่มีปุ่ม Save ปรากฏที่ไหนในหน้าเลย (ยืนยันด้วย `getByRole('button',{name:'Save'}).count()` = 0) พิมพ์ "...Perfusionist edited" แล้ว reload หน้าทั้งหน้าจริง: ค่ากลับไปเป็น "...Perfusionist" เดิม ยืนยันว่าข้อมูลที่แก้ไขหายไปจริง ไม่มีทางบันทึกการแก้ไขได้เลยผ่าน UI — ยืนยัน baseline FAIL
 
 หมายเหตุ
 - -
@@ -1464,9 +1472,10 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ NUH Perfusionist Form (Delete) = FAIL, หมายเหตุ: ปัญหาเดียวกับ ECMO Form
+- **Not Test** (CTXN-11789) — ไม่มีปุ่ม/เมนูลบในระบบจริง ทดสอบจริงบน OR-69-000222 (14 ต.ค. 2569) ตรวจ header "NUH Perfusionist Form / DRAFT" และทั้งหน้าด้วย query ปุ่ม/ไอคอนทั้งหมด (`getByRole('button',{name:/delete|ลบ/i})` = 0, ไอคอน class/aria-label ที่มีคำว่า delete/trash = 0) ไม่พบปุ่มหรือเมนูลบ record เลย — ตรงกับผลเดียวกับ ECMO Form (TC-037) จึงจัดเป็น Not Test แทน Failed ตามกฎที่ยืนยันกับ QA แล้ว (feature ลบ record ไม่มีอยู่จริงในระบบ)
 
 หมายเหตุ
+- **สถานะใน Linear เปลี่ยนเป็น Canceled** (19 ต.ค. 2569) — user ขอให้เอา TC นี้ออกจาก scope เพราะไม่มี delete feature จริง แต่เครื่องมือไม่มีสิทธิ์ลบ issue ได้ จึงเปลี่ยนเป็น Canceled + หมายเหตุรอผู้มีสิทธิ์ลบแทน (การ์ด: CTXN-11789)
 - -
 ```
 
@@ -1499,7 +1508,7 @@ Expected Result
 - network: `GET /cortex-form/or-custom-note-v1.js` = 200
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Custom Note (Load) = FAIL, หมายเหตุ: `GET /cortex-form/or-custom-note-v1.js?v=v2.2.4` → 503
+- **Failed** (CTXN-11790) — ยืนยันตรงกับ baseline: เลือก "OR Custom Note" จาก dropdown ติ๊กถูกต้อง แต่ฟอร์มไม่ render เลย แสดง "ไม่สามารถแสดงฟอร์มได้" พร้อมลิงก์ "ดาวน์โหลดอีกครั้ง" — network ยืนยัน `GET /cortex-form/or-custom-note-v1.js?v=v2.2.4` → **404** (baseline เดิมคือ 503 ต่างกันแต่สรุปคือโหลดไม่สำเร็จเหมือนกัน) กดลิงก์ retry แล้วยัง 404 ซ้ำเหมือนเดิม ไม่ใช่ transient
 
 หมายเหตุ
 - -
@@ -1536,7 +1545,7 @@ Expected Result
 - network: `POST /ehrbase/rest/openehr/v1/ehr/<ehrId>/contribution` = 201
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Custom Note (Create) = N/T
+- **Blocked** (CTXN-11791) — TC-042 (Load) ล้มเหลวตั้งแต่ขั้นแรก (JS bundle 404) ฟอร์มไม่ render เลย ไม่มีช่องให้กรอกข้อมูลตาม D-10 ลองกดปุ่ม Save ที่ยังปรากฏอยู่แล้วไม่มีอะไรเกิดขึ้น (ไม่มี network request ใหม่ ไม่มี toast)
 
 หมายเหตุ
 - -
@@ -1571,7 +1580,7 @@ Expected Result
 - ไม่มี record ซ้ำเกิดขึ้น
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Custom Note (Edit) = N/T
+- **Blocked** (CTXN-11792) — TC-043 (Create) ล้มเหลวตั้งแต่ขั้นแรก เพราะ TC-042 (Load) โหลดฟอร์มไม่สำเร็จ จึงไม่มี record ให้ทดสอบแก้ไข
 
 หมายเหตุ
 - -
@@ -1607,7 +1616,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ OR Custom Note (Delete) = N/T
+- **Blocked** (CTXN-11793) — TC-043 (Create) ล้มเหลวตั้งแต่ขั้นแรก เพราะ TC-042 (Load) โหลดฟอร์มไม่สำเร็จ จึงไม่มี record ให้ทดสอบลบ (ต่างจาก Not Test เพราะไม่เคยได้ลองหาปุ่มลบจริง)
 
 หมายเหตุ
 - -
@@ -1641,7 +1650,7 @@ Expected Result
 - ฟอร์มแสดงผล (render) ได้ภายใน 5 วินาทีหลังเลือก template จาก dropdown
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-Procedural Sedation Assessment (Load) = PASS
+- **Passed** (CTXN-11971) — ทดสอบจริงบน OR-69-000222 (19 ต.ค. 2569) ฟอร์ม render ทันที แสดงหัว "Pre-Procedural Sedation Assessment" พร้อม section History/Physical Examination/Airway ครบ มีปุ่ม Save — ยืนยัน baseline PASS
 
 หมายเหตุ
 - -
@@ -1677,7 +1686,7 @@ Expected Result
 - ไม่มี contribution ซ้ำหรือค้าง
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-Procedural Sedation Assessment (Create) = FAIL, หมายเหตุ: toast `Custom note save failed` แต่ contribution = 201 (เกิด 2 ครั้ง) จึงน่าจะมีข้อมูลค้าง
+- **Failed** (CTXN-11972) — ออร์ฟาน record แบบเดียวกับ TAH/TMH: Save สำเร็จที่ backend (flat-to-json=200, contribution=201 ครั้งเดียว) แต่ไม่มี badge DRAFT ขึ้น และหลัง reload เต็มหน้า dropdown กลับเป็น "Select form" ว่างเปล่า ไม่มีทางเข้าถึง record อีกเลย (ECMO/Perfusionist ที่บันทึกไว้ก่อนยังอยู่ครบ ยืนยันว่าไม่ใช่ปัญหากลไกร่วม) — บั๊กคนละรายละเอียดจาก baseline (ไม่มี duplicate contribution, ไม่มี toast error ชัดเจน) แต่ผลลัพธ์ fail เหมือนกัน
 
 หมายเหตุ
 - -
@@ -1712,7 +1721,7 @@ Expected Result
 - ไม่มี record ซ้ำเกิดขึ้น
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-Procedural Sedation Assessment (Edit) = N/T
+- **Blocked** (CTXN-11973) — TC-047 (Create) บันทึกสำเร็จที่ backend แต่ record กลายเป็น orphaned ไม่มีทางเปิดแก้ไขได้ผ่าน UI เลย
 
 หมายเหตุ
 - -
@@ -1748,7 +1757,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-Procedural Sedation Assessment (Delete) = N/T
+- **Blocked** (CTXN-11974) — TC-047 (Create) บันทึกสำเร็จที่ backend แต่ record กลายเป็น orphaned ไม่มี record ให้ทดสอบลบเลย (ต่างจาก Not Test เพราะยังไม่เคยได้ลองหาปุ่มลบจริง)
 
 หมายเหตุ
 - -
@@ -1782,7 +1791,7 @@ Expected Result
 - แสดงฟอร์ม Procedural Sedation Checklist and Assessment (เหมือนรูปแบบ ECMO Form)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Procedural Sedation Checklist and Assessment (Load) = PASS
+- **Passed** (CTXN-11975) — ทดสอบจริงบน OR-69-000222 (19 ต.ค. 2569) ฟอร์ม render ทันที แสดงหัว "Procedural Sedation Report" ตาราง Events ครบตาม Expected
 
 หมายเหตุ
 - -
@@ -1816,7 +1825,7 @@ Expected Result
 - toast `Custom note saved`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Procedural Sedation Checklist and Assessment (Create) = PASS
+- **Passed** (CTXN-11976) — กรอก Obstructed airway=No (D-12) แล้ว Save สำเร็จ (200/201) badge DRAFT ขึ้นทันที ยืนยันด้วย reload เต็มหน้า ค่ายังถูกต้อง ต่างจาก TC-047 ที่กลายเป็น orphaned — template นี้ไม่มีปัญหาเดียวกัน
 
 หมายเหตุ
 - -
@@ -1851,7 +1860,7 @@ Expected Result
 - ค่าที่แก้ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Procedural Sedation Checklist and Assessment (Edit) = FAIL, หมายเหตุ: ปัญหาเดียวกับ ECMO Form
+- **Failed** (CTXN-11977) — ยืนยันตรงกับ baseline และบั๊กเดียวกับ ECMO/Perfusionist: เปลี่ยน Obstructed airway เป็น Yes ได้ปกติแต่ไม่มีปุ่ม Save เลยในหน้า reload แล้วค่ากลับเป็น No เหมือนเดิม — บั๊กร่วมของกลไก Custom Note (พบใน 3/4 template)
 
 หมายเหตุ
 - -
@@ -1887,7 +1896,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Procedural Sedation Checklist and Assessment (Delete) = FAIL, หมายเหตุ: ปัญหาเดียวกับ ECMO Form
+- **Canceled** (CTXN-11978) — ไม่มีปุ่ม/เมนูลบจริงในระบบ ตรงกับทุก template ก่อนหน้า — ตามกฎใหม่ (19 ต.ค. 2569) Delete TC ที่ไม่มี delete feature จริงให้เอาออกจาก scope แทน Not Test (เครื่องมือลบ issue ไม่ได้จริง จึงใช้ Canceled + หมายเหตุรอผู้มีสิทธิ์ลบแทน)
 
 หมายเหตุ
 - -
@@ -1921,7 +1930,7 @@ Expected Result
 - ฟอร์มแสดงผล (render) ได้ภายใน 5 วินาทีหลังเลือก template จาก dropdown
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Sedation Form v2 (Load) = PASS
+- **Passed** (CTXN-11979) — ทดสอบจริงบน OR-69-000222 (19 ต.ค. 2569) ฟอร์ม render ทันที แสดงหัว "Sedation Form v2" ตาราง Time-based BP + Medication administration ครบ
 
 หมายเหตุ
 - -
@@ -1956,7 +1965,7 @@ Expected Result
 - หรือถ้าข้อมูลไม่ครบต้องมีข้อความ validation แจ้งชัดเจน
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Sedation Form v2 (Create) = FAIL, หมายเหตุ: กด Save แล้วไม่มี request และไม่มีข้อความแจ้งใด ๆ
+- **Failed** (CTXN-11980) — ยืนยันตรงกับ baseline เป๊ะ: กรอก D-13 ครบแล้ว Save ไม่มี network request ใดๆ เกิดขึ้นเลย ไม่มี toast/validation ยืนยันซ้ำด้วย reload เต็มหน้า ไม่มี record เกิดขึ้นเลย — รุนแรงกว่าทุก template เพราะปุ่ม Save ไม่ทำงานอะไรเลยตั้งแต่ต้น
 
 หมายเหตุ
 - -
@@ -1991,7 +2000,7 @@ Expected Result
 - ไม่มี record ซ้ำเกิดขึ้น
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Sedation Form v2 (Edit) = N/T
+- **Blocked** (CTXN-11981) — TC-055 (Create) ล้มเหลวสนิท ไม่มี record ให้เปิดแก้ไขได้เลย
 
 หมายเหตุ
 - -
@@ -2027,7 +2036,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Sedation Form v2 (Delete) = N/T
+- **Blocked** (CTXN-11982) — TC-055 (Create) ล้มเหลวสนิท ไม่มี record ให้ทดสอบลบ (ต่างจาก Not Test เพราะยังไม่เคยลองหาปุ่มลบจริง)
 
 หมายเหตุ
 - -
@@ -2061,7 +2070,7 @@ Expected Result
 - แสดง checkbox รายการ complication
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Operation Complication (Load) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11983 — baseline 14-10-2026 ของ Operation Complication (Load) = PASS
 
 หมายเหตุ
 - -
@@ -2097,7 +2106,7 @@ Expected Result
 - badge `DRAFT`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Operation Complication (Create) = FAIL, หมายเหตุ: toast `Save complication failed`, `flat-to-json` → 400
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11984 — baseline 14-10-2026 ของ Operation Complication (Create) = FAIL, หมายเหตุ: toast `Save complication failed`, `flat-to-json` → 400
 
 หมายเหตุ
 - -
@@ -2131,7 +2140,7 @@ Expected Result
 - ค่าที่แก้ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Operation Complication (Edit) = N/T
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11985 — baseline 14-10-2026 ของ Operation Complication (Edit) = N/T
 
 หมายเหตุ
 - -
@@ -2167,7 +2176,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Operation Complication (Delete) = N/T
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11986 — baseline 14-10-2026 ของ Operation Complication (Delete) = N/T
 
 หมายเหตุ
 - -
@@ -2201,7 +2210,7 @@ Expected Result
 - ฟอร์มแสดงผล (render) ได้ภายใน 5 วินาทีหลังเลือก template จาก dropdown
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-med in 24h Record (Load) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11987 — baseline 14-10-2026 ของ Pre-med in 24h Record (Load) = PASS
 
 หมายเหตุ
 - -
@@ -2236,7 +2245,7 @@ Expected Result
 - badge `DRAFT` ข้าง dropdown
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-med in 24h Record (Create) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11988 — baseline 14-10-2026 ของ Pre-med in 24h Record (Create) = PASS
 
 หมายเหตุ
 - -
@@ -2271,7 +2280,7 @@ Expected Result
 - ค่าที่แก้ยังอยู่หลัง reload
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-med in 24h Record (Edit) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11989 — baseline 14-10-2026 ของ Pre-med in 24h Record (Edit) = PASS
 
 หมายเหตุ
 - -
@@ -2307,7 +2316,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Pre-med in 24h Record (Delete) = FAIL, หมายเหตุ: ไม่มีปุ่มลบ
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11990 — baseline 14-10-2026 ของ Pre-med in 24h Record (Delete) = FAIL, หมายเหตุ: ไม่มีปุ่มลบ
 
 หมายเหตุ
 - -
@@ -2341,7 +2350,7 @@ Expected Result
 - แสดง ANESTHESIA RECORD INTRA-OP
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anesthesia Record (Load) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11991 — baseline 14-10-2026 ของ Anesthesia Record (Load) = PASS
 
 หมายเหตุ
 - -
@@ -2375,7 +2384,7 @@ Expected Result
 - badge `DRAFT`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anesthesia Record (Create) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11992 — baseline 14-10-2026 ของ Anesthesia Record (Create) = PASS
 
 หมายเหตุ
 - -
@@ -2410,7 +2419,7 @@ Expected Result
 - ไม่มี record ซ้ำเกิดขึ้น
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anesthesia Record (Edit) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11993 — baseline 14-10-2026 ของ Anesthesia Record (Edit) = PASS
 
 หมายเหตุ
 - -
@@ -2446,7 +2455,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Anesthesia Record (Delete) = FAIL, หมายเหตุ: ไม่มีปุ่มลบ
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11994 — baseline 14-10-2026 ของ Anesthesia Record (Delete) = FAIL, หมายเหตุ: ไม่มีปุ่มลบ
 
 หมายเหตุ
 - -
@@ -2480,7 +2489,7 @@ Expected Result
 - ระบบเลือก template ให้อัตโนมัติ (ไม่มี dropdown ให้เลือกเอง)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ PACU Record (Load) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11995 — baseline 14-10-2026 ของ PACU Record (Load) = PASS
 
 หมายเหตุ
 - -
@@ -2514,7 +2523,7 @@ Expected Result
 - Save เสร็จภายใน 10 วินาที (ปกติใช้เวลาประมาณ 8 วินาที)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ PACU Record (Create) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11996 — baseline 14-10-2026 ของ PACU Record (Create) = PASS
 
 หมายเหตุ
 - -
@@ -2549,7 +2558,7 @@ Expected Result
 - ไม่มี record ซ้ำเกิดขึ้น
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ PACU Record (Edit) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11997 — baseline 14-10-2026 ของ PACU Record (Edit) = PASS
 
 หมายเหตุ
 - -
@@ -2585,7 +2594,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ PACU Record (Delete) = FAIL, หมายเหตุ: Save ช้าประมาณ 8 วินาที
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11998 — baseline 14-10-2026 ของ PACU Record (Delete) = FAIL, หมายเหตุ: Save ช้าประมาณ 8 วินาที
 
 หมายเหตุ
 - -
@@ -2619,7 +2628,7 @@ Expected Result
 - ฟอร์มแสดงผล (render) ได้ภายใน 5 วินาทีหลังเลือก template จาก dropdown
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Post Anesthesia Record (Load) = PASS
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-11999 — baseline 14-10-2026 ของ Post Anesthesia Record (Load) = PASS
 
 หมายเหตุ
 - -
@@ -2654,7 +2663,7 @@ Expected Result
 - network: `flat-to-json?templateId=nuh_anesthesia_post_anesthesia_complication_v2`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Post Anesthesia Record (Create) = FAIL, หมายเหตุ: ปุ่ม Save disabled; ครั้งแรกกดได้แต่ค้าง ไม่มี request
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-12000 — baseline 14-10-2026 ของ Post Anesthesia Record (Create) = FAIL, หมายเหตุ: ปุ่ม Save disabled; ครั้งแรกกดได้แต่ค้าง ไม่มี request
 
 หมายเหตุ
 - -
@@ -2689,7 +2698,7 @@ Expected Result
 - ไม่มี record ซ้ำเกิดขึ้น
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Post Anesthesia Record (Edit) = N/T
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-12001 — baseline 14-10-2026 ของ Post Anesthesia Record (Edit) = N/T
 
 หมายเหตุ
 - -
@@ -2725,7 +2734,7 @@ Expected Result
 - dropdown กลับมาให้เลือก template ได้อีก (สำหรับ sub-tab แบบ single)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — baseline 14-10-2026 ของ Post Anesthesia Record (Delete) = N/T
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-12002 — baseline 14-10-2026 ของ Post Anesthesia Record (Delete) = N/T
 
 หมายเหตุ
 - -
@@ -2787,13 +2796,15 @@ Expected Result
 - ข้อความ `Invalid input`
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — ไม่มีข้อมูล baseline สำหรับเคส validation นี้โดยตรง
+- **Passed** (การ์ด: CTXN-10764) — ทดสอบจริงบน OR-69-000218 (14 ต.ค. 2569) กด Save โดยไม่กรอก Post-operation procedure Code แล้ว ช่อง Code ขึ้นขอบแดงจริง และมีข้อความ `Invalid input` ใต้ทั้งช่อง Code และช่อง Text ตรงตาม Expected ทุกจุด
 
 หมายเหตุ
 - -
 ```
 
 #### TS-CTXN-10711-EDG - ตรวจสอบเคสขอบ: หลาย record ปนกัน และ sub-tab ที่ไม่มี template
+
+การ์ด Linear: CTXN-12003
 
 ```
 ข้อมูลอ้างอิง
@@ -2850,7 +2861,7 @@ Expected Result
 - ข้อมูลของแต่ละ record ไม่สลับ/ปนกัน
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — ยังไม่มี Actual Result จาก baseline 14-10-2026 สำหรับเคสนี้โดยตรง — ต้องทดสอบจริงตอน Gate 2
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-12004 — ยังไม่มี Actual Result จาก baseline 14-10-2026 สำหรับเคสนี้โดยตรง — ต้องทดสอบจริงตอน Gate 2
 
 หมายเหตุ
 - -
@@ -2885,7 +2896,7 @@ Expected Result
 - (ต้องยืนยันกับ BA ว่านี่คือ expected behavior ของระบบ หรือเป็น gap ที่ต้องแก้)
 
 Actual Result
-- ยังไม่ทดสอบ (Not Run) — Baseline 14-10-2026: พบข้อความ `No active safety checklist form.` จริง — ยังไม่ฟันธง Pass/Fail จนกว่า BA ยืนยัน
+- ยังไม่ทดสอบ (Not Run) — การ์ด: CTXN-12005 — Baseline 14-10-2026: พบข้อความ `No active safety checklist form.` จริง — ยังไม่ฟันธง Pass/Fail จนกว่า BA ยืนยัน
 
 หมายเหตุ
 - -
