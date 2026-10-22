@@ -6,7 +6,7 @@
 - รวม: **1 EXE, 2 Scenario, 11 Test Case** (11 Required, 0 Optional)
 - TC granularity: **Atomic** (ค่าเริ่มต้นของ skill — ยังไม่ได้ถาม QA ถ้าอยากได้ flow-style ให้บอก)
 - Run Type: `CT` · Scope/Version: `2.8.0` (label `VERSION 2.8.0`) · Environment: `DEV-X`
-- Label ตอนสร้างจริง (รอ QA ยืนยัน): label ของการ์ดแม่ + `QA Module: [ยังไม่ทราบ — ไม่พบ "QA Module: Pharmacy" ใน Linear]` + `QA Sub-module / Feature : [ยังไม่ทราบ]` · Scenario/TC + `QA Case : Happy` / `QA Case : Unhappy` · TC + `QA Type : Functional` + `QA Execution Type: Manual` · EXE + `QA Run : Cycle Test`
+- Label ตอนสร้างจริง (QA ระบุ Sub-module = Dispense 22 ต.ค. 2569): label ของการ์ดแม่ + `QA Module : Pharmacy` + `QA Sub-module / Feature : Dispense` (มีอยู่แล้วใน Linear ทั้งคู่) · Scenario/TC + `QA Case : Happy` / `QA Case : Unhappy` · TC + `QA Type : Functional` + `QA Execution Type: Manual` · EXE + `QA Run : Cycle Test`
 
 ### ข้อตกลงกับ QA
 
