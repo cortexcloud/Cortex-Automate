@@ -156,5 +156,36 @@
     "channel": "er",
     "env": "dev-x.cortexcloud.co",
     "createdAt": "2026-10-22T06:20:54.469Z"
+  },
+  {
+    "seq": "l",
+    "citizenId": "5225147863001",
+    "namePrefix": "น.ส.",
+    "firstName": "AIทดสอบlf",
+    "familyName": "AIทดสอบll",
+    "gender": "หญิง",
+    "birthDate": "04/05/1986",
+    "age": 40,
+    "hn": "6932047",
+    "channel": "reception",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T07:05:00.000Z",
+    "address": "905 หมู่ 4 ต.คลองน้อย อ.บ้านแพรก จ.พระนครศรีอยุธยา (ทะเบียนบ้าน = ปัจจุบัน)",
+    "note": "สร้างจากสคริปต์วินิจฉัย temp_scripts/fix-j/probe-required.spec.ts (ฟอร์มเวชระเบียนแบบเดิม) — createdAt ประมาณจากเวลารัน"
+  },
+  {
+    "seq": "m",
+    "citizenId": "8655915164196",
+    "namePrefix": "นาย",
+    "firstName": "AIทดสอบmf",
+    "familyName": "AIทดสอบml",
+    "gender": "ชาย",
+    "birthDate": "15/06/2001",
+    "age": 25,
+    "hn": "6932048",
+    "channel": "reception",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T07:03:15.714Z",
+    "address": "593 หมู่ 1 ต.เนินปอ อ.สามง่าม จ.พิจิตร (ทะเบียนบ้าน = ปัจจุบัน)"
   }
 ]
