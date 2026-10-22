@@ -219,5 +219,50 @@
     "createdAt": "2026-10-22T07:45:00.000Z",
     "address": "977 หมู่ 4 ต.นพรัตน์ อ.หนองเสือ จ.ปทุมธานี (ทะเบียนบ้าน = ปัจจุบัน)",
     "note": "สร้างจากสคริปต์วินิจฉัย temp_scripts/fix-j/probe-new-layout.spec.ts (เปิดมาเป็นฟอร์มแบบใหม่ แต่ตอนกรอกกลายเป็นแบบเดิม) — createdAt ประมาณจากเวลารัน"
+  },
+  {
+    "seq": "p",
+    "citizenId": "2873294045742",
+    "namePrefix": "น.ส.",
+    "firstName": "AIทดสอบpf",
+    "familyName": "AIทดสอบpl",
+    "gender": "หญิง",
+    "birthDate": "04/07/1968",
+    "age": 58,
+    "hn": "6932054",
+    "channel": "reception",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T07:23:26.252Z",
+    "address": "783 หมู่ 4 ต.ดอนใหญ่ อ.บางแพ จ.ราชบุรี (ทะเบียนบ้าน = ปัจจุบัน)"
+  },
+  {
+    "seq": "q",
+    "citizenId": "8600958432562",
+    "namePrefix": "น.ส.",
+    "firstName": "AIทดสอบqf",
+    "familyName": "AIทดสอบql",
+    "gender": "หญิง",
+    "birthDate": "09/11/1992",
+    "age": 33,
+    "hn": "6932055",
+    "channel": "reception",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T07:24:32.148Z",
+    "address": "81 หมู่ 9 ต.หนองดินแดง อ.เมืองนครปฐม จ.นครปฐม (ทะเบียนบ้าน = ปัจจุบัน)"
+  },
+  {
+    "seq": "r",
+    "citizenId": "3623441436805",
+    "namePrefix": "น.ส.",
+    "firstName": "AIทดสอบrf",
+    "familyName": "AIทดสอบrl",
+    "gender": "หญิง",
+    "birthDate": "12/12/1972",
+    "age": 53,
+    "hn": "6932056",
+    "channel": "reception",
+    "env": "dev-x.cortexcloud.co",
+    "createdAt": "2026-10-22T07:25:31.050Z",
+    "address": "860 หมู่ 4 ต.ไผ่ใหญ่ อ.บ้านหมี่ จ.ลพบุรี (ทะเบียนบ้าน = ปัจจุบัน)"
   }
 ]
