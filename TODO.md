@@ -13,15 +13,6 @@
 - [x] **(เพิ่ม) แก้ข้อสรุปเรื่องปุ่มบันทึกเวชระเบียน** — ผู้ใช้กดบันทึกด้วยมือได้ และส่งภาพยืนยันว่าฟอร์มที่ใช้จริงคือที่อยู่แบบแยกช่อง ("กรอกตาม field เลย") · สคริปต์วินิจฉัยเจอว่าหน้าเพิ่งโหลดแสดงแบบช่องเดียวแล้วเปลี่ยนเป็นแบบแยกช่องเอง → ที่บันทึกไม่ได้ก่อนหน้านี้น่าจะเพราะกรอกระหว่างฟอร์มเปลี่ยน (ไม่ใช่ปุ่มเสีย) · ตัดทางแบบช่องเดียว (`pickRandomArea`, `randomPostalPrefix`) · เพิ่ม `waitForReceptionFormSettled()` ใน open create/edit + ก่อนกรอกที่อยู่ · timeout spec 90 วินาทีต่อคน · ได้ n, o (จากสคริปต์วินิจฉัย จด JSON เอง) และ p, q, r (ผ่าน spec — รัน 1 คน + 2 คนต่อกัน) · ตรวจ: typecheck ผ่าน · ทุกคนเทียบ API ตรง + encounters = 0 · แก้ skill §9/R29/§10 และลบหมายเหตุใน README
 - [x] **P3 — docs** — skill `cortex-automate`: §2 ผังใหม่ (functions/ · flows/ · steps/ · data/ · support/ + `reception.ts`), §3 คำสั่ง `data:patients:er` / `:reception` + ทางเลี่ยง `--no-deps`, R29 เพิ่มคำตอบ 22 ต.ค., §9 วันเกิด พ.ศ. / ฟอร์มแก้ไขต้องรอข้อมูลเดิม / ฟอร์มสร้างเวชระเบียน / ฟอร์มที่อยู่ 2 แบบ, แก้ path เก่าในกฎ (ไม่แตะประวัติ §10), §10 log · README: ตารางคำสั่ง + หัวข้อ Mock data แยก 2 ช่องทาง · ตรวจ: grep ไม่เหลือ path เก่านอก §10 · commit แยกตาม task แล้ว (ไม่ push)
 
-## Refactor รอบ 2 — แยกไฟล์ที่ไม่ใช่ page action ออกจาก `helpers/functions/` — 20 ต.ค. 2569
-
-ข้อตกลง: `functions/` เหลือเฉพาะ Layer 1 page action (`er.ts`, `er-triage.ts`) · เพิ่ม `helpers/data/` (`test-data.ts`, `patient-store.ts`) + `helpers/support/` (`fixtures.ts`, `evidence.ts`) · ยังไม่แยก `er.ts` · ย้ายไฟล์ + แก้ import เท่านั้น ไม่แก้ logic
-
-- [x] **P1 — `git mv` 4 ไฟล์** — ย้าย `test-data.ts`, `patient-store.ts` ไป `helpers/data/` และ `fixtures.ts`, `evidence.ts` ไป `helpers/support/` · แก้ import ใน `er.ts`, `er.flows.ts`, `patient.flows.ts`, spec SBH-1013/SBH-1021/create-patients และ comment 2 จุดใน `playwright.config.ts` · `PATIENTS_FILE` ไม่ต้องแก้ เพราะโฟลเดอร์ใหม่ลึกเท่าเดิม (`helpers/<x>/` → `../../test-data`) · ตรวจ: typecheck ผ่าน · grep ไม่เหลือ path เก่า · `playwright test --list` โหลดได้ 4 เทส ใน 3 ไฟล์
-- [x] **P2 — ยืนยันว่าไม่พัง** — `--list` โหลดได้ 4 เทส · รอบแรก fail เพราะ session Super_User หมดอายุ (ไฟล์ `.auth` จาก 20 ต.ค. และ `--no-deps` ข้ามขั้นล็อกอิน) → ล็อกอินเฉพาะ Super_User ด้วย `--project=setup -g "Super_User"` แล้วรันซ้ำผ่าน: ได้ j (HN 6932042) ต่อท้าย `test-data/patients.json` ที่ path เดิม → refactor ไม่ทำอะไรพัง
-- [x] **(ย้ายไปทำใน section "ลงทะเบียน 2 ช่องทาง" ด้านบน — เสร็จแล้ว: `registerNewPatient` กรอก พ.ศ. + แก้วันเกิด j) — (เจอตอนตรวจ P2) ช่องวันเกิดในฟอร์มลงทะเบียน ER ตีความปีเป็น พ.ศ. แล้ว** — j กรอก `05/05/1986` แต่ระบบบันทึก `1443-05-05` (1986 − 543) · ปฏิทินของช่องแสดงปี พ.ศ. (หัวปฏิทิน "ต.ค.2569") · a–i ที่สร้าง 20 ต.ค. บันทึก ค.ศ. ถูก → พฤติกรรมน่าจะเปลี่ยนหลัง 20 ต.ค. (ยังไม่ยืนยันว่าเป็น deploy ใหม่หรือบั๊ก) · กระทบ `newTestPatient()` ของ spec SBH-1013/1021 ด้วย (`15/01/1990`) · j มีบันทึกเฉพาะในไฟล์ที่ยังไม่ commit · ผู้ใช้เลือก: กรอกเป็น พ.ศ. + เช็คกับ response · แก้ j ในเวชระเบียน
-- [x] **P3 — อัปเดต skill `cortex-automate` §2 + README** — ทำรวมกับ P3 ของ section "ลงทะเบียน 2 ช่องทาง" (ผังโครงสร้างใหม่ + path ใน README `helpers/data/patient-store.ts`)
-
 ## SBH-1308 — [Pharmacy] Checkbox เลือกรายการยาในหน้าใบยารอจ่าย: ร่าง TC + เทสบน dev-x — 21 ต.ค. 2569
 
 ข้อตกลง: เทสเฉพาะ AC 1–5 (ไม่เทสสถานะ header ตอนติ๊กบางรายการ / เมนู "…" เดิม / สถานะติ๊กหลัง reload) · ติ๊กไม่ครบ = ปุ่ม "จ่ายยา" disabled ตาม comment dev · `EXE - CT - 2.8.0` · DEV-X · สร้างผู้ป่วยใหม่ + visit OPD "SBH - ห้องตรวจสระบุรี" + สั่งยา 2–3 รายการ ไม่แตะใบยาคนอื่น · สมมติฐาน: user1 + ห้องยา site SBH
@@ -45,6 +36,15 @@
   - [x] สร้างการ์ด **SBH-2885** — get_issue อ่านกลับ: parent SBH-1308 · Medium · Waiting for Fixing Bugs · label QA : Bug / For OPD Biz Sim - SBH / 🍄 Improvement · response มี linear-image 7 ภาพ · หมายเหตุ: createdBy แสดงเป็น "Suchat Chancherngsilapakul" (บัญชีที่ Linear connector ใช้หลังเปลี่ยนบัญชี) ไม่ใช่บัญชี user
   - [x] ใส่ลิงก์ bug ในหมายเหตุ SBH-2878/2879/2881 (patch แทน "ยังไม่สร้างการ์ด bug (รอ QA retest manual)") + ไฟล์ TC: บรรทัดสรุปผล + บรรทัด `- Linear:` ของ TC-005/006/008
   - [x] ปรับสถานะ: SBH-1308 → Waiting for Fixing Bugs (response ยืนยัน) · SBH-2885 สร้างเป็น Waiting for Fixing Bugs · EXE SBH-2871 + Scenario SBH-2872/2873 คง Testing (รอ retest bug ผ่านค่อยย้ายเป็น Done on dev-x ตามแบบ SBH-2802)
+
+## Refactor รอบ 2 — แยกไฟล์ที่ไม่ใช่ page action ออกจาก `helpers/functions/` — 20 ต.ค. 2569
+
+ข้อตกลง: `functions/` เหลือเฉพาะ Layer 1 page action (`er.ts`, `er-triage.ts`) · เพิ่ม `helpers/data/` (`test-data.ts`, `patient-store.ts`) + `helpers/support/` (`fixtures.ts`, `evidence.ts`) · ยังไม่แยก `er.ts` · ย้ายไฟล์ + แก้ import เท่านั้น ไม่แก้ logic
+
+- [x] **P1 — `git mv` 4 ไฟล์** — ย้าย `test-data.ts`, `patient-store.ts` ไป `helpers/data/` และ `fixtures.ts`, `evidence.ts` ไป `helpers/support/` · แก้ import ใน `er.ts`, `er.flows.ts`, `patient.flows.ts`, spec SBH-1013/SBH-1021/create-patients และ comment 2 จุดใน `playwright.config.ts` · `PATIENTS_FILE` ไม่ต้องแก้ เพราะโฟลเดอร์ใหม่ลึกเท่าเดิม (`helpers/<x>/` → `../../test-data`) · ตรวจ: typecheck ผ่าน · grep ไม่เหลือ path เก่า · `playwright test --list` โหลดได้ 4 เทส ใน 3 ไฟล์
+- [x] **P2 — ยืนยันว่าไม่พัง** — `--list` โหลดได้ 4 เทส · รอบแรก fail เพราะ session Super_User หมดอายุ (ไฟล์ `.auth` จาก 20 ต.ค. และ `--no-deps` ข้ามขั้นล็อกอิน) → ล็อกอินเฉพาะ Super_User ด้วย `--project=setup -g "Super_User"` แล้วรันซ้ำผ่าน: ได้ j (HN 6932042) ต่อท้าย `test-data/patients.json` ที่ path เดิม → refactor ไม่ทำอะไรพัง
+- [x] **(ย้ายไปทำใน section "ลงทะเบียน 2 ช่องทาง" ด้านบน — เสร็จแล้ว: `registerNewPatient` กรอก พ.ศ. + แก้วันเกิด j) — (เจอตอนตรวจ P2) ช่องวันเกิดในฟอร์มลงทะเบียน ER ตีความปีเป็น พ.ศ. แล้ว** — j กรอก `05/05/1986` แต่ระบบบันทึก `1443-05-05` (1986 − 543) · ปฏิทินของช่องแสดงปี พ.ศ. (หัวปฏิทิน "ต.ค.2569") · a–i ที่สร้าง 20 ต.ค. บันทึก ค.ศ. ถูก → พฤติกรรมน่าจะเปลี่ยนหลัง 20 ต.ค. (ยังไม่ยืนยันว่าเป็น deploy ใหม่หรือบั๊ก) · กระทบ `newTestPatient()` ของ spec SBH-1013/1021 ด้วย (`15/01/1990`) · j มีบันทึกเฉพาะในไฟล์ที่ยังไม่ commit · ผู้ใช้เลือก: กรอกเป็น พ.ศ. + เช็คกับ response · แก้ j ในเวชระเบียน
+- [x] **P3 — อัปเดต skill `cortex-automate` §2 + README** — ทำรวมกับ P3 ของ section "ลงทะเบียน 2 ช่องทาง" (ผังโครงสร้างใหม่ + path ใน README `helpers/data/patient-store.ts`)
 
 ## สร้างผู้ป่วยใหม่บน dev-x + เก็บเป็น mock data (`test-data/patients.json`) — 20 ต.ค. 2569
 
@@ -86,6 +86,17 @@
 - [ ] **P1 — (รอ user ยืนยัน) ย้อนหาสูตร BSA + การปัดทศนิยม BMI/BSA บน dev-x** — กรอกน้ำหนัก/ส่วนสูงหลายชุดใน test data ที่สร้างเอง เทียบกับ Mosteller/DuBois/สูตรอื่น พร้อมเก็บหลักฐาน
 - [ ] **P2 — เขียน helper `helpers/functions/body-metrics.ts`** (`calcBmi`, `calcBsa`) ตามสูตรที่ยืนยันแล้ว + อัปเดต expected ของ TC AC 3
 - [ ] **P3 — (รอ approve TC) สำรวจแอปจริงตาม `qa-automate-readiness`** ก่อนส่งต่อเขียน automate
+
+## ปรับ content 29 TC ใต้ CTXN-12015 ให้อ่านง่าย (ชุดละ 5 ใบ) — 20 ต.ค. 2569
+
+ขอบเขตต่อใบ: ชื่อ TC (คง pattern `[Required] TC-12015-xxx - ...` ปรับคำให้บอก อะไร+ที่ไหน+เงื่อนไข), Preconditions/Test Steps (เมนูที่กด + ค่าที่กรอกจริง), Expected (ภาษาผู้ใช้), Actual (อะไร+ที่ไหน+อาการ, technical ตามหลังเป็น bullet สำหรับ dev, ข้อมูลรอบทดสอบ 1 บรรทัด ไม่มีชื่อ script), หมายเหตุ (คงหัวข้อ เขียนภาษาคน technical น้อยที่สุด ไม่เดาสาเหตุ) — ไม่แตะ state / รูป / วิดีโอ / labels ยกเว้นที่ระบุ
+
+- [ ] **P1 — ชุด 1 (Failed)**: TC-002 CTXN-12020 · TC-008 CTXN-12026 · TC-013 CTXN-12031 · TC-015 CTXN-12033 · TC-023 CTXN-12041
+- [ ] **P1 — ชุด 2 (Failed/Blocked/⚠️)**: TC-029 CTXN-12047 · TC-020 CTXN-12038 · TC-004 CTXN-12022 · TC-005 CTXN-12023 · TC-018 CTXN-12036 — 4 ใบ ⚠️ แก้ Expected ให้ตรงหน้าจอ (เปิด form ให้ทันที ไม่มี Select form) คง Passed
+- [ ] **P2 — ชุด 3 (⚠️ + Passed กลุ่มเพิ่มรายการ)**: TC-019 CTXN-12037 (แก้ Expected) · TC-024 CTXN-12042 · TC-001 CTXN-12019 · TC-009 CTXN-12027 · TC-016 CTXN-12034
+- [ ] **P2 — ชุด 4 (Passed save/edit)**: TC-011 CTXN-12029 · TC-012 CTXN-12030 · TC-014 CTXN-12032 · TC-025 CTXN-12043 · TC-026 CTXN-12044
+- [ ] **P3 — ชุด 5 (Passed)**: TC-027 CTXN-12045 · TC-028 CTXN-12046 · TC-003 CTXN-12021 · TC-006 CTXN-12024 · TC-007 CTXN-12025
+- [ ] **P3 — ชุด 6 (Passed 4 ใบ + สรุป)**: TC-010 CTXN-12028 · TC-017 CTXN-12035 · TC-021 CTXN-12039 · TC-022 CTXN-12040 + การ์ดสรุป CTXN-12015 (ชื่อ TC/ข้อความให้ตรงกับที่ปรับ)
 
 ## สไตล์การเขียน content (อ่านง่าย ไม่ technical เกิน) + เขียนการ์ด bug ใหม่ — 20 ต.ค. 2569
 
