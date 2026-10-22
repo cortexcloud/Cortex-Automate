@@ -71,19 +71,54 @@ export async function fillReceptionPatient(page: Page, patient: NewPatient) {
 
 /**
  * ที่อยู่ทะเบียนบ้านแบบสุ่ม (ผู้ใช้สั่ง "สุ่มไปเลย" 20 ต.ค. 2026) แล้วกด "บ้านเดียวกัน" ให้ที่อยู่ปัจจุบัน → คืนข้อความที่อยู่ไว้เก็บลง mock data
- * ฟอร์มเปลี่ยน 22 ต.ค. 2026 (~13:27): ช่องเดียว "บ้านเลขที่ / หมู่ / ซอย / ถนน" → "<บ้านเลขที่> หมู่ <หมู่>" ·
- * ปุ่ม "ค้นหาที่อยู่" (ตำบล อำเภอ จังหวัด รหัสไปรษณีย์ในตัวเลือกเดียว) → พิมพ์รหัสไปรษณีย์ 2 หลักแรกแบบสุ่ม แล้วสุ่มจากผลค้นหา
+ * 22 ต.ค. 2026 dev-x สลับระหว่าง 2 แบบ (เห็นแบบใหม่ ~13:27–13:59 แล้วกลับเป็นแบบเดิม) → ดูจากหน้าก่อนว่าเป็นแบบไหน
+ * - แบบเดิม: ช่อง "บ้านเลขที่" · "หมู่" · ปุ่ม "เลือกจังหวัด" / "เลือกอำเภอ" / "เลือกตำบล" (สุ่มจากรายการ)
+ * - แบบใหม่: ช่องเดียว "บ้านเลขที่ / หมู่ / ซอย / ถนน" → "<บ้านเลขที่> หมู่ <หมู่>" · ปุ่ม "ค้นหาที่อยู่" → สุ่มรหัสไปรษณีย์ 2 หลักแรกแล้วสุ่มจากผล
  */
 export async function fillRandomReceptionAddress(page: Page): Promise<string> {
   const f = receptionFrame(page);
-  const street = `${randomHouseNumber()} หมู่ ${randomMoo()}`;
-  await f.getByRole('textbox', { name: 'บ้านเลขที่ / หมู่ / ซอย / ถนน' }).first().fill(street);
-  const area = await pickRandomArea(page);
+  const houseNo = randomHouseNumber();
+  const moo = randomMoo();
+  const combined = f.getByRole('textbox', { name: 'บ้านเลขที่ / หมู่ / ซอย / ถนน' }).first();
+  const separate = f.getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).first();
+  await expect(combined.or(separate)).toBeVisible();
+
+  let text: string;
+  if (await combined.isVisible()) {
+    const street = `${houseNo} หมู่ ${moo}`;
+    await combined.fill(street);
+    text = `${street} ${await pickRandomArea(page)}`;
+  } else {
+    await separate.fill(houseNo);
+    // exact: ไม่งั้นจับช่อง "ชื่อหมู่บ้าน"
+    await f.getByRole('textbox', { name: 'หมู่', exact: true }).first().fill(moo);
+    const province = await pickRandomAddressItem(page, 'เลือกจังหวัด');
+    const district = await pickRandomAddressItem(page, 'เลือกอำเภอ');
+    const subdistrict = await pickRandomAddressItem(page, 'เลือกตำบล');
+    text = `${houseNo} หมู่ ${moo} ต.${subdistrict} อ.${district} จ.${province}`;
+  }
   await f.getByRole('button', { name: 'บ้านเดียวกัน' }).first().click();
-  return `${street} ${area} (ทะเบียนบ้าน = ปัจจุบัน)`;
+  return `${text} (ทะเบียนบ้าน = ปัจจุบัน)`;
 }
 
-/** "ค้นหาที่อยู่" ช่องแรก (ทะเบียนบ้าน) → พิมพ์รหัสไปรษณีย์ 2 หลักแรกแบบสุ่ม (10–96) → สุ่มเลือกจากผล — ไม่มีผลก็สุ่มเลขใหม่ */
+/** แบบเดิม: dropdown จังหวัด/อำเภอ/ตำบล = popover cmdk — บางครั้งเปิดแล้วไม่ขึ้นรายการ ต้องคลิกซ้ำ */
+async function pickRandomAddressItem(page: Page, trigger: string): Promise<string> {
+  const f = receptionFrame(page);
+  const items = f.locator('[data-radix-popper-content-wrapper] [cmdk-item]');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await f.getByRole('button', { name: trigger }).first().click();
+    if (await items.first().waitFor({ timeout: 15_000 }).then(() => true, () => false)) break;
+    await page.keyboard.press('Escape');
+  }
+  const count = await items.count();
+  expect(count, `ตัวเลือกใน "${trigger}"`).toBeGreaterThan(0);
+  const item = items.nth(Math.floor(Math.random() * count));
+  const text = (await item.innerText()).trim();
+  await item.click();
+  return text;
+}
+
+/** แบบใหม่: "ค้นหาที่อยู่" ช่องแรก (ทะเบียนบ้าน) → พิมพ์รหัสไปรษณีย์ 2 หลักแรกแบบสุ่ม (10–96) → สุ่มเลือกจากผล — ไม่มีผลก็สุ่มเลขใหม่ */
 async function pickRandomArea(page: Page): Promise<string> {
   const f = receptionFrame(page);
   // popover บางครั้งไม่เปิดตอนคลิกครั้งแรก (เหมือน dropdown ที่อยู่แบบเดิม) → คลิกซ้ำได้ 1 ครั้ง
