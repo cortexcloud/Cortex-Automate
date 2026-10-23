@@ -117,3 +117,5 @@
 - 2026-10-24 — ย้าย ## ประวัติ ของสกิลนี้มาไฟล์นี้ (SKILL.md 158 KB → ~75 KB) · หัวสกิลเปลี่ยนเป็น "โหลด cortex-automate SKILL.md (เล็ก) + Grep decisions.md / changelog.md ด้วยเลขการ์ด + เปิด screens/<โมดูล>.md เฉพาะที่เกี่ยว" · ส่วน ## กับดักที่เจอ ยังอยู่ใน SKILL.md ครบ (ยังไม่ย่อ)
 
 - 2026-10-24 — ย่อ ## กับดักที่เจอ (57 ข้อ 35 KB) เหลือข้อละ 1–2 บรรทัด จัดกลุ่มตามขั้นงาน (สำรวจ / ข้อมูล-ระบบ / การรัน / ภาพ / ลงผล Linear) · ข้อความเต็มลำดับเดิมอยู่ references/traps-full.md · SKILL.md 75 KB → 57 KB
+
+- 2026-10-24 — ขั้น 5 / 6 เพิ่มทางเลือกมอบงานให้ Sub Agent cortex-screen-explorer / cortex-evidence-checker (.claude/agents/) · ภาพที่จะแนบจริง session หลักยังเปิดดูเองตาม R59
