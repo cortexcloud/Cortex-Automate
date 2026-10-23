@@ -28,3 +28,7 @@ __MACOSX/
 /E2E/backup/
 # ไฟล์ล็อกของ Excel ตอนเปิดไฟล์ค้าง
 ~$*
+
+# สำรอง Scenario UAT ที่ bizsim-log.mjs สร้าง + lock file ของ Excel
+/E2E/backup/
+~$*.xlsx
