@@ -1,10 +1,10 @@
 import type { Locator, Page, Request, Response } from '@playwright/test';
-import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { startClip } from '../../../helpers/functions/fixtures';
 import { selectOpdUnit } from '../../../helpers/functions/opd-activity';
-import { expectPatientInfo, fillNewPatientForm, gotoReception, newPatientButton, openNewVisitPanel, receptionFrame, saveNewPatient, saveNewPatientButton } from '../../../helpers/functions/reception';
-import { newTestPatient } from '../../../helpers/functions/test-data';
+import { openNewVisitPanel, registerPatient } from '../../../helpers/functions/reception';
 import { expect, test } from '../../../mock-data/fixtures';
+import { notices, recordNotices } from '../../../helpers/functions/notices';
 
 // การ์ด SBH-1123 [Walk-in Request] Note กดไม่ได้ แก้ไขให้มี note ของการ walk-in — EXE SBH-2856 → HPY SBH-2857 (TC-001–004 = SBH-2859–2862) · UHP SBH-2858 (TC-005–006 = SBH-2863–2864)
 // สิ่งที่ dev ทำ (คอมเมนต์ 28 ส.ค. 2026 + ไฟล์แอป dev-x index-Di8KCQVO.js 21 ต.ค. 2026):
@@ -32,57 +32,7 @@ const TC = {
   '006': 'TC-006 (SBH-2864)',
 } as const;
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
-const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-
-/** ตัวช่วยต่อเทส: บันทึก annotation + soft step (ไม่ผ่านแล้วเล่นต่อ จบเทสค่อย fail พร้อมรายการ) */
-function makeRunner(page: Page) {
-  const failures: string[] = [];
-  const note = (type: string, description: string) => {
-    test.info().annotations.push({ type, description });
-    console.log(`    ${type}: ${description}`);
-  };
-  const soft = (title: string, body: () => Promise<void>) =>
-    checkStep(page, title, body).then(
-      () => true,
-      (error: unknown) => {
-        failures.push(`${title} — ${firstLine(error)}`);
-        console.log(`    ✗ ${title} — ${firstLine(error)}`);
-        return false;
-      },
-    );
-  const finish = () => expect(failures, `ขั้นที่ไม่ผ่าน:\n${failures.join('\n')}`).toEqual([]);
-  return { note, soft, finish };
-}
-
-/** ลงทะเบียนผู้ป่วย AUTO ใหม่ที่เวชระเบียน → อยู่หน้าข้อมูลผู้ป่วย → คืน HN + ชื่อ + ปุ่ม Visit ใหม่กดได้ไหม */
-async function registerPatient(page: Page, prefix: string) {
-  const patient = newTestPatient(prefix);
-  await gotoReception(page);
-  await markEvidence(clicked(newPatientButton(page)));
-  await fillNewPatientForm(page, patient);
-  const f = receptionFrame(page);
-  const save = saveNewPatientButton(page);
-  await save.evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
-  await markEvidence(filled(f.getByTestId('firstName')), filled(f.getByTestId('familyName')), clicked(save));
-  await snapEvidence(page, `ก่อนกด — บันทึกผู้ป่วยใหม่ ${prefix}`);
-  const hn = await saveNewPatient(page);
-  const newVisitEnabled = await expectPatientInfo(page);
-  return { hn, name: `${patient.firstName} ${patient.familyName}`, newVisitEnabled };
-}
 
 /** แถวของตาราง "รายการเข้ารับบริการ" ในแผงจัดการ Visit ที่เป็นคำขอ Walk-in */
 function visitTable(page: Page): Locator {
@@ -183,7 +133,7 @@ test.describe('SBH-1123 Note/Remark ของคำขอ Walk-in', () => {
       let created: Awaited<ReturnType<typeof createWalkInRequest>> | undefined;
 
       await checkStep(page, 'Pre-condition ลงทะเบียนผู้ป่วย AUTO ใหม่ที่เวชระเบียน (ผู้ป่วย A)', async () => {
-        const p = await registerPatient(page, 'Note1123A');
+        const p = await registerPatient(page, 'Note1123A', { snapName: 'ก่อนกด — บันทึกผู้ป่วยใหม่ Note1123A' });
         hn = p.hn;
         newVisitEnabled = p.newVisitEnabled;
         note('ผู้ป่วย A', `${p.name} · HN ${hn}`);
@@ -310,7 +260,7 @@ test.describe('SBH-1123 Note/Remark ของคำขอ Walk-in', () => {
       let hn = '';
       let newVisitEnabled = true;
       await checkStep(page, 'Pre-condition ลงทะเบียนผู้ป่วย AUTO ใหม่ที่เวชระเบียน (ผู้ป่วย B)', async () => {
-        const p = await registerPatient(page, 'Note1123B');
+        const p = await registerPatient(page, 'Note1123B', { snapName: 'ก่อนกด — บันทึกผู้ป่วยใหม่ Note1123B' });
         hn = p.hn;
         newVisitEnabled = p.newVisitEnabled;
         note('ผู้ป่วย B', `${p.name} · HN ${hn}`);
@@ -387,7 +337,7 @@ test.describe('SBH-1123 Note/Remark ของคำขอ Walk-in', () => {
       let hn = '';
       let newVisitEnabled = true;
       await checkStep(page, 'Pre-condition ลงทะเบียนผู้ป่วย AUTO ใหม่ที่เวชระเบียน (ผู้ป่วย C)', async () => {
-        const p = await registerPatient(page, 'Note1123C');
+        const p = await registerPatient(page, 'Note1123C', { snapName: 'ก่อนกด — บันทึกผู้ป่วยใหม่ Note1123C' });
         hn = p.hn;
         newVisitEnabled = p.newVisitEnabled;
         note('ผู้ป่วย C', `${p.name} · HN ${hn}`);

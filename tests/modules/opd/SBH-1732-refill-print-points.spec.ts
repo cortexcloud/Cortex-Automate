@@ -10,6 +10,7 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { gotoPatient, openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart, createMedicalCertificate, options, recordMenu } from '../../../mock-data/uat-play';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
 
 // การ์ด SBH-1732 [OPD][Pharmacy] เพิ่มปุ่ม/จุด Print ใบ Refill ยา — EXE SBH-2670 → TS SBH-2671 (HPY) / SBH-2672 (UHP) → TC-SBH-1732-001–015 (SBH-2673–2687)
 // 1 เทส = 1 flow (R9) · คลิป 1 ไฟล์ต่อ TC (R61) · บัญชี Super_User ทุก TC ยกเว้น TC-006 (ผู้ใช้ที่ไม่ใช่เภสัช = Nurse) — ผู้ใช้เลือก 20 ต.ค. 2026
@@ -40,28 +41,6 @@ function addDays(be: string, n: number) {
   const [y, m, d] = be.split('-').map(Number);
   const date = new Date(y - 543, m - 1, d + n);
   return `${date.getFullYear() + 543}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
 }
 
 /** สถานะ Visit ในแถบหัวของหน้า EMR (เช็คอิน → พร้อมตรวจ → ตรวจเสร็จ) */

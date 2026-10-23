@@ -179,7 +179,7 @@ Cortex Automate/
 │  │  ├─ er.ts                   ขั้นตอนหน้าจอ ER ที่ใช้ซ้ำ: เข้า Dashboard · เมนูแถบนำทาง (openErMenu) · หน้าคัดกรอง · ค้นผู้ป่วย (searchPatients) · สุ่มผู้ป่วยทีม (pickTeamPatient) ·
 │  │  │                            ลงทะเบียนผู้ป่วยใหม่ · เลือกผู้ป่วยมี HN · จด Visit ที่เปิด (trackOpenedErVisits) · ยกเลิก Encounter (cancelErEncounter) ·
 │  │  │                            modal เปิด Visit ER · แถบหัว Visit (expectVisitHeader) · หน้า Triage ของ Visit · การ์ดบนบอร์ด (showDashboardCard) ·
-│  │  │                            กลับ Dashboard ผ่านเมนู · expectOk() (API error พร้อม body)
+│  │  │                            กลับ Dashboard ผ่านเมนู · expectOk() (API error พร้อม body) · recordVisit(visit, label?) จด HN / VN / EN ลง annotation + terminal · visitHeaderMarks(page, visit) กรอบ Expected ที่ HN / VN / EN บนแถบหัว · บอร์ด ER ปัจจุบัน: fetchBoard() / fetchZones() + type ErBoardEncounter (ย้ายมาจากสเปก 24 ต.ค. 2026)
 │  │  ├─ er-triage.ts            ฟอร์ม "คัดกรอง ER": triageForm · กรอก Vital Signs · Pain score · แถว MEWS · เลือก GCS (chooseGcs) · อุปกรณ์ช่วยเหลือ / ผู้ที่มาด้วย ·
 │  │  │                            labelledBox() (กล่อง Total MEWS / Total GCS / ผล Triage) · saveTriage() (ช่องบังคับ + ESI 1–4 แล้วบันทึก)
 │  │  ├─ er-report.ts           หน้ารายงานทางสถิติ ER: ช่วงเดือน (setMonthRange) · ค้นหา/Export (searchMonthly, exportExcel) · อ่านตาราง (readTable) · API รายเดือน/รายวัน (trackAuthorization, fetchMonthly, fetchDaily) ·
@@ -209,7 +209,13 @@ Cortex Automate/
 │  │  ├─ reception-address.ts   ที่อยู่แยกช่องตาม 43 แฟ้มของฟอร์มเวชระเบียน (SBH-1290): ADDRESS_BLOCKS (8 ส่วน + testid ของแต่ละส่วน) · ADDRESS_TEXT_FIELDS / ADDRESS_LOCATION_FIELDS (+ ชื่อ 43 แฟ้ม) · textField / locationTrigger / postalField / locationBox / textError / fieldLabel ·
 │  │  │                            chooseLocation() (จังหวัด → อำเภอ → ตำบล แล้วรอรหัสไปรษณีย์) · fillAddressText() · readAddress() · uniqueAddressValues() · flattenJson() (path = ค่า ไว้ค้นว่าค่าลง field ไหนใน API)
 │  │  ├─ evidence.ts             checkStep() — step ที่แนบภาพ "ผ่าน — …" / "Error — …" ลงรายงาน · markEvidence() — กรอบแดงในภาพ (R13) + ป้าย filled/clicked/alerted/expected (R23) · snapEvidence() — ภาพกลาง step เช่น "ก่อนกด" ·
-│  │  │                            ทุกภาพถูกเก็บเป็นไฟล์เรียงลำดับด้วยที่ `<โฟลเดอร์ผลของเทส>/evidence/NN <ชื่อ>.png` (ไว้แนบ Linear) · showCompareTable() / hideCompareTable() — ตารางเทียบค่าซ้อนครึ่งขวาของจอ · holdForClip() — ค้างจอให้คลิปอ่านทัน
+│  │  │                            ทุกภาพถูกเก็บเป็นไฟล์เรียงลำดับด้วยที่ `<โฟลเดอร์ผลของเทส>/evidence/NN <ชื่อ>.png` (ไว้แนบ Linear) · showCompareTable() / hideCompareTable() — ตารางเทียบค่าซ้อนครึ่งขวาของจอ · holdForClip() — ค้างจอให้คลิปอ่านทัน · makeRunner(page) → { note, soft, finish } (soft step ไม่หยุดเทส จบเทสค่อย fail พร้อมรายการ) · firstLine(error)
+│  │  ├─ reception.ts            เวชระเบียน (หน้าลงทะเบียน / ข้อมูลผู้ป่วย): gotoReception · newPatientButton · fillNewPatientForm · saveNewPatient · expectPatientInfo · openNewVisitPanel · TEST_ADDRESS ·
+│  │  │                            registerPatient(page, tag, { snapName? }) ลงทะเบียน AUTO ครบขั้น → { hn, name, newVisitEnabled } · openPatientInfo(page, hn) เปิดหน้าข้อมูลผู้ป่วยเดิมเป็น checkStep (2 ตัวหลังย้ายมาจากสเปก 24 ต.ค. 2026)
+│  │  ├─ notices.ts              จดแจ้งเตือน antd ที่หายเองใน ~4.5 วินาที: recordNotices (init script → window.__notices) · notices(page) · waitNotice(page, before, pattern, timeout?) — รวมจากสเปก Refill / ใบยา 12 ไฟล์ (24 ต.ค. 2026)
+│  │  ├─ dates.ts                dayPlus(n) → { iso 2026-10-26 · be 2569-10-26 · th 26/10/2569 · month · date } วันที่เครื่อง + n วัน — เดิมแต่ละสเปกคืน field ไม่เท่ากัน รวมเป็นชุดเดียว (8 ไฟล์)
+│  │  ├─ table.ts                ตาราง antd ตามชื่อหัวคอลัมน์: squash() · headersOf(row) · cellByHeader(row, หัว) → { cell, text } (ไม่มีคอลัมน์นั้น → text บอกรายชื่อหัวที่มี) — รวมจาก 4 ไฟล์
+│  │  ├─ windows.ts              openDoctorWindow(browser, { goto? }) หน้าต่าง context แยกของบัญชี Doctor จาก .auth/Doctor.json + recordNotices + trackVideo('Doctor') — ต่างจาก openRoleWindow (print-capture.ts) ที่ล็อกอินใหม่ · goto = ตัวเลือก page.goto ตอน dev-x ช้า (SBH-1738)
 │  │  ├─ fixtures.ts             test / expect ของโปรเจกต์ (เทสทุกไฟล์ import จากที่นี่) — อัดวิดีโอด้วย page.screencast เริ่มหลังหน้าแรกโหลดเสร็จ (R13)
 │  │  └─ test-data.ts            newTestPatient(label) — ชื่อ AUTO + นามสกุล label+เวลาไทย · randomThaiId()
 │  ├─ flows/                       **Layer 2: Business-level sequences** (ใช้ซ้ำข้าม spec ได้ — เรียก functions หลายอัน)

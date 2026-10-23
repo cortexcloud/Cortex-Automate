@@ -1,13 +1,15 @@
-import type { Browser, Locator, Page, Response } from '@playwright/test';
+import type { Page, Response } from '@playwright/test';
 import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence } from '../../../helpers/functions/evidence';
 import { finishVideo, restartVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
-import { expectPatientInfo, fillNewPatientForm, gotoReception, newPatientButton, openNewVisitPanel, receptionFrame, saveNewPatient, saveNewPatientButton } from '../../../helpers/functions/reception';
-import { newTestPatient } from '../../../helpers/functions/test-data';
+import { openNewVisitPanel, registerPatient } from '../../../helpers/functions/reception';
 import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
 import { gotoPatient, openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
 import { authFile } from '../../../utils/env';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
+import { dayPlus } from '../../../helpers/functions/dates';
+import { cellByHeader, headersOf, squash } from '../../../helpers/functions/table';
 
 // การ์ด SBH-1730 [OPD][Registration] ปรับชื่อ / ตัวเลือก Visit การรับบริการ Refill — EXE SBH-2661 → TS SBH-2662 (HPY) → TC-SBH-1730-001–006 (SBH-2663–2668)
 // เทส 1 (TC-001–004): ผู้ป่วย AUTO ใหม่ (ยังไม่มี Visit วันนี้) → เวชระเบียน "Visit ใหม่" (แผงจัดการ Visit) → ช่อง "หรือรับบริการ" มี "รับยาต่อเนื่อง (Refill)" → เลือก → สร้าง → ตาราง "รายการเข้ารับบริการ"
@@ -28,67 +30,7 @@ const TC = {
 } as const;
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
-const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const isGraphql = (r: Response, op: string) => r.request().method() === 'POST' && r.url().includes('/graphql') && (r.request().postData() ?? '').includes(op);
-
-/** วันที่ (เวลาเครื่อง) + n วัน → { iso: '2026-10-26', th: '26/10/2569' } */
-function dayPlus(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return { iso: `${d.getFullYear()}-${mm}-${dd}`, th: `${dd}/${mm}/${d.getFullYear() + 543}` };
-}
-
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
-
-/** หัวคอลัมน์ที่มองเห็นของตารางที่มีแถว row */
-async function headersOf(row: Locator): Promise<string[]> {
-  const table = row.locator('xpath=ancestor::div[contains(@class,"ant-table-wrapper")][1]');
-  return (await table.locator('thead th').filter({ visible: true }).allInnerTexts()).map(squash);
-}
-async function cellByHeader(row: Locator, header: string): Promise<{ cell: Locator; text: string }> {
-  const headers = await headersOf(row);
-  const i = headers.findIndex((h) => h === header);
-  if (i < 0) return { cell: row.locator('td').first(), text: `(ไม่มีคอลัมน์ "${header}")` };
-  const cell = row.locator('td').filter({ visible: true }).nth(i);
-  return { cell, text: squash(await cell.innerText().catch(() => '')) };
-}
-
-/** ลงทะเบียนผู้ป่วย AUTO ใหม่ที่เวชระเบียน → คืน HN และสถานะปุ่ม Visit ใหม่ */
-async function registerPatient(page: Page, tag: string): Promise<{ hn: string; name: string; newVisitEnabled: boolean }> {
-  const patient = newTestPatient(tag);
-  await gotoReception(page);
-  await markEvidence(clicked(newPatientButton(page)));
-  await fillNewPatientForm(page, patient);
-  const f = receptionFrame(page);
-  const save = saveNewPatientButton(page);
-  await save.evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
-  await markEvidence(filled(f.getByTestId('firstName')), filled(f.getByTestId('familyName')), clicked(save));
-  await snapEvidence(page, 'ก่อนกด — บันทึกผู้ป่วยใหม่');
-  const hn = await saveNewPatient(page);
-  const newVisitEnabled = await expectPatientInfo(page);
-  return { hn, name: `${patient.firstName} ${patient.familyName}`, newVisitEnabled };
-}
 
 test.describe('SBH-1730 Visit Walk-in รับยาต่อเนื่อง (Refill)', () => {
 

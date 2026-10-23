@@ -10,6 +10,7 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { addCoverageFirst, openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { cellByHeader, squash } from '../../../helpers/functions/table';
 
 // การ์ด SBH-915 [Pharmacy] ปรับยอดเครดิต (เบิกได้) เป็น 0 เมื่อเลือกเหตุผลใช้ยานอกบัญชี = F (ตัวแก้ cortex-api PR #2305)
 // EXE SBH-2895 → TS-HPY SBH-2896 (TC-001–006 = SBH-2898–2903) · TS-EDG SBH-2897 (TC-007–009 = SBH-2904–2906)
@@ -25,7 +26,6 @@ const ED_DRUG = { code: 'med0000006', name: 'LINCOMYCIN', qty: 1, total: 3.5 };
 const COVERAGE = 'H03 - สิทธิ UC';
 const PARENTS = ['SBH-915', 'SBH-2895'];
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
-const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 /** "1,234.50" → 1234.5 · "-" / ว่าง = 0 */
 const money = (text: string) => (/^-?$/.test(text.trim()) ? 0 : Number(text.replace(/,/g, '')));
 const baht = (n: number) => n.toFixed(2);
@@ -33,17 +33,6 @@ const options = (page: Page) => page.locator('.ant-select-dropdown:visible .ant-
 const from = Number(process.env.SBH915_FROM ?? 0);
 const run = (tc: number) => tc >= from;
 
-async function headersOf(row: Locator): Promise<string[]> {
-  const table = row.locator('xpath=ancestor::div[contains(@class,"ant-table-wrapper")][1]');
-  return (await table.locator('thead th').filter({ visible: true }).allInnerTexts()).map(squash);
-}
-async function cellByHeader(row: Locator, header: string): Promise<{ cell: Locator; text: string }> {
-  const headers = await headersOf(row);
-  const i = headers.findIndex((h) => h === header);
-  if (i < 0) return { cell: row.locator('td').first(), text: `(ไม่มีคอลัมน์ "${header}" — มี ${headers.join(' | ')})` };
-  const cell = row.locator('td').filter({ visible: true }).nth(i);
-  return { cell, text: squash(await cell.innerText().catch(() => '')) };
-}
 async function cells(row: Locator, names: string[]) {
   const out: Record<string, { cell: Locator; text: string }> = {};
   for (const n of names) out[n] = await cellByHeader(row, n);

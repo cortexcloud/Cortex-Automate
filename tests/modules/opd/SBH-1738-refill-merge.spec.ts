@@ -1,16 +1,18 @@
 import fs from 'node:fs';
-import type { Browser, Locator, Page, Response } from '@playwright/test';
+import type { Locator, Page, Response } from '@playwright/test';
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
-import { finishVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
+import { finishVideo, startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
 import { expectPatientInfo, fillNewPatientForm, gotoReception, newPatientButton, openNewVisitPanel, receptionFrame, saveNewPatient, saveNewPatientButton } from '../../../helpers/functions/reception';
 import { newTestPatient } from '../../../helpers/functions/test-data';
-import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
+import { expect, test } from '../../../mock-data/fixtures';
 import { checkInOpdVisit, openOpdVisit, orderAlert, scheduleWalkInRequest } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
-import { authFile } from '../../../utils/env';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
+import { dayPlus } from '../../../helpers/functions/dates';
+import { openDoctorWindow } from '../../../helpers/functions/windows';
 
 // การ์ด SBH-1738 [Pharmacy][สร้างใบยา] ปรับเงื่อนไข การสร้าง/Merge ใบยา Refill — EXE SBH-2632 → TC-SBH-1738-001–010 (SBH-2635–2644)
 // Task เติมยา 1 แถว = Encounter 1 ตัว × รอบ 1 รอบ (แพทย์ผู้สั่ง / คลินิก ของ Encounter) → "Task ยา A" กับ "Task ยา B" แยกกันต้องมาจากคนละ Encounter
@@ -44,15 +46,6 @@ const isGraphql = (r: Response, op: string) => r.request().method() === 'POST' &
 const STATUS: Record<string, string> = { PENDING: 'ยังไม่เติม', IN_PROGRESS: 'กำลังเติมยา', COMPLETED: 'เติมยาแล้ว', CANCELLED: 'ยกเลิกแล้ว' };
 const DUMP = '.cache/sbh-1738';
 
-/** วันที่ (เวลาเครื่อง) + n วัน → iso 2026-10-26 (ช่องวันที่ของห้องยา) · be 2569-10-26 (ปฏิทินหน้าต่าง Refill) · th 26/10/2569 */
-function dayPlus(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return { iso: `${d.getFullYear()}-${mm}-${dd}`, be: `${d.getFullYear() + 543}-${mm}-${dd}`, th: `${dd}/${mm}/${d.getFullYear() + 543}`, month: d.getMonth() };
-}
-
 /** Task เติมยาจาก API `medication-refill-with-detail` */
 interface RefillTask {
   id: number; iteration: number; sourceCount: number; sourceVn: string; sourceEn: string; scheduledRefillDate: string; latestStatusCode: string; prescriptionId: string | null;
@@ -67,39 +60,6 @@ const taskText = (t: RefillTask) => `${t.sourceEn} ${t.iteration}/${t.sourceCoun
 
 /** ผู้ป่วยของการ์ด: Visit OPD (EN1 คลินิก MED · EN2 คลินิก SBH) ที่ปิดแล้ว + Visit Refill วันนี้ */
 interface Patient { label: string; hn: string; vn: string; en1: string; en2: string; vnR: string }
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
-
-/** หน้าต่างบัญชี Doctor (ดร. วิชัย) — คลิป video-Doctor.webm · ปิดด้วย finishVideo + ปิด context */
-async function openDoctorWindow(browser: Browser): Promise<Page> {
-  const context = await browser.newContext({ storageState: authFile('Doctor'), baseURL: test.info().project.use.baseURL, viewport: { width: 1920, height: 1080 }, locale: 'th-TH', timezoneId: 'Asia/Bangkok' });
-  await cacheAppAssets(context);
-  await context.addInitScript(recordNotices);
-  const page = await context.newPage();
-  await page.goto('/cortex/', { waitUntil: 'domcontentloaded', timeout: 90_000 });
-  await trackVideo(page, 'Doctor');
-  return page;
-}
 
 test.describe('SBH-1738 สร้าง / Merge ใบยา Refill หลาย Task', () => {
 
@@ -654,7 +614,7 @@ test.describe('SBH-1738 สร้าง / Merge ใบยา Refill หลาย
         });
         await checkStep(page, `Pre-condition คนไข้ 3 แพทย์ 2 (${DOCTOR2} · บัญชี Doctor หน้าต่างแยก) สั่งยา B Refill 3 รอบ → ส่งคำสั่ง`, async () => {
           if (ordered.includes('P3B')) return;
-          const doc = await openDoctorWindow(browser);
+          const doc = await openDoctorWindow(browser, { goto: { waitUntil: 'domcontentloaded', timeout: 90_000 } });
           try {
             await makeCpoe(doc).orderRefill(p, p.en2, DRUG_B, 'คนไข้ 3 EN2 ยา B (แพทย์ 2)');
           } finally {

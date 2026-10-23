@@ -1,5 +1,5 @@
-import type { Locator, Page, Response } from '@playwright/test';
-import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import type { Locator, Response } from '@playwright/test';
+import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
@@ -8,6 +8,7 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit, orderAlert } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { notices, recordNotices } from '../../../helpers/functions/notices';
 
 // การ์ดบั๊ก SBH-1717 [Pharmacy][สร้างใบยา] สร้าง / ย้อนกลับ / ยกเลิก ใบยาไม่ได้ — EXE SBH-2846 → HPY SBH-2847 / EDG SBH-2848 → TC-SBH-1717-001–007 (SBH-2849–2855)
 // ส่วน A คนไข้ Refill (Visit Walk-in รับยาต่อเนื่อง ของวันนี้): 001 สร้างใบยาจาก Task → 002 ย้อนกลับไปแก้ไข → 004 สร้างใหม่ (ยาไม่ซ้ำ) → 003 ยกเลิกใบยา
@@ -38,19 +39,6 @@ function beDate(offsetDays: number) {
   d.setDate(d.getDate() + offsetDays);
   return `${d.getFullYear() + 543}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
 
 test.describe('SBH-1717 ห้องยา สร้าง / ย้อนกลับ / ยกเลิก ใบยา', () => {
   test(

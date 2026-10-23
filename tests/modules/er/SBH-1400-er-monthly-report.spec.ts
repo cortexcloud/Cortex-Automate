@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { type Locator } from '@playwright/test';
 import {
   confirmOpenErVisit,
   dismissToast,
@@ -7,6 +7,7 @@ import {
   gotoErDashboard,
   openErMenu,
   openTriagePage,
+  recordVisit,
   registerNewPatient,
   waitForApi,
   type ErVisit,
@@ -154,15 +155,6 @@ function sheetHeaderRow(sheet: Sheet): number {
   const index = sheet.rows.findIndex((row) => row[0] === 'เดือน');
   expect(index, `sheet ${sheet.name} ต้องมีแถวหัวตารางที่ขึ้นต้นด้วย "เดือน"`).toBeGreaterThanOrEqual(0);
   return index;
-}
-
-function recordVisit(visit: ErVisit) {
-  test.info().annotations.push(
-    { type: 'HN', description: visit.hn },
-    { type: 'VN', description: visit.vn },
-    { type: 'EN', description: visit.en },
-  );
-  console.log(`HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
 }
 
 /** ผลต่างของตัวเลขทุกช่อง (หลัง − ก่อน) เฉพาะช่องที่เปลี่ยน */

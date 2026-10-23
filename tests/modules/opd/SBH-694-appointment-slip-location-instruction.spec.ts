@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
-import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
 import { capturePrintJobs, hidePdf, pdfLineAt, pdfPages, showPdf, type PrintJob } from '../../../helpers/functions/print-capture';
@@ -43,28 +43,8 @@ const TC = {
   '012': 'TC-012 (SBH-2920)',
 } as const;
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
-const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const splitLines = (text: string | null | undefined) => (text ?? '').split(/\\n|\n/).map((s) => s.trim()).filter(Boolean);
-
-function makeRunner(page: Page) {
-  const failures: string[] = [];
-  const note = (type: string, description: string) => {
-    test.info().annotations.push({ type, description });
-    console.log(`    ${type}: ${description}`);
-  };
-  const soft = (title: string, body: () => Promise<void>) =>
-    checkStep(page, title, body).then(
-      () => true,
-      (error: unknown) => {
-        failures.push(`${title} — ${firstLine(error)}`);
-        console.log(`    ✗ ${title} — ${firstLine(error)}`);
-        return false;
-      },
-    );
-  const finish = () => expect(failures, `ขั้นที่ไม่ผ่าน:\n${failures.join('\n')}`).toEqual([]);
-  return { note, soft, finish };
-}
 
 interface Qsu {
   id: number;

@@ -1,14 +1,16 @@
-import type { Locator, Page, Response } from '@playwright/test';
+import type { Locator, Response } from '@playwright/test';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
 import { capturePrintJobs, hidePdf, pdfLineAt, pdfPages, showPdf } from '../../../helpers/functions/print-capture';
-import { expectPatientInfo, fillNewPatientForm, gotoReception, newPatientButton, openNewVisitPanel, receptionFrame, saveNewPatient, saveNewPatientButton } from '../../../helpers/functions/reception';
+import { expectPatientInfo, fillNewPatientForm, gotoReception, openNewVisitPanel, receptionFrame, saveNewPatient, saveNewPatientButton } from '../../../helpers/functions/reception';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit, orderAlert } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
+import { dayPlus } from '../../../helpers/functions/dates';
 
 // การ์ด SBH-1731 [OPD][Pharmacy] เพิ่มปุ่ม Print queue รับยา — EXE SBH-2802 → TS SBH-2803 (HPY) / SBH-2804 (UHP) → TC-SBH-1731-001–004 (SBH-2805–2808)
 // ปุ่ม = ไอคอนเครื่องพิมพ์ข้าง "ช่อง:" ในหัวใบยา (aria-label "พิมพ์คิวรับยา") → POST /cortex-api/queues/print (queueFifoIds ของคิวใบยา) → print agent thermal A5 (ดัก PDF ด้วย capturePrintJobs)
@@ -28,34 +30,6 @@ const firstLine = (error: unknown) => (error instanceof Error ? error.message : 
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const queueOf = (text: string) => text.match(/\b([A-Z])(\d{3})\b/)?.[0] ?? '';
 const queueNo = (q: string) => Number(q.slice(1));
-
-function dayPlus(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
 
 test.describe('SBH-1731 ปุ่มพิมพ์คิวรับยา หน้า Prescription ห้องยา', () => {
 
@@ -113,7 +87,7 @@ test.describe('SBH-1731 ปุ่มพิมพ์คิวรับยา ห�
           await page.waitForTimeout(800);
         }
         await end.click();
-        await end.fill(dayPlus(60));
+        await end.fill(dayPlus(60).iso);
         await end.press('Enter');
         await page.waitForTimeout(1_000);
         const box = main.getByRole('textbox', { name: /ค้นหา VN, HN/ });

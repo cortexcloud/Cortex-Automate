@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import type { FrameLocator, Locator, Page, Route } from '@playwright/test';
 import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { expect, restartVideo, startClip, test } from '../../../helpers/functions/fixtures';
-import { fillNewPatientForm, gotoReception, newPatientButton, receptionFrame, saveNewPatientButton } from '../../../helpers/functions/reception';
+import { fillNewPatientForm, gotoReception, newPatientButton, openPatientInfo, receptionFrame, saveNewPatientButton } from '../../../helpers/functions/reception';
 import {
   ADDRESS_BLOCKS,
   ADDRESS_LOCATION_FIELDS,
@@ -240,13 +240,6 @@ async function openEdit(page: Page, title: string) {
     await page.waitForURL(/actions=patientEdit/, { timeout: 60_000 });
     await expect(textField(f, B.official, 'houseNo')).toHaveValue(/.+/, { timeout: 60_000 });
     await markEvidence(expected(f.getByRole('heading', { name: /แก้ไขข้อมูลผู้ป่วย/ }).first()));
-  });
-}
-
-async function openPatient(page: Page, hn: string) {
-  await checkStep(page, `ผู้ป่วยเดิม HN ${hn} → หน้าข้อมูลผู้ป่วย`, async () => {
-    await page.goto(`/cortex/next/patients/${hn}?views=patientInfo`);
-    await expect(receptionFrame(page).getByRole('heading', { name: 'ข้อมูลผู้ป่วย' })).toBeVisible({ timeout: 90_000 });
   });
 }
 
@@ -527,7 +520,7 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
       //   แล้วตรวจที่อยู่ และการติดต่อ บนหน้าแก้ไข · TC อื่นเปิดหน้าข้อมูลผู้ป่วย A ใหม่แล้วเริ่มคลิปของตัวเอง (ลำดับ 007 → 013 → 005 → 009 → 010 → 012 · TC-012 แก้ข้อมูลจึงไว้ท้าย)
       const clipOf = (tc: number) => `TC-${String(tc).padStart(3, '0')}`;
       const reopen = async (tc: number, edit = true) => {
-        await openPatient(page, hn);
+        await openPatientInfo(page, hn);
         await startClip(page, clipOf(tc));
         if (edit) await openEdit(page, `${TC(tc)} กด แก้ไขข้อมูลผู้ป่วย → ฟอร์มแก้ไข`);
       };
@@ -560,7 +553,7 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
         }
         hn = await checkStep(page, `${TC(7)} ขั้น 4 กดบันทึก → ได้ HN ใหม่`, () => savePatient(page, `ผู้ป่วย A ${patient.familyName}`));
       } else {
-        await openPatient(page, hn);
+        await openPatientInfo(page, hn);
         await startClip(page, clipOf(7));
       }
 
@@ -702,7 +695,7 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
         hn = await checkStep(page, `${TC(11)} ขั้น 5 กดบันทึก → บันทึกสำเร็จ ไม่มีแจ้งเตือนของ section อื่น`, () => savePatient(page, `ผู้ป่วย B ${patient.familyName}`));
         await holdForClip(page);
       } else {
-        await openPatient(page, hn);
+        await openPatientInfo(page, hn);
       }
       // คลิป TC-014 เริ่มที่หน้าข้อมูลผู้ป่วย B (หลังบันทึกของ TC-011)
       await startClip(page, 'TC-014');
@@ -764,7 +757,7 @@ test.describe('SBH-1290 ที่อยู่ผู้ป่วยแยก fiel
           return;
         }
       } else {
-        await openPatient(page, hn);
+        await openPatientInfo(page, hn);
       }
 
       await openEdit(page, `${TC(8)} ขั้น 5 กด แก้ไขข้อมูลผู้ป่วย → ฟอร์มแก้ไข`);

@@ -1,6 +1,7 @@
 import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
 import { ADDRESS_BLOCKS, fillAddress, SARABURI_PAKPHRIAO, textField } from './reception-address';
-import type { NewPatient } from './test-data';
+import { checkStep, clicked, filled, markEvidence, snapEvidence } from './evidence';
+import { newTestPatient, type NewPatient } from './test-data';
 
 // เวชระเบียน (Reception) — เนื้อหาเป็น iframe `/reception/embedded/<route>` ใต้หน้า /cortex/reception/<route> · ฟอร์มเป็น Radix UI จับด้วย data-testid
 // iframe ถูกสร้างใหม่ทุกครั้งที่เปลี่ยนหน้า → ใช้ frameLocator (elementHandle().contentFrame() ได้ null บน SBH Prod 14 ต.ค. 2026)
@@ -142,4 +143,31 @@ export async function openNewVisitPanel(page: Page) {
   await newVisitButton(page).click();
   await page.waitForURL(/actions=createVisit/, { timeout: 60_000 });
   await expect(page.getByRole('main').getByText(/^รายการเข้ารับบริการ/)).toBeVisible({ timeout: 60_000 });
+}
+
+/**
+ * ลงทะเบียนผู้ป่วย AUTO ใหม่ที่เวชระเบียน → อยู่หน้าข้อมูลผู้ป่วย → คืน HN + ชื่อ + ปุ่ม Visit ใหม่กดได้ไหม
+ * tag = ส่วนต่อท้ายนามสกุล (newTestPatient) · snapName = ชื่อภาพ "ก่อนกด" ก่อนบันทึก (ค่าเริ่มต้นไม่ใส่ tag)
+ */
+export async function registerPatient(page: Page, tag: string, options: { snapName?: string } = {}): Promise<{ hn: string; name: string; newVisitEnabled: boolean }> {
+  const patient = newTestPatient(tag);
+  await gotoReception(page);
+  await markEvidence(clicked(newPatientButton(page)));
+  await fillNewPatientForm(page, patient);
+  const f = receptionFrame(page);
+  const save = saveNewPatientButton(page);
+  await save.evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await markEvidence(filled(f.getByTestId('firstName')), filled(f.getByTestId('familyName')), clicked(save));
+  await snapEvidence(page, options.snapName ?? 'ก่อนกด — บันทึกผู้ป่วยใหม่');
+  const hn = await saveNewPatient(page);
+  const newVisitEnabled = await expectPatientInfo(page);
+  return { hn, name: `${patient.firstName} ${patient.familyName}`, newVisitEnabled };
+}
+
+/** เปิดหน้าข้อมูลผู้ป่วยเดิมตาม HN (`/cortex/next/patients/<HN>?views=patientInfo`) เป็น checkStep — รอหัวข้อ "ข้อมูลผู้ป่วย" */
+export async function openPatientInfo(page: Page, hn: string) {
+  await checkStep(page, `ผู้ป่วยเดิม HN ${hn} → หน้าข้อมูลผู้ป่วย`, async () => {
+    await page.goto(`/cortex/next/patients/${hn}?views=patientInfo`);
+    await expect(receptionFrame(page).getByRole('heading', { name: 'ข้อมูลผู้ป่วย' })).toBeVisible({ timeout: 90_000 });
+  });
 }

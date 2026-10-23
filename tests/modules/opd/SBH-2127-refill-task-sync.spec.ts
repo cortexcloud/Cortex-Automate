@@ -1,4 +1,4 @@
-import type { Locator, Page, Response } from '@playwright/test';
+import type { Locator, Response } from '@playwright/test';
 import { gotoCashierAccount, payAllInCash } from '../../../helpers/functions/cashier';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { saveWithRegeneratedUsage, setDose } from '../../../helpers/functions/cpoe-usage';
@@ -9,6 +9,8 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
+import { dayPlus } from '../../../helpers/functions/dates';
 
 // การ์ด SBH-2127 [CPOE][Pharmacy] Sync Order Refill (CPOE) กับ Task เติมยา (Pharmacy) — EXE SBH-2769 → TS SBH-2770 (HPY) / SBH-2771 (UHP) → TC-SBH-2127-001–009 (SBH-2772–2780)
 // 1 เทส = 1 flow (R9) ตามลำดับใน EXE · ผู้ป่วย AUTO ใหม่ 4 ราย (ลงทะเบียน + Visit OPD ที่เวชระเบียน R53 → เช็คอิน · เตรียมทั้งหมดก่อนคลิป TC-001) ทิ้ง Visit ไว้ (R11)
@@ -37,15 +39,6 @@ const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const isGraphql = (r: Response, op: string) => r.request().method() === 'POST' && r.url().includes('/graphql') && (r.request().postData() ?? '').includes(op);
 const STATUS: Record<string, string> = { PENDING: 'ยังไม่เติม', IN_PROGRESS: 'กำลังเติมยา', COMPLETED: 'เติมยาแล้ว', CANCELLED: 'ยกเลิกแล้ว' };
 
-/** วันที่ (เวลาเครื่อง) + n วัน → { iso: '2026-10-26' (ช่องวันที่สิ้นสุดของห้องยา), th: '26/10/2569' } */
-function dayPlus(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return { iso: `${d.getFullYear()}-${mm}-${dd}`, th: `${dd}/${mm}/${d.getFullYear() + 543}` };
-}
-
 /** Task เติมยาจาก API `medication-refill-with-detail` */
 interface RefillTask { id: number; iteration: number; sourceCount: number; sourceVn: string; scheduledRefillDate: string; latestStatusCode: string; medications: { productCode: string; name: string }[] }
 const taskDate = (t: RefillTask) => {
@@ -54,28 +47,6 @@ const taskDate = (t: RefillTask) => {
   return `${String(local.getUTCDate()).padStart(2, '0')}/${String(local.getUTCMonth() + 1).padStart(2, '0')}/${local.getUTCFullYear() + 543}`;
 };
 const hasDrug = (t: RefillTask, code: string) => t.medications.some((m) => m.productCode === code);
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
 
 test.describe('SBH-2127 Sync Order Refill กับ Task เติมยา', () => {
 

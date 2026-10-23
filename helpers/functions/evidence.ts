@@ -326,3 +326,29 @@ export async function hideCompareTable(page: Page) {
 export async function holdForClip(page: Page, ms = 1_200) {
   await page.waitForTimeout(ms);
 }
+
+/** บรรทัดแรกของข้อความ error (ตัดสี ANSI ออก) — ไว้สรุปในรายการขั้นที่ไม่ผ่าน */
+export const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
+
+/**
+ * ตัวช่วยต่อเทส: บันทึก annotation + soft step (ไม่ผ่านแล้วเล่นต่อ จบเทสค่อย fail พร้อมรายการ)
+ * `note(type, description)` ลง annotation + terminal · `soft(title, body)` = checkStep ที่ไม่โยน error (คืน true / false) · `finish()` fail ถ้ามีขั้นที่ไม่ผ่าน
+ */
+export function makeRunner(page: Page) {
+  const failures: string[] = [];
+  const note = (type: string, description: string) => {
+    test.info().annotations.push({ type, description });
+    console.log(`    ${type}: ${description}`);
+  };
+  const soft = (title: string, body: () => Promise<void>) =>
+    checkStep(page, title, body).then(
+      () => true,
+      (error: unknown) => {
+        failures.push(`${title} — ${firstLine(error)}`);
+        console.log(`    ✗ ${title} — ${firstLine(error)}`);
+        return false;
+      },
+    );
+  const finish = () => expect(failures, `ขั้นที่ไม่ผ่าน:\n${failures.join('\n')}`).toEqual([]);
+  return { note, soft, finish };
+}
