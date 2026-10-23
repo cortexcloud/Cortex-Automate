@@ -90,7 +90,7 @@ const analyze = (source, scale) => {
   const total = w * h;
   const strip = ({ px, cells, ...b }) => b;
   return { width: nat.w, height: nat.h, white: +(white / total).toFixed(3), dark: +(dark / total).toFixed(4), redPx: red, greenPx: green,
-    blank: white / total >= 0.9 && dark / total < 0.004, frames: frames.length, labels: labels.length, framesNoLabel, hugeFrames: huge, touchesEdge,
+    blank: white / total >= 0.96 && dark / total < 0.0015, frames: frames.length, labels: labels.length, framesNoLabel, hugeFrames: huge, touchesEdge,
     compareTable: green / total > 0.0008, frameBoxes: frames.slice(0, 8).map(strip), labelBoxes: labels.slice(0, 8).map(strip) };
 };
 
@@ -99,7 +99,7 @@ const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
 const results = [];
 const flagsOf = (s) => {
   const f = [];
-  if (s.blank) f.push('เกือบว่าง (ขาว ≥90%)');
+  if (s.blank) f.push('เกือบว่าง (ขาว ≥96%)');
   if (!s.frames && !s.labels) f.push('ไม่มีกรอบแดง');
   if (s.frames && !s.labels) f.push('มีกรอบแต่ไม่เจอป้ายเลย (ป้ายไทยสั้นๆ อาจตรวจไม่เจอ — ดูภาพ)');
   if (s.touchesEdge) f.push('กรอบชนขอบจอ');
@@ -111,10 +111,10 @@ const flagsOf = (s) => {
 if (clip) {
   await page.goto(pathToFileURL(path.resolve(clip)).href);
   const video = page.locator('video');
-  await video.evaluate((v) => { v.muted = true; v.playbackRate = 4; return v.play(); });
+  await video.evaluate((v) => { v.muted = true; v.playbackRate = 2; return v.play(); });
   const samples = [];
   for (let i = 0; i < 2400; i++) {
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(100);
     const s = await video.evaluate((v, fn) => { const t = v.currentTime, ended = v.ended; const stats = (0, eval)(fn)(v, 0.5); return { t, ended, ...stats }; }, `(${analyze.toString()})`);
     samples.push(s);
     if (s.ended) break;
