@@ -1,50 +1,56 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { trackAuthorization } from '../helpers/functions/er-report';
-import { expect, test } from './fixtures';
-import * as reception from '../helpers/functions/reception';
 import * as cashier from '../helpers/functions/cashier';
 import * as er from '../helpers/functions/er';
-import * as opd from '../helpers/functions/opd-activity';
+import * as disposition from '../helpers/functions/er-disposition';
+import * as report from '../helpers/functions/er-report';
 import * as evidence from '../helpers/functions/evidence';
-import * as uat from './uat-er';
-import * as play from './uat-play';
+import * as opd from '../helpers/functions/opd-activity';
+import * as print from '../helpers/functions/print-capture';
+import * as reception from '../helpers/functions/reception';
+import * as testData from '../helpers/functions/test-data';
+import { expect, test } from './fixtures';
+import * as bizsim from './bizsim-opd';
+import * as uatEr from './uat-er';
+import * as uatPlay from './uat-play';
 
-const h = { ...reception, ...cashier, ...er, ...opd, ...evidence, ...uat, ...play };
+// เทสสำรวจแบบสั่งทีละขั้น (ไม่ใช่เทสจริง): เปิดเบราว์เซอร์ค้างไว้ แล้วรันโค้ดจาก .cache/repl/cmd.js ทีละครั้ง
+// ไฟล์คำสั่งบรรทัดแรก = `// <เลขคำสั่ง>` · ผล .cache/repl/out-<n>.txt + shot-<n>.png · ตัวแปร: page · context · browser · state · h (ตัวช่วยทั้งหมด) · log · expect
+// เขียน `// stop` = จบเทส · ไม่มี require (ใช้ process.env ได้)
+// รัน: npx playwright test -c playwright.mock.config.ts _repl --headed --project=chrome --no-deps (SBH Prod: -c playwright.sbh-prod.config.ts)
 
-// เทสสำรวจชั่วคราว (ลบหลังใช้): เปิดเบราว์เซอร์ค้างไว้ แล้วรันโค้ดจากไฟล์ .cache/repl/cmd.js ทีละชุด
-// ผล → .cache/repl/out-<n>.txt + ภาพ shot-<n>.png · ไฟล์ cmd.js ที่มีแค่ "exit" = จบ
 const DIR = path.join(__dirname, '..', '.cache', 'repl');
+const h = { ...cashier, ...er, ...disposition, ...report, ...evidence, ...opd, ...print, ...reception, ...testData, ...uatEr, ...uatPlay, ...bizsim };
+const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
 
-test('repl', async ({ page, context, browser }) => {
+test('REPL สำรวจหน้าจอ', async ({ page, context, browser }) => {
   test.setTimeout(0);
   fs.mkdirSync(DIR, { recursive: true });
-  const authorization = trackAuthorization(page);
-  const state: Record<string, unknown> = {};
+  const cmdFile = path.join(DIR, 'cmd.js');
+  const state: Record<string, unknown> = { authorization: report.trackAuthorization(page) };
   await page.goto('/cortex/apps');
-  await expect(page.getByText('เวชระเบียน').first()).toBeVisible({ timeout: 90_000 });
   fs.writeFileSync(path.join(DIR, 'ready.txt'), new Date().toISOString());
-  const AsyncFunction = Object.getPrototypeOf(async () => undefined).constructor;
-  for (let n = 1; ; ) {
-    const cmdFile = path.join(DIR, 'cmd.js');
-    if (!fs.existsSync(cmdFile)) {
-      await new Promise((r) => setTimeout(r, 500));
-      continue;
-    }
+  let last = -1;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (!fs.existsSync(cmdFile)) continue;
     const code = fs.readFileSync(cmdFile, 'utf8');
-    fs.unlinkSync(cmdFile);
-    if (code.trim() === 'exit') break;
-    let out = '';
-    const log = (...args: unknown[]) => (out += args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a, null, 1))).join(' ') + '\n');
+    const head = code.split('\n')[0].trim();
+    if (head === '// stop') break;
+    const n = Number(head.replace(/^\/\/\s*/, ''));
+    if (!Number.isFinite(n) || n === last) continue;
+    last = n;
+    const lines: string[] = [];
+    const log = (...args: unknown[]) => lines.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a, null, 1))).join(' '));
+    const started = Date.now();
     try {
-      const fn = new AsyncFunction('page', 'context', 'browser', 'expect', 'log', 'state', 'auth', 'h', code);
-      const result = await fn(page, context, browser, expect, log, state, authorization, h);
+      const result = await new AsyncFunction('page', 'context', 'browser', 'state', 'h', 'log', 'expect', code)(page, context, browser, state, h, log, expect);
       if (result !== undefined) log('RESULT', result);
-    } catch (error) {
-      log('ERROR', String((error as Error).message ?? error).slice(0, 3000));
+    } catch (e) {
+      log('ERROR', (e as Error).message?.split('\n').slice(0, 12).join('\n'));
     }
-    await page.screenshot({ path: path.join(DIR, `shot-${n}.png`) }).catch((e) => log('shot error', String(e)));
-    fs.writeFileSync(path.join(DIR, `out-${n}.txt`), out || '(no output)');
-    n++;
+    log(`(${((Date.now() - started) / 1000).toFixed(1)} s · ${page.url()})`);
+    await page.screenshot({ path: path.join(DIR, `shot-${n}.png`) }).catch(() => {});
+    fs.writeFileSync(path.join(DIR, `out-${n}.txt`), lines.join('\n'));
   }
 });

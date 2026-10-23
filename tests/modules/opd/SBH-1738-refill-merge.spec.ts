@@ -489,12 +489,12 @@ test.describe('SBH-1738 สร้าง / Merge ใบยา Refill หลาย
         const start = main.getByRole('textbox', { name: 'วันที่เริ่มต้น' });
         if (await start.count()) {
           await start.click();
-          await start.fill(dayPlus(-30).iso);
+          await start.fill(dayPlus(-30).be); // ช่องวันที่ของแท็บ Order เติมยารับปี พ.ศ. (dev-x 21 ต.ค. 2026 — พิมพ์ ค.ศ. แล้วกลายเป็นปี 1483)
           await start.press('Enter');
           await page.waitForTimeout(600);
         }
         await end.click();
-        await end.fill(dayPlus(60).iso);
+        await end.fill(dayPlus(60).be);
         await end.press('Enter');
         await page.waitForTimeout(1_000);
         const box = main.getByRole('textbox', { name: /ค้นหา VN, HN/ });

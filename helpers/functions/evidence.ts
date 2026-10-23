@@ -221,6 +221,12 @@ function isFullyInViewport(el: Element) {
   return el === hit || el.contains(hit) || hit.contains(el) || (root instanceof ShadowRoot && root.host.contains(hit));
 }
 
+/** ล้างกรอบหลักฐานที่ค้างบนหน้า (ไม่สนว่า mark ผ่าน Page ตัวไหน) — ตัวเล่นที่ส่ง Page แบบ Proxy ให้ checkStep ต้องเรียกเองหลังจบขั้น */
+export async function clearEvidenceMarks(page: Page) {
+  marked.add(page);
+  await clearMarks(page);
+}
+
 async function clearMarks(page: Page) {
   if (!marked.has(page)) return;
   marked.delete(page);

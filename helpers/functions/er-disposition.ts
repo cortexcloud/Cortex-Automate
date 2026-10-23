@@ -40,10 +40,13 @@ export interface ErDischargeSummary {
 
 /** รอ response ของ graphql mutation ตามชื่อ — เริ่มรอก่อนกดปุ่มที่ยิง */
 export function graphqlMutation(page: Page, name: string, timeout?: number): Promise<Response> {
-  return page.waitForResponse(
+  const response = page.waitForResponse(
     (res) => res.request().method() === 'POST' && res.url().endsWith('/cortex-api/graphql') && (res.request().postData() ?? '').includes(`mutation ${name}`),
     { timeout },
   );
+  // ขั้นพังก่อนถึงบรรทัดที่ await (เช่น กดปุ่มไม่ได้) แล้วปิดหน้าต่างทีหลัง promise นี้ reject โดยไม่มีใครรับ → ทั้งเทสจบกลางคัน (เหมือน waitForApi)
+  response.catch(() => undefined);
+  return response;
 }
 
 async function summaryOf(res: Response, field: string, what: string): Promise<ErDischargeSummary> {
