@@ -1,6 +1,8 @@
 // วัดคุณภาพหลักฐานจากพิกเซลจริง — ใช้คู่กับการเปิดดูภาพด้วยตา (ไม่แทนกัน)
 //   ภาพ:  node .claude/skills/cortex-card-test/scripts/image-stats.mjs "<โฟลเดอร์ หรือ ไฟล์.png ...>" [--json <ไฟล์ผล.json>]
 //   คลิป: node .claude/skills/cortex-card-test/scripts/image-stats.mjs --clip "<คลิป.webm>" [--json <ไฟล์ผล.json>]
+//   ภาพขยาย: เพิ่ม --crop <โฟลเดอร์ผล> → ตัดภาพรอบกรอบแดงแต่ละอัน (+ ป้ายที่ติดกัน · ขอบ 60px · ขยาย ≤ 2.5 เท่า) และรอบตารางเทียบค่า
+//             ได้ไฟล์ <ชื่อภาพ>-crop-N.png ให้คนตรวจ / Sub Agent อ่านตัวอักษรในกรอบได้ชัดกว่าภาพเต็มจอ 1920×1080 ที่ถูกย่อ
 // รันจากรากโปรเจกต์ · ต้อง export PATH ของ Node ก่อน
 //
 // ภาพ 1 ใบ → ขาว% (พื้นขาว) · ตัวอักษร% · ว่าง? · กรอบแดง (จำนวน · ตำแหน่ง · ชนขอบจอ? · ใหญ่เกิน 60% จอ = ตีทั้งคอลัมน์?) ·
@@ -19,6 +21,21 @@ const jsonAt = args.indexOf('--json');
 const jsonOut = jsonAt >= 0 ? args.splice(jsonAt, 2)[1] : null;
 const clipAt = args.indexOf('--clip');
 const clip = clipAt >= 0 ? args.splice(clipAt, 2)[1] : null;
+const cropAt = args.indexOf('--crop');
+const cropDir = cropAt >= 0 ? args.splice(cropAt, 2)[1] : null;
+
+// ---- ตัดภาพขยายรอบกล่องที่กำหนด (ทำใน browser · คืน base64 PNG) ----
+const cropRegion = (img, box) => {
+  const PAD = 60;
+  const x0 = Math.max(0, box.x - PAD), y0 = Math.max(0, box.y - PAD);
+  const x1 = Math.min(img.naturalWidth, box.x + box.w + PAD), y1 = Math.min(img.naturalHeight, box.y + box.h + PAD);
+  const rw = x1 - x0, rh = y1 - y0;
+  const scale = Math.max(1, Math.min(2.5, 1500 / rw, 1100 / rh));
+  const c = document.createElement('canvas'); c.width = Math.round(rw * scale); c.height = Math.round(rh * scale);
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, x0, y0, rw, rh, 0, 0, c.width, c.height);
+  return { data: c.toDataURL('image/png').split(',')[1], x: x0, y: y0, w: rw, h: rh, scale: +scale.toFixed(2) };
+};
 
 // ---- วิเคราะห์พิกเซลใน browser ----
 const analyze = (source, scale) => {
@@ -30,6 +47,7 @@ const analyze = (source, scale) => {
   const d = ctx.getImageData(0, 0, w, h).data;
   const CELL = 4; const gw = Math.ceil(w / CELL), gh = Math.ceil(h / CELL);
   const redGrid = new Uint16Array(gw * gh);
+  const greenGrid = new Uint16Array(gw * gh); // ขอบเขียวของตารางเทียบค่า (#1f6f43) — สีเขียวอื่นของ UI (สถานะ · ✓ ตรง) จะเป็นก้อนเล็กแยกกัน
   let white = 0, dark = 0, red = 0, green = 0;
   const darkMax = scale >= 1 ? 100 : 140;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -37,21 +55,21 @@ const analyze = (source, scale) => {
     if (r >= 245 && g >= 245 && b >= 245) white++;
     else if (r < darkMax && g < darkMax && b < darkMax) dark++;
     if (r >= 215 && g >= 30 && g <= 135 && b >= 30 && b <= 135 && r - g >= 90) { red++; redGrid[((y / CELL) | 0) * gw + ((x / CELL) | 0)]++; }
-    else if (Math.abs(r - 31) <= 25 && Math.abs(g - 111) <= 25 && Math.abs(b - 67) <= 25) green++;
+    else if (Math.abs(r - 31) <= 25 && Math.abs(g - 111) <= 25 && Math.abs(b - 67) <= 25) { green++; greenGrid[((y / CELL) | 0) * gw + ((x / CELL) | 0)]++; }
   }
   const cellMax = CELL * CELL;
   const solid = (k) => redGrid[k] >= cellMax - 3; // ช่องแดงทึบ = ป้าย · ช่องแดงบางส่วน = เส้นกรอบ
-  const cluster = (accept) => {
+  const cluster = (accept, grid = redGrid) => {
     const seen = new Uint8Array(gw * gh); const out = [];
     for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
-      const k = gy * gw + gx; if (!redGrid[k] || seen[k] || !accept(k)) continue;
+      const k = gy * gw + gx; if (!grid[k] || seen[k] || !accept(k)) continue;
       const q = [k]; seen[k] = 1; let minX = gx, maxX = gx, minY = gy, maxY = gy, px = 0, cells = 0;
       while (q.length) {
-        const cur = q.pop(); const cy = (cur / gw) | 0, cx = cur % gw; px += redGrid[cur]; cells++;
+        const cur = q.pop(); const cy = (cur / gw) | 0, cx = cur % gw; px += grid[cur]; cells++;
         minX = Math.min(minX, cx); maxX = Math.max(maxX, cx); minY = Math.min(minY, cy); maxY = Math.max(maxY, cy);
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
           const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue;
-          const nk = ny * gw + nx; if (redGrid[nk] && !seen[nk] && accept(nk)) { seen[nk] = 1; q.push(nk); }
+          const nk = ny * gw + nx; if (grid[nk] && !seen[nk] && accept(nk)) { seen[nk] = 1; q.push(nk); }
         }
       }
       const bw = (maxX - minX + 1) * CELL, bh = (maxY - minY + 1) * CELL;
@@ -84,6 +102,8 @@ const analyze = (source, scale) => {
   });
   const near = (f, l) => l.x + l.w >= f.x - 8 && l.x <= f.x + f.w + 8 && l.y + l.h >= f.y - 30 && l.y <= f.y + f.h + 8;
   const framesNoLabel = frames.filter((f) => !labels.some((l) => near(f, l))).length;
+  // ตารางเทียบค่า = ก้อนเขียวที่ใหญ่สุด (ขอบ 2px ล้อมกล่อง ≥ 200×80) — ไม่เอา bbox รวมของสีเขียวทั้งจอ
+  const greenBox = cluster(() => true, greenGrid).filter((b) => b.w >= 200 && b.h >= 80).sort((a, b) => b.px - a.px).map(({ px, cells, fill, ...b }) => b)[0] ?? null;
   const edge = 2;
   const touchesEdge = frames.some((f) => f.x <= edge || f.y <= edge || f.x + f.w >= nat.w - edge || f.y + f.h >= nat.h - edge);
   const huge = frames.filter((f) => (f.w * f.h) / (nat.w * nat.h) > 0.6).length;
@@ -91,7 +111,8 @@ const analyze = (source, scale) => {
   const strip = ({ px, cells, ...b }) => b;
   return { width: nat.w, height: nat.h, white: +(white / total).toFixed(3), dark: +(dark / total).toFixed(4), redPx: red, greenPx: green,
     blank: white / total >= 0.96 && dark / total < 0.0015, frames: frames.length, labels: labels.length, framesNoLabel, hugeFrames: huge, touchesEdge,
-    compareTable: green / total > 0.0008, frameBoxes: frames.slice(0, 8).map(strip), labelBoxes: labels.slice(0, 8).map(strip) };
+    compareTable: !!greenBox, greenBox,
+    frameBoxes: frames.slice(0, 8).map(strip), labelBoxes: labels.slice(0, 8).map(strip) };
 };
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--allow-file-access-from-files'] });
@@ -149,9 +170,33 @@ if (clip) {
     await page.goto(pathToFileURL(path.resolve(f)).href);
     const s = await page.evaluate((fn) => (0, eval)(fn)(document.querySelector('img'), 1), `(${analyze.toString()})`);
     const row = { file: f, ...s, flags: flagsOf(s) };
+    if (cropDir) {
+      // ภาพขยาย: กรอบแต่ละอัน (รวมป้ายที่ติดกรอบนั้นเข้าไปในกล่อง) + ตารางเทียบค่า · กรอบที่ซ้อนทับกันมากตัดครั้งเดียว
+      fs.mkdirSync(cropDir, { recursive: true });
+      const near = (f, l) => l.x + l.w >= f.x - 8 && l.x <= f.x + f.w + 8 && l.y + l.h >= f.y - 30 && l.y <= f.y + f.h + 8;
+      const boxes = s.frameBoxes.map((fb) => {
+        const parts = [fb, ...s.labelBoxes.filter((l) => near(fb, l))];
+        const x = Math.min(...parts.map((p) => p.x)), y = Math.min(...parts.map((p) => p.y));
+        return { kind: 'frame', x, y, w: Math.max(...parts.map((p) => p.x + p.w)) - x, h: Math.max(...parts.map((p) => p.y + p.h)) - y };
+      });
+      if (s.greenBox) boxes.push({ kind: 'table', ...s.greenBox });
+      const picked = [];
+      for (const b of boxes) {
+        const dup = picked.some((p) => Math.abs(p.x - b.x) < 40 && Math.abs(p.y - b.y) < 40 && Math.abs(p.w - b.w) < 80 && Math.abs(p.h - b.h) < 80);
+        if (!dup) picked.push(b);
+      }
+      row.crops = [];
+      for (const [i, b] of picked.entries()) {
+        const out = await page.evaluate(({ fn, box }) => (0, eval)(fn)(document.querySelector('img'), box), { fn: `(${cropRegion.toString()})`, box: b });
+        const name = `${path.basename(f, path.extname(f)).slice(0, 60)}-crop-${i + 1}.png`;
+        fs.writeFileSync(path.join(cropDir, name), Buffer.from(out.data, 'base64'));
+        row.crops.push({ file: path.join(cropDir, name), kind: b.kind, x: out.x, y: out.y, w: out.w, h: out.h, scale: out.scale });
+      }
+    }
     results.push(row);
-    console.log(`| ${path.basename(f)} | ${(s.white * 100).toFixed(0)} | ${(s.dark * 100).toFixed(1)} | ${s.frames} | ${s.labels} | ${s.compareTable ? 'มี' : '-'} | ${row.flags} |`);
+    console.log(`| ${path.basename(f)} | ${(s.white * 100).toFixed(0)} | ${(s.dark * 100).toFixed(1)} | ${s.frames} | ${s.labels} | ${s.compareTable ? 'มี' : '-'} | ${row.flags}${row.crops ? ` · ภาพขยาย ${row.crops.length}` : ''} |`);
   }
+  if (cropDir) console.log(`ภาพขยายทั้งหมด → ${cropDir} (${results.reduce((a, r) => a + (r.crops?.length ?? 0), 0)} ไฟล์ · ชื่อ <ภาพ>-crop-N.png · N เรียงตามกรอบ แล้วตารางเทียบท้ายสุด)`);
 }
 if (jsonOut) { fs.mkdirSync(path.dirname(path.resolve(jsonOut)), { recursive: true }); fs.writeFileSync(jsonOut, JSON.stringify(results, null, 1)); console.log('→', jsonOut); }
 await browser.close();

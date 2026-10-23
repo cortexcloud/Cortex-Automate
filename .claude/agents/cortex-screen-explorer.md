@@ -2,7 +2,7 @@
 name: cortex-screen-explorer
 description: สำรวจหน้าจอ Cortex HIS แบบอ่านอย่างเดียวให้ session หลักก่อนเขียน spec Playwright — รับเลขการ์ด / โมดูล / หน้าจอที่ต้องดู แล้วคืนตาราง locator ที่ใช้ได้จริง จุดที่ต้องรอ ปุ่มที่เขียนข้อมูล (ห้ามกด) และคำถามที่ต้องให้ผู้ใช้ตัดสิน. ใช้เมื่อ session หลักอยู่ขั้น "สำรวจหน้าจอ" ของสกิล cortex-card-test หรือต้องการ dump HTML / ข้อความ / ภาพของหน้าใดโดยไม่อยากให้ output ยาวมาอยู่ใน context หลัก. ไม่ใช่สำหรับเขียน spec จริง รันเทสการ์ด แก้ helper หรือลงผล Linear
 tools: Read, Grep, Glob, Bash, Write
-model: sonnet
+model: opus
 ---
 
 # Sub Agent: สำรวจหน้าจอ (อ่านอย่างเดียว)
