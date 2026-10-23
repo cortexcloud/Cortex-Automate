@@ -50,7 +50,8 @@ Cortex-Automate/
 ├─ test-cases/drafts/                  ร่าง Test Case (.md) ต่อการ์ด ก่อนขึ้น Linear
 ├─ clips/                              หลักฐานภาพ / คลิป (ไม่ขึ้น git)
 ├─ .auth/ · .env · .cache/             session · ความลับ · ไฟล์ชั่วคราว (ไม่ขึ้น git)
-└─ .claude/skills/                     cortex-automate (ไฟล์นี้) · cortex-card-test · cortex-regression · qa-automate-readiness · linear-testcase-writer
+├─ .claude/skills/                     cortex-automate (ไฟล์นี้) · cortex-card-test · cortex-regression · qa-automate-readiness · linear-testcase-writer
+└─ .claude/agents/                     Sub Agent ทดลองใช้ (อ่านอย่างเดียว): cortex-screen-explorer (สำรวจหน้าจอ → ตาราง locator) · cortex-evidence-checker (ตรวจภาพ / คลิปก่อนแนบ Linear) — ลบไฟล์ได้ทุกเมื่อ ไม่มีอะไรอ้างถึง
 ```
 
 - โฟลเดอร์อยู่ใน OneDrive — `npm install` เจอ `EPERM` / `EBUSY` ให้ผู้ใช้หยุด sync ชั่วคราว
