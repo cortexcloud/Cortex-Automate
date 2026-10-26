@@ -2,18 +2,19 @@ import type { Browser, Locator, Page } from '@playwright/test';
 import fs from 'node:fs';
 import { graphqlMutation } from '../../../helpers/functions/er-disposition';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
-import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { finishVideo, startClip } from '../../../helpers/functions/fixtures';
-import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
+import { opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
 import { capturePrintJobs, hidePdf, openRoleWindow, pdfLineAt, pdfPages, showPdf } from '../../../helpers/functions/print-capture';
 import { expectPatientInfo, fillNewPatientForm, gotoReception, openNewVisitPanel, saveNewPatient } from '../../../helpers/functions/reception';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
-import { addCoverageFirst, openOpdVisit } from '../../../mock-data/uat-er';
+import { addCoverageFirst, checkInOpdVisit, openOpdVisit, scheduleWalkInRequest } from '../../../mock-data/uat-er';
 import { addMedicineToCart, options } from '../../../mock-data/uat-play';
 
 // การ์ด SBH-2233 [OPD] [Queue] Queue Improvement (การ์ดย่อย SBH-2385 / 2386) · EXE SBH-2729 → HPY SBH-2730 (TC-001–019, 023, 024) · UHP SBH-2731 (TC-020–022)
 // 1 เทส = 1 กลุ่มผู้ป่วย (R9) · คลิป 1 ไฟล์ต่อ TC (R61 — startClip) · ขั้นที่ไม่ผ่านไม่หยุดเทส (soft) แล้วเทสจบไม่ผ่านพร้อมรายการ
+// 22 ต.ค. 2026 ผู้ใช้: เทสด้วยแผนกสระบุรี = Visit ที่คลินิก "SBH - ห้องตรวจสระบุรี" (คำขอ Walk-in → ลงตารางแพทย์ → เช็คอิน) — ผลรอบ 21 ต.ค. (คลินิก MED) ใช้คนละ Template ผู้ใช้ให้ล้างทิ้งแล้ว
 // ผู้ป่วย AUTO ใหม่ (ลงทะเบียน + Visit OPD ที่เวชระเบียน R53 → เช็คอิน) · แพทย์สั่งด้วย Super_User · จำหน่ายด้วยบัญชี Nurse (Super_User จำหน่ายไม่ได้) · ทิ้ง Visit ไว้ (R11)
 // ใบนำทาง: ส่วน "ใบนำทางไปจุดบริการอื่น" ในหน้า Discharge ต้องเปิด flag reception.visit-slip.print · API GET /visits/<VN>/visit-slip/destinations · พิมพ์ = POST …/visit-slip/print (zip) → print agent (ดัก PDF)
 // คิวการเงิน: ผู้ใช้เลือก (21 ต.ค. 2026) ตรวจคิวอัตโนมัติจาก API (graphql queueWithDetails ตาม QSU) + หน้าจอเท่าที่เห็น — คิวอัตโนมัติอยู่ QSU 327 แต่ห้องการเงินของ user1 (การเงินทดสอบ) = QSU 18
@@ -49,6 +50,7 @@ const COVERAGE_MAIN = 'H03 - สิทธิ UC';
 const CASHIER_AUTO_QSU = '327'; // คิวการเงินอัตโนมัติ (ประเภทคิว C)
 const CASHIER_ROOM_QSU = '18'; // ห้องการเงินทดสอบของ user1 (ประเภทคิว ทดสอบ)
 const LAB_ROOM = 'ห้องปฏิบัติการ ชั้น 6';
+const CLINIC = { search: 'SBH', prefer: /^SBH - ห้องตรวจสระบุรี$/, name: 'SBH - ห้องตรวจสระบุรี' };
 
 interface Patient { key: string; hn: string; vn: string; en: string; name: string; birth: string; orders: string[]; ordered?: boolean; discharged?: boolean; coverages?: string[] }
 type Store = Record<string, Patient>;
@@ -116,12 +118,14 @@ function harness(page: Page, browser: Browser) {
         const m = r.match(/H\d{2} - [^\t\n]+/);
         if (m) coverages.push(squash(m[0]));
       }
-      const opd = await openOpdVisit(page, { anyDoctor: true });
+      const opd = await openOpdVisit(page, { anyDoctor: true, clinic: CLINIC });
+      expect(opd.clinic, 'Visit ต้องเปิดที่คลินิกสระบุรี').toBe(CLINIC.name);
       vn = opd.vn;
       en = opd.en;
-      await selectOpdUnit(page);
-      await checkInFromOpdList(page, await opdListRow(page, hn, { anyDoctor: true }));
-      note(`ผู้ป่วย ${key}`, `${p.firstName} ${p.familyName} · HN ${hn} · ${vn} · EN ${en} · ${opd.clinic} · ${opd.doctor}${coverages.length ? ` · สิทธิ ${coverages.join(' / ')}` : ''}`);
+      // คลินิกสระบุรีไม่มีตารางแพทย์ → แถว "คำขอ Walk-in" → ลงตารางแพทย์ (แท็บคำขอ Walk-in ของแผนกอายุรกรรม) → เช็คอิน
+      const scheduled = opd.doctor ? undefined : await scheduleWalkInRequest(page, hn);
+      const queue = await checkInOpdVisit(page, { hn, vn, en } as never);
+      note(`ผู้ป่วย ${key}`, `${p.firstName} ${p.familyName} · HN ${hn} · ${vn} · EN ${en} · ${opd.clinic} · ${opd.doctor || `ลงตาราง ${scheduled?.doctor} ${scheduled?.slot}`} · เช็คอิน ${queue}${coverages.length ? ` · สิทธิ ${coverages.join(' / ')}` : ''}`);
     });
     const [d, m, y] = p.birthDate.split('/');
     store[key] = { key, hn, vn, en, name: `${p.firstName} ${p.familyName}`, birth: `${d}/${m}/${Number(y) + 543}`, orders, coverages };
@@ -311,15 +315,20 @@ function harness(page: Page, browser: Browser) {
   };
 
   // ── คิวการเงิน (API) ──
-  interface QueueRow { id: string; qDisplay: string; latestStatusCode: string; hn: string; vn: string; createdAt: string; hasMedication: boolean; queueType: { id: string; code: string } }
-  const fetchQueues = async (qsu: string): Promise<QueueRow[]> => {
-    const q = `query Q($filter: QueueWithDetailFilterInput, $pagination: PaginationInput) { queueWithDetails(filter: $filter, pagination: $pagination) { data { id qDisplay latestStatusCode hn vn createdAt hasMedication queueType { id code } } } }`;
+  interface QueueRow { id: string; qDisplay: string; latestStatusCode: string; hn: string; vn: string; createdAt: string; hasMedication: boolean; queueServiceUnitId?: number; queueType: { id: string; code: string } }
+  /** คิวของวันนี้ — ระบุ QSU หรือ HN (ไม่ระบุ QSU = ทุกหน่วยบริการของ HN นั้น) */
+  const fetchQueues = async (qsu?: string, hn?: string): Promise<QueueRow[]> => {
+    const q = `query Q($filter: QueueWithDetailFilterInput, $pagination: PaginationInput) { queueWithDetails(filter: $filter, pagination: $pagination) { data { id qDisplay latestStatusCode hn vn createdAt hasMedication queueServiceUnit { id } queueType { id code } } } }`;
     const date = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
-    const res = await page.request.post('/cortex-api/graphql', { headers: { authorization: auth(), 'content-type': 'application/json' }, data: { query: q, variables: { filter: { queueServiceUnitId: qsu, date }, pagination: { page: 1, perPage: 200 } } } });
-    const body = (await res.json()) as { data?: { queueWithDetails?: { data?: QueueRow[] } }; errors?: { message: string }[] };
-    expect(body.errors, `API คิว QSU ${qsu}: ${body.errors?.map((e) => e.message).join(' · ')}`).toBeFalsy();
-    return body.data?.queueWithDetails?.data ?? [];
+    const filter = { date, ...(qsu ? { queueServiceUnitId: Number(qsu) } : {}), ...(hn ? { hn } : {}) };
+    // โหมดทำต่อ (SBH2233_RESUME) ข้ามขั้นที่เปิดหน้าเว็บ → ยังไม่มี token ของแอป → เปิดหน้ารายการคิวการเงินก่อน
+    try { auth(); } catch { await gotoQueueList(); }
+    const res = await page.request.post('/cortex-api/graphql', { headers: { authorization: auth(), 'content-type': 'application/json' }, data: { query: q, variables: { filter, pagination: { page: 1, perPage: 200 } } } });
+    const body = (await res.json()) as { data?: { queueWithDetails?: { data?: (QueueRow & { queueServiceUnit?: { id: number } })[] } }; errors?: { message: string }[] };
+    expect(body.errors, `API คิว ${JSON.stringify(filter)}: ${body.errors?.map((e) => e.message).join(' · ')}`).toBeFalsy();
+    return (body.data?.queueWithDetails?.data ?? []).filter((r) => !hn || r.hn === hn).map((r) => ({ ...r, queueServiceUnitId: r.queueServiceUnit?.id }));
   };
+  const queueText = (rows: QueueRow[]) => rows.map((r) => `${r.qDisplay} (${r.queueType.code} · QSU ${r.queueServiceUnitId ?? '?'} · ${r.latestStatusCode})`).join(', ') || 'ไม่มี';
   const gotoQueueList = async () => {
     await page.goto('/cortex/cashier/queue-list', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('button', { name: /สร้างคิว/ })).toBeVisible({ timeout: 120_000 });
@@ -333,7 +342,7 @@ function harness(page: Page, browser: Browser) {
     return box;
   };
 
-  return { failures, main, note, soft, auth, store, register, gotoEmr, cartRow, order, prepareOrders, setVisitStatus, nursePage, openDischarge, slipSection, slipRows, readSlip, fetchDestinations, showSlip, printSlip, fetchQueues, gotoQueueList, searchQueueHn, nurseOf: () => nurse };
+  return { failures, main, note, soft, auth, store, register, gotoEmr, cartRow, order, prepareOrders, setVisitStatus, nursePage, openDischarge, slipSection, slipRows, readSlip, fetchDestinations, showSlip, printSlip, fetchQueues, queueText, gotoQueueList, searchQueueHn, nurseOf: () => nurse };
 }
 
 /** ตรวจส่วนใบนำทางบนจอเทียบกับ API (จุดบริการ / สถานที่ / Order) */
@@ -374,23 +383,25 @@ test.describe('SBH-2233 ใบนำทางไปจุดบริการ�
       await snapEvidence(pg, 'หลังกด — บันทึก Discharge (A)');
     });
     await startClip(page, 'TC-001');
-    await h.soft(page, `${TC('001')} ขั้น 3 การเงิน → Cashier queue list ค้นหาผู้ป่วย A + คิวอัตโนมัติจาก API`, async () => {
+    // 22 ต.ค. 2026 ผู้ใช้: Expected ตัดสินจากหน้าจอ Cashier queue list ของผู้ใช้การเงิน (ไม่ใช่ API อย่างเดียว) — ไม่เห็นคิวบนจอ = ไม่ผ่าน
+    await h.soft(page, `${TC('001')} ขั้น 3 การเงิน → Cashier queue list ค้นหาผู้ป่วย A`, async () => {
       await h.gotoQueueList();
+      const roomName = squash((await page.getByRole('banner').innerText().catch(() => '')).match(/การเงิน[^\n]*/)?.[0] ?? '');
       const box = await h.searchQueueHn(A.hn);
-      const list = (await page.getByRole('row').filter({ hasText: A.hn }).count()) > 0;
-      const queues = (await h.fetchQueues(CASHIER_AUTO_QSU)).filter((q) => q.hn === A.hn);
-      const room = (await h.fetchQueues(CASHIER_ROOM_QSU)).filter((q) => q.hn === A.hn);
-      h.note('คิวการเงินของ A (API)', `QSU ${CASHIER_AUTO_QSU}: ${queues.map((q) => `${q.qDisplay} ${q.queueType.code} ${q.latestStatusCode} med=${q.hasMedication} ${q.createdAt}`).join(' · ') || '(ไม่มี)'} · QSU ${CASHIER_ROOM_QSU} (ห้องการเงินทดสอบ): ${room.length}`);
-      await markEvidence(filled(box));
+      const rows = page.getByRole('row').filter({ hasText: A.hn });
+      const list = await rows.count();
+      const empty = page.locator('.ant-table-placeholder').filter({ visible: true }).first();
+      const queues = await h.fetchQueues(undefined, A.hn);
+      h.note('คิวของ A (ทุกหน่วยบริการ)', `จอ (${roomName || 'ห้องของกะ'}): ${list} แถว · API: ${queues.map((q) => `${q.qDisplay} ${q.queueType.code} QSU ${q.queueServiceUnitId} ${q.latestStatusCode} med=${q.hasMedication} ${q.createdAt}`).join(' · ') || '(ไม่มี)'}`);
+      await markEvidence(filled(box), expected(list ? rows.first() : empty));
       await showCompareTable(page, 'TC-001 คิวการเงินอัตโนมัติของผู้ป่วยที่มียา', ['ที่ควรเป็น', 'ที่เห็น'], [
-        { label: 'คิวใน API (QSU 327 การเงินอาคารราชนครินทร์)', values: ['มี 1 คิว', queues.length ? queues.map((q) => `${q.qDisplay} (${q.queueType.code}) ${q.latestStatusCode}`).join(', ') : 'ไม่มี'], same: queues.length > 0 },
-        { label: 'คิวมียา (hasMedication)', values: ['true', String(queues[0]?.hasMedication ?? '-')], same: !!queues[0]?.hasMedication },
-        { label: 'รายการคิวบนจอ (ห้องการเงินทดสอบ · QSU 18)', values: ['(ห้องนี้ไม่ใช่ QSU ของคิวอัตโนมัติ)', list ? 'มีแถวของ HN' : 'ไม่มีแถว'], same: true },
+        { label: 'คิวของผู้ป่วยบนหน้าจอ Cashier queue list', values: ['มี', list ? `มี ${list} แถว` : 'ไม่มี (ไม่มีข้อมูล)'], same: list > 0 },
+        { label: 'ข้อมูลประกอบ: คิววันนี้ของ HN นี้ (API ทุกหน่วยบริการ)', values: ['-', h.queueText(queues)], same: true },
       ], { side: 'bottom' });
       await holdForClip(page, 2_500);
-      await snapEvidence(page, 'TC-001 คิวการเงินอัตโนมัติ (API + จอ)');
+      await snapEvidence(page, 'TC-001 คิวการเงินบนจอห้องการเงิน');
       await hideCompareTable(page);
-      expect(queues.length, 'ต้องมี Cashier Queue อัตโนมัติของผู้ป่วยที่มียา').toBeGreaterThan(0);
+      expect(list, `หน้าจอ Cashier queue list ต้องมีคิวของผู้ป่วยที่มียา (คิวในระบบ: ${h.queueText(queues)})`).toBeGreaterThan(0);
     });
 
     await startClip(page, 'TC-019');
@@ -561,23 +572,24 @@ test.describe('SBH-2233 ใบนำทางไปจุดบริการ�
     await h.soft(page, `${TC('003')} การเงิน → Cashier queue list ค้นหาผู้ป่วย B — ไม่มีคิวการเงินอัตโนมัติ`, async () => {
       await h.gotoQueueList();
       const box = await h.searchQueueHn(B.hn);
-      const auto = (await h.fetchQueues(CASHIER_AUTO_QSU)).filter((q) => q.hn === B.hn);
-      const room = (await h.fetchQueues(CASHIER_ROOM_QSU)).filter((q) => q.hn === B.hn);
+      const all = await h.fetchQueues(undefined, B.hn);
+      // คิวตรวจ (เช็คอินที่คลินิก) ไม่ใช่คิวการเงิน — นับเฉพาะคิวที่ไม่ใช่ของห้องตรวจ: ประเภท C (คิวการเงินอัตโนมัติ) / QSU 327 / 18
+      const cashier = all.filter((q) => q.queueType.code === 'C' || [Number(CASHIER_AUTO_QSU), Number(CASHIER_ROOM_QSU)].includes(q.queueServiceUnitId ?? -1));
       const list = await page.getByRole('row').filter({ hasText: B.hn }).count();
-      h.note('คิวการเงินของ B (API)', `QSU ${CASHIER_AUTO_QSU}: ${auto.length} · QSU ${CASHIER_ROOM_QSU}: ${room.length} · แถวบนจอ ${list}`);
+      h.note('คิวของ B (ทุกหน่วยบริการ)', `API: ${h.queueText(all)} · คิวการเงิน ${cashier.length} · แถวบนจอ ${list}`);
       await markEvidence(filled(box));
       await showCompareTable(page, 'TC-003 ไม่มีคิวการเงินอัตโนมัติ (ไม่มียา)', ['ที่ควรเป็น', 'ที่เห็น'], [
-        { label: 'คิวใน API (QSU 327 — คิวอัตโนมัติ)', values: ['ไม่มี', auto.length ? auto.map((q) => q.qDisplay).join(', ') : 'ไม่มี'], same: auto.length === 0 },
-        { label: 'คิวใน API (QSU 18 — ห้องการเงินทดสอบ)', values: ['ไม่มี', room.length ? room.map((q) => q.qDisplay).join(', ') : 'ไม่มี'], same: room.length === 0 },
-        { label: 'แถวบนรายการคิว', values: ['ไม่มี', list ? `${list} แถว` : 'ไม่มี'], same: list === 0 },
+        { label: 'แถวบนรายการคิว Cashier', values: ['ไม่มี', list ? `${list} แถว` : 'ไม่มี'], same: list === 0 },
+        { label: 'คิวการเงินใน API (ประเภท C / QSU 327 / 18)', values: ['ไม่มี', h.queueText(cashier)], same: cashier.length === 0 },
+        { label: 'ข้อมูลประกอบ: คิววันนี้ทั้งหมดของ HN นี้', values: ['-', h.queueText(all)], same: true },
       ], { side: 'bottom' });
       await holdForClip(page, 2_500);
       await snapEvidence(page, 'TC-003 ไม่มีคิวการเงินของผู้ป่วย B');
       await hideCompareTable(page);
-      expect(auto.length + room.length, 'ผู้ป่วยไม่มียาต้องไม่มีคิวการเงินอัตโนมัติ').toBe(0);
+      expect(list + cashier.length, 'ผู้ป่วยไม่มียาต้องไม่มีคิวการเงินอัตโนมัติ').toBe(0);
     });
 
-    let manual: { qDisplay: string; createdAt: string } | undefined;
+    let manual: { qDisplay: string; createdAt: string; queueServiceUnitId?: number } | undefined;
     await startClip(page, 'TC-016');
     await h.soft(page, `${TC('016')} ปุ่มสร้างคิว → กรอก HN + ประเภทคิว → คิวของผู้ป่วย B แสดงในรายการคิว`, async () => {
       await h.gotoQueueList();
@@ -621,18 +633,16 @@ test.describe('SBH-2233 ใบนำทางไปจุดบริการ�
     await h.soft(page, `${TC('023')} ลำดับคิวการเงิน: ผู้ป่วย A (คิวอัตโนมัติ) อยู่ก่อน B (คิว Manual)`, async () => {
       const A = loadAny().A;
       expect(A, 'ต้องรันเทสผู้ป่วย A (@SBH-2732) ก่อน').toBeTruthy();
-      const auto = (await h.fetchQueues(CASHIER_AUTO_QSU)).filter((q) => q.hn === A.hn);
-      const room = await h.fetchQueues(CASHIER_ROOM_QSU);
-      const a = auto[0];
-      const b = manual ?? room.find((q) => q.hn === B.hn);
+      const a = (await h.fetchQueues(undefined, A.hn)).find((q) => q.queueType.code === 'C' || q.queueServiceUnitId === Number(CASHIER_AUTO_QSU));
+      const b = manual ?? (await h.fetchQueues(CASHIER_ROOM_QSU)).find((q) => q.hn === B.hn);
       await h.gotoQueueList();
       const rows = page.getByRole('row').filter({ hasText: new RegExp(`${A.hn}|${B.hn}`) });
       const onScreen = (await rows.allInnerTexts()).map((r) => (r.includes(A.hn) ? 'A' : 'B'));
-      h.note('ลำดับคิว (A / B)', `A ${a?.qDisplay} QSU ${CASHIER_AUTO_QSU} ${a?.createdAt} · B ${b?.qDisplay} QSU ${CASHIER_ROOM_QSU} ${b?.createdAt} · บนจอ ${onScreen.join(' → ') || '-'}`);
+      h.note('ลำดับคิว (A / B)', `A ${a?.qDisplay} QSU ${a?.queueServiceUnitId} ${a?.createdAt} · B ${b?.qDisplay} QSU ${b?.queueServiceUnitId ?? CASHIER_ROOM_QSU} ${b?.createdAt} · บนจอ ${onScreen.join(' → ') || '-'}`);
       for (const r of await rows.all()) await markEvidence(expected(r));
       await showCompareTable(page, 'TC-023 ลำดับคิว A (อัตโนมัติ) / B (Manual)', ['ที่ควรเป็น', 'ที่เห็น'], [
-        { label: 'คิว A', values: ['เกิดก่อน', a ? `${a.qDisplay} · ${a.createdAt} (QSU 327)` : 'ไม่มี'], same: !!a },
-        { label: 'คิว B', values: ['เกิดทีหลัง', b ? `${b.qDisplay} · ${b.createdAt} (QSU 18)` : 'ไม่มี'], same: !!b },
+        { label: 'คิว A', values: ['เกิดก่อน', a ? `${a.qDisplay} · ${a.createdAt} (QSU ${a.queueServiceUnitId})` : 'ไม่มี'], same: !!a },
+        { label: 'คิว B', values: ['เกิดทีหลัง', b ? `${b.qDisplay} · ${b.createdAt} (QSU ${b.queueServiceUnitId ?? CASHIER_ROOM_QSU})` : 'ไม่มี'], same: !!b },
         { label: 'A ก่อน B (เวลาเกิดคิว)', values: ['ใช่', a && b ? (a.createdAt < b.createdAt ? 'ใช่' : 'ไม่ใช่') : '-'], same: !!a && !!b && a.createdAt < b.createdAt },
         { label: 'อยู่ในรายการคิวเดียวกัน', values: ['ใช่', onScreen.length === 2 ? 'ใช่' : `ไม่ใช่ (บนจอ ${onScreen.join(', ') || 'ไม่มี'})`], same: onScreen.length === 2 },
       ], { side: 'bottom' });
@@ -798,15 +808,24 @@ test.describe('SBH-2233 ใบนำทางไปจุดบริการ�
     await startClip(page, 'TC-022');
     await h.soft(page, `${TC('022')} สั่ง Order ที่ Category ไม่มีสถานที่ (TEST-IMG-OTHER) → ระบบไม่เดาห้องปลายทาง`, async () => {
       await h.gotoEmr(page, H);
+      // แจ้งเตือนที่ผู้ใช้เห็นหลังกดส่งคำสั่ง (หายเองใน ~4.5 วินาที) — จับข้อความทันทีที่ขึ้น + ถ่ายภาพตอนนั้น
+      const notice = page.locator('.ant-notification-notice, .ant-message-notice').filter({ visible: true }).filter({ hasNotText: /สำเร็จ/ }).first();
+      const seen = notice.waitFor({ timeout: 90_000 }).then(async () => {
+        const text = squash(await notice.innerText().catch(() => ''));
+        await markEvidence(alerted(notice)).catch(() => undefined);
+        await snapEvidence(page, 'หลังกด — ส่งคำสั่ง TEST-IMG-OTHER');
+        return text;
+      }).catch(() => '');
       const errors = await h.order([NO_LOCATION], true);
+      const noticeText = await seen;
       const row = h.cartRow(NO_LOCATION);
-      h.note('ส่งคำสั่ง TEST-IMG-OTHER', errors.join(' · ') || '(ไม่มี error)');
-      const notice = page.locator('.ant-notification-notice, .ant-message-notice').filter({ visible: true }).first();
-      await markEvidence(expected(row), ...((await notice.isVisible().catch(() => false)) ? [expected(notice)] : []));
+      h.note('ส่งคำสั่ง TEST-IMG-OTHER', `${errors.join(' · ') || '(ไม่มี error)'} · แจ้งเตือนบนจอ: ${noticeText || '(ไม่เห็น)'}`);
+      await markEvidence(expected(row)).catch(() => undefined);
       const api = await h.fetchDestinations(page, H.vn);
       await showCompareTable(page, 'TC-022 Order ที่หาสถานที่ไม่ได้', ['ที่ควรเป็น', 'ที่ได้'], [
         { label: 'ห้องปลายทางที่เดาเอง', values: ['ไม่มี', api.length ? api.map((d) => d.locationName).join(', ') : 'ไม่มี'], same: api.every((d) => !d.isPrintable) },
-        { label: 'แจ้งข้อมูลสถานที่ไม่ครบ', values: ['แจ้ง', errors.length ? errors.join(' · ').slice(0, 160) : 'ไม่มี'], same: errors.length > 0 },
+        { label: 'แจ้งเตือนบนจอ', values: ['แจ้งข้อมูลสถานที่ไม่ครบ', noticeText || '(ไม่เห็น)'], same: /สถานที่|location/i.test(noticeText) },
+        { label: 'error จากระบบ (API)', values: ['-', errors.length ? errors.join(' · ').slice(0, 160) : 'ไม่มี'], same: true },
         { label: 'สถานะ Order', values: ['-', (await row.locator('[class*="status-dot"]').first().getAttribute('class').catch(() => ''))?.match(/status-dot-[a-z-]+/)?.[0] ?? '-'], same: true },
       ], { side: 'bottom' });
       await holdForClip(page, 3_000);
