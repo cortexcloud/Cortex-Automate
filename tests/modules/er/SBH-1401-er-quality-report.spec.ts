@@ -7,6 +7,7 @@ import {
   gotoErDashboard,
   openErMenu,
   openTriagePage,
+  recordVisit,
   registerNewPatient,
   waitForApi,
   type ErVisit,
@@ -299,11 +300,6 @@ async function openQualityReport(page: Page) {
   await expectOk(await loaded, 'โหลดรายงานคุณภาพห้องฉุกเฉินตอนเปิดหน้า');
   await expect(qualityTable(page, 'สรุปตัวชี้วัดคุณภาพ')).toBeVisible();
   return item;
-}
-
-function recordVisit(label: string, visit: ErVisit) {
-  test.info().annotations.push({ type: label, description: `HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}` });
-  console.log(`${label}: HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
 }
 
 test.describe('SBH-1401 ER รายงานคุณภาพห้องฉุกเฉิน (ER Statistics Report 4.9.8.10.4)', () => {
@@ -829,7 +825,7 @@ test.describe('SBH-1401 ER รายงานคุณภาพห้องฉ�
         await openTriagePage(page);
         const { dialog } = await registerNewPatient(page, newTestPatient(`Quality${key}`));
         const visit = await confirmOpenErVisit(page, dialog);
-        recordVisit(label, visit);
+        recordVisit(visit, label);
         await expectTriageFormOpen(page, visit);
         await dismissToast(page, 'สร้าง Visit สำเร็จ');
         visits[key] = visit;
@@ -852,7 +848,7 @@ test.describe('SBH-1401 ER รายงานคุณภาพห้องฉ�
           baseline = await readToday();
           await test.info().attach('ยอดวันนี้ก่อนเพิ่มผู้ป่วยทดสอบ (baseline)', { body: JSON.stringify(baseline, null, 2), contentType: 'application/json' });
           const visit = await confirmOpenErVisit(page, dialog);
-          recordVisit('P1 (ESI 1 ไม่ Acknowledge)', visit);
+          recordVisit(visit, 'P1 (ESI 1 ไม่ Acknowledge)');
           visits.P1 = visit;
           await expectTriageFormOpen(page, visit);
           await dismissToast(page, 'สร้าง Visit สำเร็จ');

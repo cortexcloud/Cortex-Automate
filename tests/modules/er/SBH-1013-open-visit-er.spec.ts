@@ -10,6 +10,7 @@ import {
   openErDashboardFromMenu,
   openTriagePage,
   pickTeamPatient,
+  recordVisit,
   registerNewPatient,
   searchPatients,
   selectExistingPatient,
@@ -52,16 +53,6 @@ function expectStayedInEr(page: Page, urls: string[]) {
 /** EN บนแถบหัวหน้าผู้ป่วย — จุดที่ภาพหลักฐานต้องชี้ */
 function headerEn(page: Page, visit: ErVisit) {
   return page.getByRole('main').getByText(visit.en, { exact: true }).filter({ visible: true }).first();
-}
-
-/** แสดงเลขผู้ป่วย/Visit ที่เทสสร้างไว้ในรายงานและ terminal — ใช้ตามหาข้อมูลบน dev-x */
-function recordVisit(visit: ErVisit) {
-  test.info().annotations.push(
-    { type: 'HN', description: visit.hn },
-    { type: 'VN', description: visit.vn },
-    { type: 'EN', description: visit.en },
-  );
-  console.log(`HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
 }
 
 /** ผู้ป่วยของทีมที่สุ่มได้รอบนี้ — ไว้ดูในรายงานว่าเทสใช้ใคร */

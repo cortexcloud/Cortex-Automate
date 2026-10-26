@@ -1,5 +1,6 @@
 import { expect, test, type APIResponse, type Locator, type Page, type Response } from '@playwright/test';
 import type { NewPatient } from './test-data';
+import { expected } from './evidence';
 
 // ขั้นตอนหน้าจอโมดูลห้องฉุกเฉิน (ER) ที่ใช้ซ้ำหลายการ์ด — locator ตรวจกับหน้าจอจริงบน dev-x 26 ก.ย. 2026
 
@@ -346,4 +347,65 @@ export async function cancelErEncounter(page: Page, visit: ErVisit, reason: stri
   expect(((await res.json()) as { latestStatusCode?: string }).latestStatusCode).toBe('cancelled');
   await expect(page.getByText('ยกเลิก Encounter สำเร็จ')).toBeVisible();
   await expect(hnText, 'ยกเลิกแล้วการ์ดต้องหายจากบอร์ด').toBeHidden();
+}
+
+/**
+ * แสดงเลขผู้ป่วย / Visit ที่เทสสร้างไว้ในรายงานและ terminal — ใช้ตามหาข้อมูลบน dev-x
+ * ไม่ใส่ label → annotation แยก HN / VN / EN 3 รายการ · ใส่ label (เช่น 'P1 (ESI 1 ไม่ Acknowledge)') → annotation เดียวชื่อ label
+ */
+export function recordVisit(visit: ErVisit, label?: string) {
+  if (label) {
+    test.info().annotations.push({ type: label, description: `HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}` });
+    console.log(`${label}: HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
+    return;
+  }
+  test.info().annotations.push(
+    { type: 'HN', description: visit.hn },
+    { type: 'VN', description: visit.vn },
+    { type: 'EN', description: visit.en },
+  );
+  console.log(`HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
+}
+
+/** แถบหัวของหน้าผู้ป่วย: HN / VN / EN ของ Visit (ไว้ตีกรอบ Expected ใน markEvidence) */
+export function visitHeaderMarks(page: Page, visit: ErVisit) {
+  const main = page.getByRole('main');
+  return [`HN ${visit.hn}`, `VN ${visit.vn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first()));
+}
+
+/**
+ * Encounter 1 รายการบนบอร์ด ER ปัจจุบัน (GET /cortex-api/er/dashboard/encounters?scope=current_queue) — รวม field ที่สเปก SBH-1024 / SBH-1684 ใช้
+ */
+export interface ErBoardEncounter {
+  en: string;
+  hn: string;
+  arrivedAt: string;
+  triagedAt: string | null;
+  triageLevel: number | null;
+  waitTimeLimitSeconds: number | null;
+  currentLocationId: number | null;
+  latestStatusCode: string;
+  patientStatus: string;
+  startedTreatmentAt: string | null;
+  patient?: { firstName?: string; familyName?: string };
+  clinicalDetails?: { fastTrackStatus?: string; mews?: { score?: number } | null } | null;
+}
+
+/** อ่าน Encounter ทั้งหมดบนบอร์ด (ตรงกับที่การ์ดบนจอแสดง) — ลองซ้ำเมื่อ Prod หลุด · authorization = header จาก trackAuthorization() */
+export async function fetchBoard(page: Page, authorization: () => string): Promise<ErBoardEncounter[]> {
+  let list: ErBoardEncounter[] = [];
+  await expect(async () => {
+    const res = await page.request.get('/cortex-api/er/dashboard/encounters?scope=current_queue', { headers: { authorization: authorization() } });
+    await expectOk(res, 'อ่านข้อมูลบอร์ด ER');
+    list = (await res.json()) as ErBoardEncounter[];
+  }).toPass({ timeout: 60_000 });
+  return list;
+}
+
+/** รายชื่อโซน ER (GET /cortex-api/er/triage/zones) → Map id → ชื่อไทย */
+export async function fetchZones(page: Page, authorization: () => string): Promise<Map<number, string>> {
+  const res = await page.request.get('/cortex-api/er/triage/zones', { headers: { authorization: authorization() } });
+  await expectOk(res, 'อ่านรายชื่อโซน ER');
+  const { boardLocations } = (await res.json()) as { boardLocations: { id: number; nameTh: string }[] };
+  return new Map(boardLocations.map((z) => [z.id, z.nameTh]));
 }

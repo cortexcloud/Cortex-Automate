@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence } from '../../../helpers/functions/evidence';
 import { startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
@@ -7,6 +7,7 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { dayPlus } from '../../../helpers/functions/dates';
 
 // การ์ด SBH-841 OPD Order Refill — EXE SBH-1602 (VERSION 2.7.0) → SC-001–008 → TC ที่ยังเปิดอยู่ 17 ใบ (TC-011 / 015–020 / 022 Canceled)
 // 1 เทส = 1 flow (R9) ผู้ป่วย AUTO ใหม่ 1 ราย: ลงทะเบียน + Visit OPD ที่เวชระเบียน (R53) → เช็คอินจากรายการผู้ป่วยนอก → หน้า EMR (คลิกชื่อในรายการ)
@@ -33,15 +34,6 @@ const ISSUES = ['SBH-841', 'SBH-1602', 'SBH-1611', 'SBH-1612', 'SBH-1613', 'SBH-
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
-
-/** วันที่ (เวลาเครื่อง) + n วัน → { be: '2569-10-26' (ช่องวันที่ในหน้าต่าง Refill), th: '26/10/2569' (ห้องยา), iso: '2026-10-26' } */
-function dayPlus(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return { be: `${d.getFullYear() + 543}-${mm}-${dd}`, th: `${dd}/${mm}/${d.getFullYear() + 543}`, iso: `${d.getFullYear()}-${mm}-${dd}` };
-}
 
 test.describe('SBH-841 OPD Order Refill', () => {
 

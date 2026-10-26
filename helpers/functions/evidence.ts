@@ -30,6 +30,12 @@ export function checkStep<T>(page: Page, title: string, body: () => Promise<T>):
       throw error;
     }
     const hasChildShots = (shotCount.get(page) ?? 0) > shotsBefore;
+    // step ของ TC (ชื่อขึ้นต้น `TC-`) ที่ผ่านโดยไม่มีกรอบเลย = ภาพ "ผ่าน" จะไม่สื่อว่า Expected คืออะไร (ผู้ใช้ทัก 24 ต.ค. 2026) → จดเตือนไว้ใน annotation + terminal
+    if (!hasChildShots && !marked.has(page) && /^TC-/.test(title)) {
+      const description = `step "${title}" ผ่านโดยไม่มีกรอบแดง — ใส่ markEvidence(expected(…, 'คำอธิบาย')) ก่อนจบ step ให้ภาพสื่อ Expected`;
+      test.info().annotations.push({ type: 'evidence-warning', description });
+      console.warn(`    ⚠ ${description}`);
+    }
     if (!hasChildShots || marked.has(page)) await attachScreenshot(page, step, `ผ่าน — ${title}`);
     return result;
   });
@@ -37,12 +43,18 @@ export function checkStep<T>(page: Page, title: string, body: () => Promise<T>):
 
 /** ป้ายบนกรอบแดง (R23): ข้อมูลที่กรอก · ปุ่มที่กด · ข้อความแจ้งเตือนหลังกด · Expected Result */
 export type EvidenceLabel = 'กรอก' | 'กด' | 'แจ้งเตือน' | 'Expected';
-export type EvidenceMark = { target: Locator; label?: EvidenceLabel };
+/** `note` = คำอธิบายสั้นต่อท้ายป้าย (24 ต.ค. 2026 — ผู้ใช้ทักว่าภาพ Expected ไม่สื่อความหมาย): ป้ายจะเป็น `Expected: บัญชียา = NED` แทน `Expected` เฉยๆ */
+export type EvidenceMark = { target: Locator; label?: EvidenceLabel; note?: string };
 
-export const filled = (target: Locator): EvidenceMark => ({ target, label: 'กรอก' });
-export const clicked = (target: Locator): EvidenceMark => ({ target, label: 'กด' });
-export const alerted = (target: Locator): EvidenceMark => ({ target, label: 'แจ้งเตือน' });
-export const expected = (target: Locator): EvidenceMark => ({ target, label: 'Expected' });
+// พารามิเตอร์ที่ 2 รับ number ด้วย (ไม่ใช้) เพื่อให้ `locators.map(expected)` ยังใช้ได้ — map ส่ง index มาเป็นตัวที่ 2
+const mark = (label: EvidenceLabel) => (target: Locator, note?: string | number, ..._rest: unknown[]): EvidenceMark => ({ target, label, note: typeof note === 'string' ? note : undefined });
+export const filled = mark('กรอก');
+export const clicked = mark('กด');
+export const alerted = mark('แจ้งเตือน');
+export const expected = mark('Expected');
+
+/** ค้างจอหลังตีกรอบ / ขึ้นตารางเทียบ (มิลลิวินาที) — env `EVIDENCE_HOLD_MS` · 0 = ปิด (เช่น รันสำรวจ) · ตั้งต้น 1200 = holdForClip() */
+const HOLD_MS = process.env.EVIDENCE_HOLD_MS === undefined ? 1_200 : Math.max(0, Number(process.env.EVIDENCE_HOLD_MS) || 0);
 
 /**
  * ชี้จุดในภาพหลักฐาน: ตีกรอบแดงทุกตัว + ป้ายบอกว่าเป็นอะไร (R23 — กรอก / กด / แจ้งเตือน / Expected)
@@ -62,7 +74,8 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
     await first.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await expect(first).toBeInViewport();
   }
-  for (const { target, label } of marks) {
+  for (const { target, label, note } of marks) {
+    const text = label && note ? `${label}: ${note.trim().slice(0, 60)}` : label;
     await target.first().evaluate((el, text) => {
       const full = el.getBoundingClientRect();
       const rect = { left: full.left, top: full.top, right: full.right, bottom: full.bottom, width: full.width, height: full.height };
@@ -176,14 +189,16 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
         whiteSpace: 'nowrap',
       });
       document.body.appendChild(tag);
-    }, label);
+    }, text);
   }
   marked.add(page);
+  // ค้างจอให้คนดูคลิปอ่านกรอบทัน (24 ต.ค. 2026 — ผู้ใช้ทักว่าคลิปเร็วเกินไป) · spec ไม่ต้องเรียก holdForClip() ซ้ำหลัง markEvidence
+  if (HOLD_MS) await page.waitForTimeout(HOLD_MS);
 }
 
 /** ถ่ายภาพหลักฐานกลาง step (เช่น "ก่อนกด" ตอนปุ่มยังอยู่) พร้อมกรอบที่ mark ไว้ แล้วล้างกรอบ — แนบใต้ step ปัจจุบัน */
 export async function snapEvidence(page: Page, name: string) {
-  const body = await page.screenshot();
+  const body = await screenshotNotBlank(page, name);
   await clearMarks(page);
   shotCount.set(page, (shotCount.get(page) ?? 0) + 1);
   saveEvidenceFile(name, body);
@@ -221,6 +236,12 @@ function isFullyInViewport(el: Element) {
   return el === hit || el.contains(hit) || hit.contains(el) || (root instanceof ShadowRoot && root.host.contains(hit));
 }
 
+/** ล้างกรอบหลักฐานที่ค้างบนหน้า (ไม่สนว่า mark ผ่าน Page ตัวไหน) — ตัวเล่นที่ส่ง Page แบบ Proxy ให้ checkStep ต้องเรียกเองหลังจบขั้น */
+export async function clearEvidenceMarks(page: Page) {
+  marked.add(page);
+  await clearMarks(page);
+}
+
 async function clearMarks(page: Page) {
   if (!marked.has(page)) return;
   marked.delete(page);
@@ -230,9 +251,55 @@ async function clearMarks(page: Page) {
   );
 }
 
+/**
+ * ถ่ายภาพ แล้วถ้าจอขาวเกือบทั้งจอ (หน้า / iframe ยังโหลดไม่เสร็จ — ผู้ใช้ทัก 24 ต.ค. 2026 "คลิปหน้าขาว") รอ 600ms แล้วถ่ายใหม่ 1 ครั้ง
+ * วัดจากพิกเซลจริง (ย่อ 1/5 บน canvas ในหน้า): ขาว ≥ 98.5% และแทบไม่มีตัวอักษร = ว่าง · ภาพที่ "เกือบว่าง" (ขาว ≥ 95%) ไม่ถ่ายใหม่ แต่จด annotation ไว้ให้คนตรวจดู
+ * (หน้าตารางว่างที่ตั้งใจถ่าย เช่น toast บนรายการเปล่า จะเข้าเกณฑ์ "เกือบว่าง" ไม่ใช่ "ว่าง" จึงไม่ถูกถ่ายใหม่จน toast หาย)
+ */
+async function screenshotNotBlank(page: Page, name: string): Promise<Buffer> {
+  let body = await page.screenshot();
+  const first = await measureBlank(page, body);
+  if (first && first.white >= 0.985 && first.dark <= 0.0003) {
+    await page.waitForTimeout(600);
+    body = await page.screenshot();
+    const second = await measureBlank(page, body);
+    const still = !!second && second.white >= 0.985 && second.dark <= 0.0003;
+    const pct = (first.white * 100).toFixed(1);
+    const outcome = still ? ' — ยังขาวอยู่ ตรวจภาพนี้ก่อนแนบ' : ' แล้วได้หน้าจอปกติ';
+    test.info().annotations.push({ type: 'evidence', description: 'ภาพ "' + name + '" จอขาวเกือบทั้งจอ (ขาว ' + pct + '%) → รอ 0.6s ถ่ายใหม่' + outcome });
+  } else if (first && first.white >= 0.95 && first.dark < 0.002) {
+    const pct = (first.white * 100).toFixed(1);
+    test.info().annotations.push({ type: 'evidence', description: 'ภาพ "' + name + '" เกือบว่าง (ขาว ' + pct + '%) — ตรวจว่าตั้งใจถ่ายหน้าว่างไหม' });
+  }
+  return body;
+}
+
+/** สัดส่วนพิกเซลขาว / ตัวอักษรของภาพ (วัดในหน้าเว็บผ่าน canvas) — หน้าปิดไปแล้ว / วัดไม่ได้ → undefined */
+async function measureBlank(page: Page, body: Buffer): Promise<{ white: number; dark: number } | undefined> {
+  return page
+    .evaluate(async (dataUrl) => {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error('decode')); img.src = dataUrl; });
+      const w = Math.max(1, Math.round(img.naturalWidth / 5)), h = Math.max(1, Math.round(img.naturalHeight / 5));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return undefined;
+      ctx.drawImage(img, 0, 0, w, h);
+      const d = ctx.getImageData(0, 0, w, h).data;
+      let white = 0, dark = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] >= 245 && d[i + 1] >= 245 && d[i + 2] >= 245) white++;
+        else if (d[i] < 140 && d[i + 1] < 140 && d[i + 2] < 140) dark++;
+      }
+      return { white: white / (w * h), dark: dark / (w * h) };
+    }, `data:image/png;base64,${body.toString('base64')}`)
+    .catch(() => undefined);
+}
+
 async function attachScreenshot(page: Page, step: TestStepInfo, name: string) {
   // หน้าอาจถูกปิดไปแล้ว (เช่น เทสหมดเวลา) — ข้ามไป ภาพตอน fail ของ Playwright (screenshot: only-on-failure) ยังมีอยู่
-  const body = await page.screenshot().catch(() => undefined);
+  const body = await screenshotNotBlank(page, name).catch(() => undefined);
   await clearMarks(page);
   if (!body) return;
   shotCount.set(page, (shotCount.get(page) ?? 0) + 1);
@@ -306,6 +373,8 @@ export async function showCompareTable(page: Page, title: string, columns: strin
     },
     { title, columns, rows, side: options.side ?? 'right', width: options.width ?? 'calc(50vw - 24px)', top: options.top ?? '84px' },
   );
+  // ค้างจอให้คนดูคลิปอ่านตารางทัน (เช่นเดียวกับ markEvidence) · spec ไม่ต้องเรียก holdForClip() ซ้ำหลังตารางขึ้น
+  if (HOLD_MS) await page.waitForTimeout(HOLD_MS);
   return page.locator('[data-compare-overlay]');
 }
 
@@ -319,4 +388,30 @@ export async function hideCompareTable(page: Page) {
  */
 export async function holdForClip(page: Page, ms = 1_200) {
   await page.waitForTimeout(ms);
+}
+
+/** บรรทัดแรกของข้อความ error (ตัดสี ANSI ออก) — ไว้สรุปในรายการขั้นที่ไม่ผ่าน */
+export const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
+
+/**
+ * ตัวช่วยต่อเทส: บันทึก annotation + soft step (ไม่ผ่านแล้วเล่นต่อ จบเทสค่อย fail พร้อมรายการ)
+ * `note(type, description)` ลง annotation + terminal · `soft(title, body)` = checkStep ที่ไม่โยน error (คืน true / false) · `finish()` fail ถ้ามีขั้นที่ไม่ผ่าน
+ */
+export function makeRunner(page: Page) {
+  const failures: string[] = [];
+  const note = (type: string, description: string) => {
+    test.info().annotations.push({ type, description });
+    console.log(`    ${type}: ${description}`);
+  };
+  const soft = (title: string, body: () => Promise<void>) =>
+    checkStep(page, title, body).then(
+      () => true,
+      (error: unknown) => {
+        failures.push(`${title} — ${firstLine(error)}`);
+        console.log(`    ✗ ${title} — ${firstLine(error)}`);
+        return false;
+      },
+    );
+  const finish = () => expect(failures, `ขั้นที่ไม่ผ่าน:\n${failures.join('\n')}`).toEqual([]);
+  return { note, soft, finish };
 }

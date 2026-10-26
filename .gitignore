@@ -21,3 +21,14 @@ node_modules/
 # ไฟล์ขยะของ macOS (ติดมากับไฟล์ zip / โฟลเดอร์ที่คัดลอกจาก Mac)
 __MACOSX/
 .DS_Store
+
+# สำรองไฟล์ Regression ที่ reg-write.mjs สร้างก่อนเขียนทุกครั้ง
+/Regression/_backup/
+# สำรองไฟล์ Scenario BizSim ที่ bizsim-log.mjs สร้างก่อนเขียนทุกครั้ง
+/E2E/backup/
+# ไฟล์ล็อกของ Excel ตอนเปิดไฟล์ค้าง
+~$*
+
+# สำรอง Scenario UAT ที่ bizsim-log.mjs สร้าง + lock file ของ Excel
+/E2E/backup/
+~$*.xlsx

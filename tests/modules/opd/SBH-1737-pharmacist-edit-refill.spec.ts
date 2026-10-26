@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
@@ -7,6 +7,8 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
+import { dayPlus } from '../../../helpers/functions/dates';
 
 // การ์ด SBH-1737 [Pharmacy][Order Refill] เภสัชต้องสามารถแก้ไข Order/Order Refill ที่หน้าใบยาได้ — EXE SBH-2711 → TS SBH-2712 (HPY) / SBH-2713 (UHP) → TC-SBH-1737-001–015 (SBH-2714–2728)
 // 1 เทส = 1 flow (R9) ตามลำดับใน EXE: 001 → 002 → 010 → 003 → 004 → 011 → 005 → 012 → 006 → 007 → 013 → 008 → 014 → 015 → 009 · คลิป 1 ไฟล์ต่อ TC (R61)
@@ -45,37 +47,6 @@ const FIELDS: { label: string; text: RegExp; control?: (scope: Locator) => Locat
   { label: 'ประเภทการใช้', text: /^ประเภทการใช้$/, control: (s) => s.getByText('In hospital', { exact: true }) },
   { label: 'หมายเหตุ', text: /^หมายเหตุ$/, control: (s) => s.locator('#remark') },
 ];
-
-/** วันที่ (เวลาเครื่อง) + n วัน → { be: '2569-10-27' (ช่องวันที่ในหน้าต่าง Refill), th: '27/10/2569' } */
-function dayPlus(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return { be: `${d.getFullYear() + 543}-${mm}-${dd}`, th: `${dd}/${mm}/${d.getFullYear() + 543}` };
-}
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
 
 test.describe('SBH-1737 เภสัชแก้ไข Order / Order Refill ที่หน้า Order รอยืนยัน', () => {
 

@@ -8,6 +8,7 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { addCoverageFirst, openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { cellByHeader, squash } from '../../../helpers/functions/table';
 
 // การ์ดบั๊ก SBH-1566 [EMR] เอกสาร "ข้อมูลใบยา" แสดงยอดเบิกได้ / เบิกไม่ได้ไม่ถูกต้อง (ตัวแก้ PR cortex-testing #1118 "fix prescription non-benefit total")
 // EXE SBH-2797 → TS SBH-2798 → TC-SBH-1566-001 / 002 / 003 (SBH-2799 / 2800 / 2801) · 1 เทส = 1 TC (EXE: คนไข้ / ใบยาแยกกัน) → คลิป 1 ไฟล์ต่อ TC (R61)
@@ -32,25 +33,10 @@ const CASES = [
 ] as const;
 const PARENTS = ['SBH-1566', 'SBH-2797', 'SBH-2798'];
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
-const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 /** "1,234.50" → 1234.5 · "-" / ว่าง = 0 (ช่องเครดิตของยานอกบัญชีที่หน้าห้องยาแสดง "-") */
 const money = (text: string) => (/^-?$/.test(text.trim()) ? 0 : Number(text.replace(/,/g, '')));
 const baht = (n: number) => n.toFixed(2);
 const options = (page: Page) => page.locator('.ant-select-dropdown:visible .ant-select-item-option');
-
-/** หัวคอลัมน์ที่มองเห็นของตารางที่แถวนี้อยู่ */
-async function headersOf(row: Locator): Promise<string[]> {
-  const table = row.locator('xpath=ancestor::div[contains(@class,"ant-table-wrapper")][1]');
-  return (await table.locator('thead th').filter({ visible: true }).allInnerTexts()).map(squash);
-}
-/** เซลล์ของแถวตามชื่อหัวคอลัมน์ */
-async function cellByHeader(row: Locator, header: string): Promise<{ cell: Locator; text: string }> {
-  const headers = await headersOf(row);
-  const i = headers.findIndex((h) => h === header);
-  if (i < 0) return { cell: row.locator('td').first(), text: `(ไม่มีคอลัมน์ "${header}")` };
-  const cell = row.locator('td').filter({ visible: true }).nth(i);
-  return { cell, text: squash(await cell.innerText().catch(() => '')) };
-}
 
 /** ข้อความ PDF ข้อมูลใบยา → จำนวนเงินของแต่ละยา + ยอดท้ายเอกสาร */
 function readRxInfo(text: string, drugs: readonly Drug[]) {

@@ -1,14 +1,16 @@
-import type { Browser, Locator, Page, Response } from '@playwright/test';
+import type { Locator, Page, Response } from '@playwright/test';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence } from '../../../helpers/functions/evidence';
-import { finishVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
+import { finishVideo, startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
 import { expectPatientInfo, fillNewPatientForm, gotoReception, newPatientButton, openNewVisitPanel, receptionFrame, saveNewPatient, saveNewPatientButton } from '../../../helpers/functions/reception';
 import { newTestPatient } from '../../../helpers/functions/test-data';
-import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
+import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
-import { authFile } from '../../../utils/env';
 import { saveWithRegeneratedUsage, setMealTiming } from '../../../helpers/functions/cpoe-usage';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
+import { dayPlus } from '../../../helpers/functions/dates';
+import { openDoctorWindow } from '../../../helpers/functions/windows';
 
 // การ์ด SBH-2126 [CPOE][Pharmacy] กฎ Editability ของคำสั่ง Refill ให้เหมือน Order ปกติ — EXE SBH-2759 → TS SBH-2760 (HPY) / SBH-2761 (UHP) → TC-SBH-2126-001–007 (SBH-2762–2768)
 // 1 เทส = 1 flow (R9) ใช้ Order เดียวกันต่อเนื่องตามลำดับใน EXE · ผู้ป่วย AUTO ใหม่ 1 ราย (ลงทะเบียน + Visit OPD ที่เวชระเบียน R53 → เช็คอิน) ทิ้ง Visit ไว้ (R11)
@@ -34,49 +36,6 @@ const linear = (id: string) => ({ type: 'issue', description: `https://linear.ap
 const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const isGraphql = (r: Response, op: string) => r.request().method() === 'POST' && r.url().includes('/graphql') && (r.request().postData() ?? '').includes(op);
-
-/** วันที่ (เวลาเครื่อง) + n วัน → { be: '2569-10-28' (ช่องวันที่ / title ของปฏิทิน), th: '28/10/2569' (ห้องยา) } */
-function dayPlus(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return { be: `${d.getFullYear() + 543}-${mm}-${dd}`, th: `${dd}/${mm}/${d.getFullYear() + 543}` };
-}
-
-/** หน้าต่างของบัญชี Doctor (context แยก) + จดแจ้งเตือน + อัดวิดีโอ */
-async function openDoctorWindow(browser: Browser): Promise<Page> {
-  const context = await browser.newContext({ storageState: authFile('Doctor'), baseURL: test.info().project.use.baseURL, viewport: { width: 1920, height: 1080 }, locale: 'th-TH', timezoneId: 'Asia/Bangkok' });
-  await cacheAppAssets(context);
-  await context.addInitScript(recordNotices);
-  const page = await context.newPage();
-  await page.goto('/cortex/');
-  await trackVideo(page, 'Doctor');
-  return page;
-}
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-/** รอแจ้งเตือนตัวใหม่ (นับจากจำนวนก่อนกด) ที่ตรง pattern → ข้อความ หรือ '' */
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
 
 test.describe('SBH-2126 Editability ของ Order Refill', () => {
 

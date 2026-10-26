@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
-import { dismissToast, expectOk, expectTriageFormOpen, gotoErDashboard, openVisitDialog, type ErVisit } from '../../../helpers/functions/er';
+import { dismissToast, expectTriageFormOpen, fetchBoard, fetchZones, gotoErDashboard, openVisitDialog, type ErVisit } from '../../../helpers/functions/er';
 import { erViewSwitch } from '../../../helpers/functions/er-list';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { labelledBox, triageForm, type VitalSigns } from '../../../helpers/functions/er-triage';
@@ -63,18 +63,6 @@ interface Patient extends ErVisit {
   citizenId: string;
 }
 
-interface BoardEncounter {
-  en: string;
-  hn: string;
-  arrivedAt: string;
-  triagedAt: string | null;
-  triageLevel: number | null;
-  currentLocationId: number | null;
-  latestStatusCode: string;
-  startedTreatmentAt: string | null;
-  clinicalDetails?: { fastTrackStatus?: string; mews?: { score?: number } | null } | null;
-}
-
 const STORE = `.cache/sbh-1684-${SYSTEM}.json`;
 const RESUME = process.env.SBH1684_RESUME === '1';
 
@@ -110,24 +98,6 @@ async function openDashboard(page: Page) {
 
 function progress(message: string) {
   console.log(`    ${message}`);
-}
-
-/** อ่าน Encounter ทั้งหมดบนบอร์ด (ตรงกับที่การ์ดบนจอแสดง) — ลองซ้ำเมื่อ Prod หลุด */
-async function fetchBoard(page: Page, authorization: () => string): Promise<BoardEncounter[]> {
-  let list: BoardEncounter[] = [];
-  await expect(async () => {
-    const res = await page.request.get('/cortex-api/er/dashboard/encounters?scope=current_queue', { headers: { authorization: authorization() } });
-    await expectOk(res, 'อ่านข้อมูลบอร์ด ER');
-    list = (await res.json()) as BoardEncounter[];
-  }).toPass({ timeout: 60_000 });
-  return list;
-}
-
-async function fetchZones(page: Page, authorization: () => string): Promise<Map<number, string>> {
-  const res = await page.request.get('/cortex-api/er/triage/zones', { headers: { authorization: authorization() } });
-  await expectOk(res, 'อ่านรายชื่อโซน ER');
-  const { boardLocations } = (await res.json()) as { boardLocations: { id: number; nameTh: string }[] };
-  return new Map(boardLocations.map((z) => [z.id, z.nameTh]));
 }
 
 /** ลงทะเบียนผู้ป่วย AUTO ใหม่ + เปิด Visit ER สิทธิ UC (เริ่มจาก ER Dashboard) — จบที่ฟอร์มคัดกรองของ Visit นั้น */

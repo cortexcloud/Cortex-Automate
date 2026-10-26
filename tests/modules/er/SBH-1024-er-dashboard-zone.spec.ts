@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { dismissToast, expectOk, gotoErDashboard, waitForApi, type ErVisit } from '../../../helpers/functions/er';
+import { dismissToast, expectOk, fetchBoard, fetchZones, gotoErDashboard, waitForApi, type ErBoardEncounter, type ErVisit } from '../../../helpers/functions/er';
 import { erViewSwitch } from '../../../helpers/functions/er-list';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { ESI_BUTTON, labelledBox, saveButton, triageForm } from '../../../helpers/functions/er-triage';
@@ -28,39 +28,8 @@ const COLUMNS = ['คัดกรอง', 'โซนแดง ER', 'โซนเ
 const REQUIRED = ['คัดกรอง', 'โซนแดง ER', 'โซนเหลือง ER', 'ห้องสังเกตอาการ ER'];
 const RETRIAGE_LEVEL = 3;
 
-interface BoardEncounter {
-  en: string;
-  hn: string;
-  arrivedAt: string;
-  triagedAt: string | null;
-  triageLevel: number | null;
-  waitTimeLimitSeconds: number | null;
-  currentLocationId: number | null;
-  latestStatusCode: string;
-  patientStatus: string;
-  startedTreatmentAt: string | null;
-  patient?: { firstName?: string; familyName?: string };
-}
-
-async function fetchBoard(page: Page, authorization: () => string): Promise<BoardEncounter[]> {
-  let list: BoardEncounter[] = [];
-  await expect(async () => {
-    const res = await page.request.get('/cortex-api/er/dashboard/encounters?scope=current_queue', { headers: { authorization: authorization() } });
-    await expectOk(res, 'อ่านข้อมูลบอร์ด ER');
-    list = (await res.json()) as BoardEncounter[];
-  }).toPass({ timeout: 60_000 });
-  return list;
-}
-
-async function fetchZones(page: Page, authorization: () => string): Promise<Map<number, string>> {
-  const res = await page.request.get('/cortex-api/er/triage/zones', { headers: { authorization: authorization() } });
-  await expectOk(res, 'อ่านรายชื่อโซน ER');
-  const { boardLocations } = (await res.json()) as { boardLocations: { id: number; nameTh: string }[] };
-  return new Map(boardLocations.map((z) => [z.id, z.nameTh]));
-}
-
 /** คอลัมน์ที่ผู้ป่วยควรอยู่ตามข้อมูลในระบบ: รอเตียง → รอเตียง · ยังไม่คัดกรอง → คัดกรอง · อื่นๆ = ชื่อโซนของ currentLocationId */
-function expectedColumn(e: BoardEncounter, zones: Map<number, string>): string {
+function expectedColumn(e: ErBoardEncounter, zones: Map<number, string>): string {
   if (e.patientStatus === 'bed_waiting') return 'รอเตียง';
   if (!e.triagedAt) return 'คัดกรอง';
   const zone = zones.get(e.currentLocationId ?? -1) ?? `location ${e.currentLocationId}`;
@@ -114,7 +83,7 @@ function waitSeconds(text: string): number | null {
 }
 
 const mmss = (s: number | null) => (s == null ? '-' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
-const name = (e: BoardEncounter) => `${e.patient?.firstName ?? ''} ${e.patient?.familyName ?? ''}`.trim();
+const name = (e: ErBoardEncounter) => `${e.patient?.firstName ?? ''} ${e.patient?.familyName ?? ''}`.trim();
 
 /** จดคำสั่งที่เขียนข้อมูล (PUT / PATCH / DELETE / graphql mutation) ไว้ยืนยันว่าเทสอ่านอย่างเดียว */
 function watchMutations(page: Page): string[] {
@@ -187,7 +156,7 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
     async ({ page }) => {
       const authorization = trackAuthorization(page);
       const mutations = watchMutations(page);
-      let board: BoardEncounter[] = [];
+      let board: ErBoardEncounter[] = [];
       await gotoErDashboard(page);
       const zones = await fetchZones(page, authorization);
 
@@ -222,7 +191,7 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
         listRows = await readList(page);
         const listZones = ['ห้องคัดกรอง ER', 'โซนแดง ER', 'โซนเหลือง ER', 'โซนเขียว ER', 'ห้องสังเกตอาการ ER'];
         const current = board.filter((e) => e.patientStatus === 'current_in_er' && e.latestStatusCode !== 'cancelled');
-        const zoneOf = (e: BoardEncounter) => (e.triagedAt ? zones.get(e.currentLocationId ?? -1) ?? '' : 'ห้องคัดกรอง ER');
+        const zoneOf = (e: ErBoardEncounter) => (e.triagedAt ? zones.get(e.currentLocationId ?? -1) ?? '' : 'ห้องคัดกรอง ER');
         const rows: CompareRow[] = listZones.map((z) => {
           const want = current.filter((e) => zoneOf(e) === z).map((e) => e.en).sort();
           const got = listRows.filter((r) => r.text.includes(z)).map((r) => r.en).sort();
@@ -256,7 +225,7 @@ test.describe(`SBH-1024 ER Dashboard แยกผู้ป่วยตาม Zon
         board = await fetchBoard(page, authorization);
         // ตัวอย่างระดับละ 1 ราย (ยังไม่ Acknowledge · ไม่รอเตียง) — ห้องคัดกรองถ้ามีผู้ป่วย
         const pool = board.filter((e) => e.latestStatusCode !== 'cancelled' && e.patientStatus === 'current_in_er' && !e.startedTreatmentAt);
-        const samples: BoardEncounter[] = [];
+        const samples: ErBoardEncounter[] = [];
         const untriaged = pool.find((e) => !e.triagedAt);
         if (untriaged) samples.push(untriaged);
         for (const level of [1, 2, 3, 4, 5]) {

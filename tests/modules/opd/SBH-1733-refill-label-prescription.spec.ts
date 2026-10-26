@@ -1,13 +1,15 @@
-import type { Browser, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence } from '../../../helpers/functions/evidence';
-import { finishVideo, restartVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
+import { finishVideo, restartVideo, startClip } from '../../../helpers/functions/fixtures';
 import { checkInFromOpdList, opdListRow, selectOpdUnit } from '../../../helpers/functions/opd-activity';
 import { expectPatientInfo, fillNewPatientForm, gotoReception, newPatientButton, openNewVisitPanel, receptionFrame, saveNewPatient, saveNewPatientButton } from '../../../helpers/functions/reception';
 import { newTestPatient } from '../../../helpers/functions/test-data';
-import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
+import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
-import { authFile } from '../../../utils/env';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
+import { openDoctorWindow } from '../../../helpers/functions/windows';
+import { cellByHeader, headersOf, squash } from '../../../helpers/functions/table';
 
 // การ์ด SBH-1733 [Pharmacy][ใบยา] Label แสดงการเป็น Order Refill ในหน้าใบยา — EXE SBH-2700 → TS SBH-2701 (HPY) / SBH-2702 (UHP) → TC-SBH-1733-001–008 (SBH-2703–2710)
 // 1 เทส = 1 flow (R9) · ผู้ป่วย AUTO ใหม่ 1 ราย (ลงทะเบียน + Visit OPD ที่เวชระเบียน R53 → เช็คอิน) ทิ้ง Visit ไว้ (R11)
@@ -35,54 +37,6 @@ const TC = {
 const ISSUES = ['SBH-1733', 'SBH-2700', 'SBH-2703', 'SBH-2704', 'SBH-2705', 'SBH-2706', 'SBH-2707', 'SBH-2708', 'SBH-2709', 'SBH-2710'];
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
-const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
-
-/** หน้าต่างของบัญชี Doctor (context แยก) + จดแจ้งเตือน + อัดวิดีโอ */
-async function openDoctorWindow(browser: Browser): Promise<Page> {
-  const context = await browser.newContext({ storageState: authFile('Doctor'), baseURL: test.info().project.use.baseURL, viewport: { width: 1920, height: 1080 }, locale: 'th-TH', timezoneId: 'Asia/Bangkok' });
-  await cacheAppAssets(context);
-  await context.addInitScript(recordNotices);
-  const page = await context.newPage();
-  await page.goto('/cortex/');
-  await trackVideo(page, 'Doctor');
-  return page;
-}
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
-
-/** หัวคอลัมน์ที่มองเห็นของตารางแรกที่มีแถว row */
-async function headersOf(row: Locator): Promise<string[]> {
-  const table = row.locator('xpath=ancestor::div[contains(@class,"ant-table-wrapper")][1]');
-  return (await table.locator('thead th').filter({ visible: true }).allInnerTexts()).map(squash);
-}
-/** ข้อความของเซลล์ในแถวตามชื่อหัวคอลัมน์ (หัว / เซลล์นับตรงกัน — ตารางเหล่านี้ไม่มี colSpan ในแถวยา) */
-async function cellByHeader(row: Locator, header: string): Promise<{ cell: Locator; text: string }> {
-  const headers = await headersOf(row);
-  const i = headers.findIndex((h) => h === header);
-  if (i < 0) return { cell: row.locator('td').first(), text: `(ไม่มีคอลัมน์ "${header}")` };
-  const cell = row.locator('td').filter({ visible: true }).nth(i);
-  return { cell, text: squash(await cell.innerText().catch(() => '')) };
-}
 
 test.describe('SBH-1733 Label Order Refill ในหน้าใบยาของห้องยา', () => {
 

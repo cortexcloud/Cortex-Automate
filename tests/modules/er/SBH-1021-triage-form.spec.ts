@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expectOk, waitForApi, type ErVisit } from '../../../helpers/functions/er';
+import { expectOk, recordVisit, waitForApi } from '../../../helpers/functions/er';
 import {
   chooseGcs,
   fillVitalSigns,
@@ -51,15 +51,6 @@ const CHIEF_COMPLAINT = 'ปวดท้อง';
 /** เนื้อหาในตาราง MEWS / ช่อง Total ใช้ regex ยอมช่องว่างระหว่าง span */
 const TOTAL_MEWS_1 = /Total MEWS\s*1\s*\/\s*14\s*Low Risk/;
 const totalGcs = (code: string, score: number) => new RegExp(`Total GCS\\s*${code}\\s*${score}\\s*/\\s*15`);
-
-function recordVisit(visit: ErVisit) {
-  test.info().annotations.push(
-    { type: 'HN', description: visit.hn },
-    { type: 'VN', description: visit.vn },
-    { type: 'EN', description: visit.en },
-  );
-  console.log(`HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
-}
 
 /** นับการส่งฟอร์มเข้า openEHR (POST .../ehr/<ehrId>/contribution) — ใช้เช็คว่า "ไม่บันทึก" จริง */
 function trackContributions(page: Page): string[] {

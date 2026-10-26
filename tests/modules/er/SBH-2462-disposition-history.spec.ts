@@ -1,7 +1,7 @@
 import { type Locator, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
-import { dismissToast, expectTriageFormOpen, expectVisitHeader, gotoErDashboard, openCarePanel, openVisitDialog, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
+import { dismissToast, expectTriageFormOpen, expectVisitHeader, gotoErDashboard, openCarePanel, openVisitDialog, trackOpenedErVisits, visitHeaderMarks, type ErVisit } from '../../../helpers/functions/er';
 import {
   chooseDispositionDiagnosis,
   closeDispositionHistory,
@@ -67,12 +67,6 @@ async function accountMarks(page: Page, name: string) {
   const label = page.getByText(name, { exact: true }).filter({ visible: true }).first();
   const box = await label.boundingBox().catch(() => null);
   return box && box.y < 40 ? [expected(label)] : [];
-}
-
-/** แถบหัวของหน้าผู้ป่วย: HN / VN / EN ของ Visit (ไว้ตีกรอบ) */
-function visitHeaderMarks(page: Page, visit: ErVisit) {
-  const main = page.getByRole('main');
-  return [`HN ${visit.hn}`, `VN ${visit.vn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first()));
 }
 
 /** ค้างหน้าจอจนครบ `seconds` วินาทีนับจาก `since` พร้อมแถบนับถอยหลัง (ให้คนดูคลิปรู้ว่ากำลังรอตาม Test Step ไม่ใช่ระบบค้าง) */

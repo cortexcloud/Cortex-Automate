@@ -10,6 +10,7 @@ import {
   openCarePanel,
   openTriagePage,
   registerNewPatient,
+  visitHeaderMarks,
   type ErVisit,
 } from '../../../helpers/functions/er';
 import { createAdmitRequest } from '../../../helpers/functions/er-admit';
@@ -65,12 +66,6 @@ async function openTriagedVisit(page: Page, label: string, name: string): Promis
   await dismissToast(page, 'สร้าง Visit สำเร็จ');
   await saveTriage(page, visit, 3);
   return visit;
-}
-
-/** แถบหัวของหน้าผู้ป่วย: HN / VN / EN ของ Visit (ไว้ตีกรอบ) */
-function visitHeaderMarks(page: Page, visit: ErVisit) {
-  const main = page.getByRole('main');
-  return [`HN ${visit.hn}`, `VN ${visit.vn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first()));
 }
 
 /** แท็บ Disposition (แถบขวา) → Improved + With Approval + ช่องบังคับ → บันทึกฉบับร่าง → ปุ่มลงนาม (R20) */

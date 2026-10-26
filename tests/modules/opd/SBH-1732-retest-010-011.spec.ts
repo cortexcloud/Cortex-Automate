@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import fs from 'node:fs';
 import { checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { startClip } from '../../../helpers/functions/fixtures';
@@ -9,6 +9,7 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { openOpdVisit } from '../../../mock-data/uat-er';
 import { addMedicineToCart } from '../../../mock-data/uat-play';
+import { notices, recordNotices, waitNotice } from '../../../helpers/functions/notices';
 
 // การ์ด SBH-1732 — ทดสอบซ้ำ TC-010 (SBH-2682) และ TC-011 (SBH-2683) ตามที่ผู้ใช้สั่ง 20 ต.ค. 2026 เย็น
 //   TC-011: เก็บผล "ก่อนแก้" (หน้าต่าง Refill ครั้งที่ 1 = 2 + ใบ Refill ที่พิมพ์จากหน้าต่าง) → แพทย์แก้เป็น 5 → ยืนยัน → ห้องยาสร้างใบยา → "หลังแก้" (ใบ Refill จากหน้าใบยา = 5) — ตามลำดับใน TC (ผู้ใช้เลือก)
@@ -22,28 +23,6 @@ const TC = { '010': 'TC-010 (SBH-2682)', '011': 'TC-011 (SBH-2683)' } as const;
 const firstLine = (error: unknown) => (error instanceof Error ? error.message : String(error)).split('\n')[0].replace(/\u001b\[[0-9;]*m/g, '');
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const OUT = '.cache/sbh1732r';
-
-/** init script: จดแจ้งเตือนทุกตัว (หายเองใน ~4.5 วินาที) */
-function recordNotices() {
-  const w = window as unknown as { __notices: string[] };
-  w.__notices = [];
-  new MutationObserver(() => {
-    for (const el of document.querySelectorAll('.ant-notification-notice:not([data-seen]), .ant-message-notice:not([data-seen])')) {
-      el.setAttribute('data-seen', '1');
-      w.__notices.push((el.textContent ?? '').trim());
-    }
-  }).observe(document, { childList: true, subtree: true });
-}
-const notices = (page: Page) => page.evaluate(() => (window as unknown as { __notices?: string[] }).__notices ?? []).catch(() => [] as string[]);
-async function waitNotice(page: Page, before: number, pattern: RegExp, timeout = 20_000): Promise<string> {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const found = (await notices(page)).slice(before).find((text) => pattern.test(text));
-    if (found) return found;
-    await page.waitForTimeout(250);
-  }
-  return '';
-}
 
 test.describe('SBH-1732 ทดสอบซ้ำ TC-010 / TC-011', () => {
   test(
