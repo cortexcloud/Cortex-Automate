@@ -35,7 +35,7 @@ export function checkStep<T>(page: Page, title: string, body: () => Promise<T>):
   });
 }
 
-/** ป้ายบนกรอบแดง (R23): ข้อมูลที่กรอก · ปุ่มที่กด · ข้อความแจ้งเตือนหลังกด · Expected Result */
+/** ป้ายบนกรอบ (R23): ข้อมูลที่กรอก · ปุ่มที่กด · ข้อความแจ้งเตือนหลังกด = แดง · Expected / ผลที่ได้ = เขียว (R49) */
 export type EvidenceLabel = 'กรอก' | 'กด' | 'แจ้งเตือน' | 'Expected';
 export type EvidenceMark = { target: Locator; label?: EvidenceLabel };
 
@@ -45,7 +45,8 @@ export const alerted = (target: Locator): EvidenceMark => ({ target, label: 'แ
 export const expected = (target: Locator): EvidenceMark => ({ target, label: 'Expected' });
 
 /**
- * ชี้จุดในภาพหลักฐาน: ตีกรอบแดงทุกตัว + ป้ายบอกว่าเป็นอะไร (R23 — กรอก / กด / แจ้งเตือน / Expected)
+ * ชี้จุดในภาพหลักฐาน: ตีกรอบ + ป้ายบอกว่าเป็นอะไร (R23 — กรอก / กด / แจ้งเตือน = แดง · Expected = เขียว R49)
+ * หลังกดให้ตีกรอบ expected() ที่ผลทุกจุดที่เกิดขึ้นในภาพ ไม่ใช่แค่ที่ Expected ของ TC พูดถึง (R49)
  * ถ้ามีตัวไหนอยู่นอกจอ เลื่อนตัวแรกไว้กลางจอ (พ้นแถบที่ลอยทับขอบล่าง/บนของหน้า) — ตัวที่ยังอยู่นอกจอจะไม่มีกรอบในภาพ
  * กรอบเป็น div ลอยทับตำแหน่งของ element (position: fixed ใน body) — ไม่แก้ style ของแอป ไม่โดนกรอบแม่ที่ overflow ตัดทิ้ง
  * และไม่รับคลิก · ถูกลบเองหลังถ่ายภาพ (จบ checkStep หรือ snapEvidence) · ต้องเรียกใน checkStep
@@ -65,6 +66,7 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
   for (const { target, label } of marks) {
     await target.first().evaluate((el, text) => {
       const rect = el.getBoundingClientRect();
+      const color = text === 'Expected' ? '#389e0d' : '#ff4d4f';
       const box = document.createElement('div');
       box.setAttribute('data-evidence-mark', '');
       Object.assign(box.style, {
@@ -73,7 +75,7 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
         top: `${rect.top - 3}px`,
         width: `${rect.width + 6}px`,
         height: `${rect.height + 6}px`,
-        border: '3px solid #ff4d4f',
+        border: `3px solid ${color}`,
         borderRadius: '4px',
         boxSizing: 'border-box',
         pointerEvents: 'none',
@@ -91,7 +93,7 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
         right: `${Math.max(0, window.innerWidth - rect.right - 3)}px`,
         top: above ? `${rect.top - 3 - 20}px` : `${rect.bottom + 3}px`,
         padding: '1px 6px',
-        background: '#ff4d4f',
+        background: color,
         color: '#fff',
         font: '600 12px/18px sans-serif',
         borderRadius: '3px',
