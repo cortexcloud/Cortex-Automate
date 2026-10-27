@@ -1,5 +1,14 @@
 # TODO
 
+## SBH-1085 — Order Set โหลดไม่ได้: สร้าง EXE / Scenario / TC แล้วรันบน dev-x — 27 ต.ค. 2569
+
+ข้อตกลง: atomic · EXE - RT - VERSION 2.7.0 · QA Module : OPD + QA Sub-module / Feature : CPOE · assignee Neranchara Kaewsiri · สร้างจากทั้ง 2 เมนู · 16 TC (HPY 8 · UHP 4 · EDG 4) · TC-011 รหัสซ้ำ = ต้องบันทึกไม่ได้ (QA กำหนด) · label 🐷 VERSION 2.7.0 ของการ์ดแม่ถูก retire ใส่ไม่ได้ · draft `test-cases/SBH-1085-order-set-load.md`
+
+- [x] **P1 — สำรวจฟอร์มสร้าง + เคส UHP/EDG (อ่านอย่างเดียว)** — ภาพ `clips/SBH-1085 dev-x 2026-10-26/explore-forms-2026-10-27/` และ `explore-unhappy-edge-2026-10-27/` · ตรวจ: กดยกเลิกทุกฟอร์ม ไม่มีอะไรถูกบันทึก
+- [x] **P1 — สร้าง EXE / 3 Scenario / 16 TC ใน Linear** (ผู้ใช้สั่ง "สร้างได้") — EXE **SBH-3002** (ใต้ SBH-1085) → Scenario **SBH-3003** HPY · **SBH-3004** UHP · **SBH-3005** EDG → TC **SBH-3006–3021** (`TC-SBH-1085-001`–`016`, Not Run) · assignee/ผู้สร้าง Neranchara Kaewsiri · ตรวจ: response save_issue ทุกใบ label/parent/status ตรง · แก้ Scenario ID ที่ Linear แปลงเป็นลิงก์ (ครอบ backtick)
+- [ ] **P1 — รัน 16 TC บน dev-x** — สร้าง Order Set + แพ็กเกจทดสอบ รหัส SBH1085- · ตะกร้า HN 6932107
+- [ ] **P1 — ลงผล + รูป/คลิปใน Linear และปรับสถานะ TC**
+
 ## SBH-498 — On Warfarin บน Patient Banner: สำรวจแอปจริงบน dev-x ก่อนเขียน TC — 26 ต.ค. 2569
 
 ข้อตกลง: dev-x (ไฟล์แอป `index-BrMeBDNJ.js` มี `UpsertOnWarfarinStatus` / `OnWarfarinStatusHistory` แล้ว) · ผู้ป่วย AIทดสอบ ใหม่ + Visit OPD (ผู้ใช้เลือก) · spec ชั่วคราวแบบเปิดจอใน `temp_scripts/sbh498/` อัดคลิปต่อเนื่อง + ภาพกรอบแดง (R13 / R23) · สำรวจก่อน แล้วค่อยเขียน TC จาก step จริง (ผู้ใช้สั่ง — ข้ามลำดับ "ร่าง TC ก่อน" ของ `qa-automate-readiness`)
@@ -14,6 +23,8 @@
 - [x] **P1 — สร้าง EXE / Scenario / TC ใน Linear** (ผู้ใช้ยืนยัน 26 ต.ค. 2569 · atomic · QA Module : OPD · Sub-module Patient Banner (ผู้ใช้สร้าง label เอง) · assignee Neranchara) — EXE **SBH-2954** (ใต้ SBH-498) → Scenario **SBH-2955** `TS-SBH-498-HPY` → TC **SBH-2956–2964** (`TC-SBH-498-001`–`009`, Not Run) · draft อยู่ `test-cases/SBH-498-on-warfarin-banner.md` · แก้ ID ที่ Linear แปลงเป็นลิงก์ (ครอบ backtick) + bullet `-` ว่างซ้อน (`* \-`) · ตรวจ: response save_issue ทุกใบ label/parent/status ตรง
 - [x] **P1 — รัน TC บน dev-x** — spec ชั่วคราว `temp_scripts/sbh498-run/` · ผู้ป่วย A น.ส. AIทดสอบuf HN 6932108 (V69102627663 / E69102632488) · ผู้ป่วยหญิง B น.ส. AIทดสอบvf HN 6932109 (V69102627664 / E69102632490 · ตั้งครรภ์ = มี + On Warfarin) · **ผ่าน 001–007, 009** · **008 รอผู้ใช้ตัดสิน**: Label On Warfarin อยู่แถวเดียวกับป้ายตั้งครรภ์ ฟอนต์/มุมโค้ง/padding เท่ากัน แต่สีต่าง (ตัวอักษร #C41D7F vs #EE0072 · พื้น #FFF0F6 vs #FFEBF4) มีขอบ 1px #FFADD2 (ป้ายตั้งครรภ์ไม่มี) สูง 21 vs 17 px (เป็นปุ่ม) · รอบแรก TC-009 / 008 พังเพราะ locator ของสคริปต์ (แก้แล้วรันผ่าน) · หลักฐาน `clips/SBH-498 dev-x 2026-10-26/tc-run1..3/` · ยังไม่ได้ลงผลใน Linear / ปิด Visit
 - [x] **P1 — ลงผลใน Linear + ปิด Visit** (ผู้ใช้เลือก: TC-008 = Pass + ข้อสังเกต · Actual Result + รูป/คลิป + Passed · ปิด Visit) — ลง `## Actual Result — Pass` + คลิป 1 + ภาพกรอบแดงฝังในการ์ด SBH-2956–2964 สถานะ Passed ครบ 9 ใบ (ทำผ่าน agent 3 ตัว + agent ตรวจซ้ำว่ารูป/คลิปตรงการ์ด) · ปิด Visit V69102627663 / V69102627664 ที่การเงิน (ปิดสิทธิอย่างละ 1) · ลบ `temp_scripts/sbh498-run/` · ไฟล์ upload + เนื้อหา Actual Result อยู่ `clips/SBH-498 dev-x 2026-10-26/upload/` · ยังไม่ได้ปรับสถานะ EXE SBH-2954 / Scenario SBH-2955
+- [x] **P1 — กรอบเขียว = ผลที่ได้ (R49)** (ผู้ใช้ทักภาพ TC-002: Label บน Banner ไม่มีกรอบ + กรอบ Expected เป็นแดง) — `helpers/support/evidence.ts` วาด `expected()` สีเขียว `#389e0d` · skill `cortex-automate` เพิ่ม R49 + memory · ตรวจ: typecheck ผ่าน · commit 7117852
+- [ ] **P1 — รัน 9 TC ใหม่ด้วยกรอบเขียว + แทนที่ผลใน Linear** (ผู้ใช้เลือก: รันใหม่ + แทนที่ + ลบไฟล์แนบเก่า) — spec `temp_scripts/sbh498-run2/` ผู้ป่วยใหม่ 2 ราย → ปิด Visit ท้ายงาน
 - ข้อตกลงที่ใช้ตอนเขียน TC (บันทึกไว้): ข้อตกลงที่ต้องใช้ตอนเขียน TC: (1) Label ตรวจเท่าที่การ์ดกำหนด (Checked แสดง / Unchecked ไม่แสดง) ไม่เพิ่ม TC เรื่องติ๊กซ้ำ (2) หน้ามี/ไม่มี Visit นอก scope — ใส่ช่อง หมายเหตุ ของ TC ที่เกี่ยวกับ Label: "การ์ดไม่ได้กำหนดว่า Label ต้องแสดงที่หน้าผู้ป่วยแบบไหน (นอก scope) · ที่เห็นบน dev-x: Label แสดงและคลิกได้ทั้งหน้าที่มี Visit และไม่มี Visit · ควรเป็น: Label แสดงเหมือนกันทุกหน้าที่มี Patient Banner (มี/ไม่มี Visit, OPD/ER/IPD) และคลิกแล้วไป Section On Warfarin ได้ทุกหน้า — ให้ BA ยืนยัน" (3) ข้อความว่างใต้วงหมุนของ drawer ประวัติ — ผู้ใช้ให้ปล่อย ไม่ใส่ใน TC
 
 ## Fixture ปิด Visit ท้ายเทส (`closeVisits`) — 22 ต.ค. 2569
