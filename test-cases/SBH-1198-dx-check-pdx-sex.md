@@ -3,8 +3,8 @@
 - Requirement: https://linear.app/cortexcloud/issue/SBH-1198
 - สร้างจาก Acceptance Criteria + comment ของการ์ด ตาม skill `linear-testcase-writer` (แบบ atomic: 1 TC = 1 จุดตรวจ)
 - สถานะไฟล์นี้: **Draft รอ QA review** — ยังไม่ได้สร้างอะไรใน Linear
-- รวม: 1 EXE, 3 Scenario, **22 Test Case** (Required 22 · Optional 0)
-- การตัดสินใจที่ QA ยืนยันแล้ว (28 ต.ค. 2026): Atomic · รวมหน้า OPD Note ด้วย (เทสเผื่อไว้) · Sex เป็น Required · Age ไม่ใส่ · Environment DEV-X · ข้อความเตือนให้ยึดผลจริงก่อน (อาจแก้ภายหลัง) · ผู้ป่วยไม่ระบุเพศต้องค้นหารหัสโรคได้เหมือนผู้ป่วยทั่วไป (TC-022) · เรื่องนอก AC (ลากสลับแถว, ตัวเลือก Category แถว 2, OPD Note V1) ไม่ทำเป็น TC — ถาม BA ใน comment การ์ดหลักแทน
+- รวม: 1 EXE, 3 Scenario, **17 Test Case** (Required 17 · Optional 0) — คู่ "ขึ้น tag + เลือกไม่ได้" รวมเป็นข้อเดียวตามที่ QA สั่ง 28 ต.ค. 2026
+- การตัดสินใจที่ QA ยืนยันแล้ว (28 ต.ค. 2026): Atomic (ยกเว้น "ขึ้น tag + เลือกไม่ได้" รวมเป็นข้อเดียว) · รวมหน้า OPD Note ด้วย (เทสเผื่อไว้) · Sex เป็น Required · Age ไม่ใส่ · Environment DEV-X · ข้อความเตือนให้ยึดผลจริงก่อน (อาจแก้ภายหลัง) · ผู้ป่วยไม่ระบุเพศต้องค้นหารหัสโรคได้เหมือนผู้ป่วยทั่วไป (TC-017) · เรื่องนอก AC (ลากสลับแถว, ตัวเลือก Category แถว 2, OPD Note V1) ไม่ทำเป็น TC — ถาม BA ใน comment การ์ดหลักแทน
 - Label: `QA Module` / `QA Sub-module / Feature` **[ยังไม่ยืนยัน: เสนอ `QA Module : OPD` + Sub-module ด้าน Diagnosis / Coding]** — ต้องยืนยันก่อนสร้างการ์ดจริง
 
 ### ผลสำรวจระบบจริง (DEV-X 28 ต.ค. 2026 · user1 · อ่านอย่างเดียว ไม่กดบันทึก)
@@ -38,20 +38,43 @@
 
 | AC / ที่มา | Coding form | OPD Note |
 |---|---|---|
-| AC1 ระบบ search รายการ Dx ได้ | 001, 022 (ไม่ระบุเพศ) | 006 |
-| AC2 ห้ามลง primary Dx ที่ `pdx=false` | 009, 010 | 015, 016, 019 |
-| AC3 ห้ามลง primary Dx ที่ sex ไม่ตรงผู้ป่วย | 011–014 | 017, 018 |
+| AC1 ระบบ search รายการ Dx ได้ | 001, 017 (ไม่ระบุเพศ) | 006 |
+| AC2 ห้ามลง primary Dx ที่ `pdx=false` | 009 | 012, 014 |
+| AC3 ห้ามลง primary Dx ที่ sex ไม่ตรงผู้ป่วย | 010, 011 | 013 |
 | Dx ที่ผ่านเงื่อนไขลงเป็น primary ได้ | 002–004 | 007 |
 | บันทึกแล้วข้อมูลคงอยู่ | 005 | 008 |
-| comment 17 ส.ค.: `pdx=false` ลงเป็น Comorbid / อื่นๆ ได้ | 020 | 021 |
+| comment 17 ส.ค.: `pdx=false` ลงเป็น Comorbid / อื่นๆ ได้ | 015 | 016 |
 
 ### Requirement gap
 
 ส่งเป็นคำถามถึง BA ใน comment ของการ์ด SBH-1198 (ไม่ทำเป็น TC จนกว่าจะได้คำตอบ):
-- OPD Note อยู่ใน scope ไหม และมุมมอง V1 ต้องเช็คเหมือน V2 ไหม (QA เทสเผื่อไว้แล้วใน TC-006–008, 015–019, 021 คาดว่าเรื่องกันจะ Fail)
+- OPD Note อยู่ใน scope ไหม และมุมมอง V1 ต้องเช็คเหมือน V2 ไหม (QA เทสเผื่อไว้แล้วใน TC-006–008, 012–014, 016 คาดว่าเรื่องกันจะ Fail)
 - ข้อความเตือนเรื่อง pdx กับเพศใช้ "Unacceptable PDx" เหมือนกัน ตั้งใจไหม (TC เขียนตามผลจริงก่อน)
 - ลากสลับแถวใน รหัสโรค OPD: เด้งกลับโดยไม่มีข้อความ · แถวที่ถูกดันลงถูกล้าง Category
 - Age ยังไม่เช็ค — ยืนยันว่าเลื่อนหลัง Go-live
+
+### ร่าง comment ถาม BA (ยังไม่ลงใน Linear — QA ให้เก็บไว้ก่อน 28 ต.ค. 2026)
+
+> **สอบถาม BA: SBH-1198 (ผลสำรวจบน DEV-X 28/10/2569)**
+>
+> หน้า รหัสโรค OPD เช็ค pdx และเพศตาม AC แล้ว แต่หน้า OPD Note ยังไม่เช็ค มีเรื่องที่ AC ไม่ได้ระบุ ขอให้ช่วยยืนยัน 4 ข้อ
+>
+> **1. OPD Note อยู่ใน scope ไหม**
+> - ตอนนี้ OPD Note ทั้ง V1 และ V2 เลือก U071 (pdx = false) หรือ O923 (เฉพาะหญิง) กับผู้ป่วยชายเป็น Principal ได้ ไม่มีข้อความเตือน
+> - Overview เขียนว่า "แก้หน้า opd note" และ comment ของ dev วันที่ 30/7 มีรูปของ OPD Note
+> - ถ้าอยู่ใน scope: มุมมอง V1 ต้องเช็คเหมือน V2 ด้วยใช่ไหม
+>
+> **2. ข้อความเตือนเรื่อง pdx กับเพศ ตั้งใจให้เหมือนกันไหม**
+> - ทั้งสองกรณีขึ้น "Unacceptable PDx" แบบเดียวกัน ไม่มี tooltip
+> - comment วันที่ 17/8 แยกเรื่องเพศเป็น "Unacceptable Sex"
+>
+> **3. การลากสลับแถวในหน้า รหัสโรค OPD**
+> - ลากรหัสที่ไม่ผ่านเงื่อนไขขึ้นแถวที่ 1 แล้วแถวเด้งกลับ ไม่มีข้อความบอกผู้ใช้ ต้องมีข้อความไหม
+> - ลากรหัสที่ผ่านเงื่อนไข (Z017) ขึ้นแถวที่ 1 ได้ แต่แถวที่ถูกดันลงถูกล้าง Category เป็นว่าง เป็นพฤติกรรมที่ตั้งใจไหม
+>
+> **4. Age ยังไม่เช็ค**
+> - ผู้ป่วยหญิงอายุ 64 ปี เลือก O923 (จำกัดอายุ 9–60 ปี) เป็น primary ได้
+> - ยืนยันว่าเลื่อนไปทำหลัง Go-live ตาม comment วันที่ 18/8 ใช่ไหม
 
 ---
 
@@ -435,43 +458,11 @@ Actual Result
 - ยังไม่ได้ลองบันทึกจริงตอนสำรวจ · ฟอร์มอาจบังคับช่องอื่น (เช่น Chief Complaint) [ยังไม่ทราบ] — กรอกตามที่ระบบบังคับตอนรัน
 ```
 
-### [Required] TC-SBH-1198-009 - ตรวจสอบแสดง tag Unacceptable PDx ที่รหัสโรค pdx = false ในแถว primary-diagnosis ของหน้า รหัสโรค OPD
+### [Required] TC-SBH-1198-009 - ตรวจสอบรหัสโรค pdx = false ในแถว primary-diagnosis ของหน้า รหัสโรค OPD แสดง tag Unacceptable PDx และเลือกไม่ได้
 
 ```
 ข้อมูลอ้างอิง
 - TC ID: TC-SBH-1198-009
-- Scenario ID: TS-SBH-1198-UHP
-- Case Type: Unhappy
-- Test Level: System
-- Test Type: Functional
-- Priority: High
-- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
-
-Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิดหน้า OPD Coding form ของ Visit V69102627662 แล้ว
-
-Test Data
-- U071 (pdx = false · sex M, F)
-
-Test Steps
-1. คลิกช่อง "ค้นหา ICD10" แถวที่ 1 แล้วพิมพ์ "U071"
-
-Expected Result
-- ตัวเลือก "U071 - 2019 nCov virus disease(Covid-19 disease)" มี tag สีแดง "Unacceptable PDx"
-- ตัวเลือกเป็นสีจาง (disabled)
-
-Actual Result
-- -
-
-หมายเหตุ
-- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน
-```
-
-### [Required] TC-SBH-1198-010 - ตรวจสอบเลือกรหัสโรค pdx = false เป็น primary-diagnosis ไม่ได้ในหน้า รหัสโรค OPD
-
-```
-ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-010
 - Scenario ID: TS-SBH-1198-UHP
 - Case Type: Unhappy
 - Test Level: System
@@ -490,6 +481,8 @@ Test Steps
 2. คลิกตัวเลือก U071
 
 Expected Result
+- ตัวเลือก "U071 - 2019 nCov virus disease(Covid-19 disease)" มี tag สีแดง "Unacceptable PDx"
+- ตัวเลือกเป็นสีจาง (disabled)
 - คลิกแล้วไม่มีอะไรเกิดขึ้น ช่องแถวที่ 1 ยังว่าง ("ค้นหา ICD10")
 
 Actual Result
@@ -497,44 +490,14 @@ Actual Result
 
 หมายเหตุ
 - สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน
+- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน
 ```
 
-### [Required] TC-SBH-1198-011 - ตรวจสอบแสดง tag Unacceptable PDx ที่รหัสโรคเฉพาะเพศหญิงเมื่อผู้ป่วยเป็นชายในหน้า รหัสโรค OPD
-
-```
-ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-011
-- Scenario ID: TS-SBH-1198-UHP
-- Case Type: Unhappy
-- Test Level: System
-- Test Type: Functional
-- Priority: High
-- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
-
-Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิดหน้า OPD Coding form ของ Visit V69102627662 แล้ว
-
-Test Data
-- O923 (pdx = true · sex F)
-
-Test Steps
-1. คลิกช่อง "ค้นหา ICD10" แถวที่ 1 แล้วพิมพ์ "O923"
-
-Expected Result
-- ตัวเลือก "O923 - Agalactia" มี tag "Unacceptable PDx" และเป็นสีจาง (disabled)
-
-Actual Result
-- -
-
-หมายเหตุ
-- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน · ข้อความ / สี / รูปแบบ เหมือน tag เรื่อง pdx ทุกอย่าง ไม่มี tooltip (comment 17 ส.ค. เขียนเป็น "Unacceptable Sex") — QA ให้ยึดผลจริงก่อน ถ้าแก้ข้อความภายหลังต้องแก้ Expected ข้อนี้
-```
-
-### [Required] TC-SBH-1198-012 - ตรวจสอบผู้ป่วยชายเลือกรหัสโรคเฉพาะเพศหญิงเป็น primary-diagnosis ไม่ได้ในหน้า รหัสโรค OPD
+### [Required] TC-SBH-1198-010 - ตรวจสอบผู้ป่วยชายค้นรหัสโรคเฉพาะเพศหญิงในแถว primary-diagnosis ของหน้า รหัสโรค OPD แสดง tag Unacceptable PDx และเลือกไม่ได้
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-012
+- TC ID: TC-SBH-1198-010
 - Scenario ID: TS-SBH-1198-UHP
 - Case Type: Unhappy
 - Test Level: System
@@ -553,51 +516,21 @@ Test Steps
 2. คลิกตัวเลือก O923
 
 Expected Result
+- ตัวเลือก "O923 - Agalactia" มี tag "Unacceptable PDx" และเป็นสีจาง (disabled)
 - คลิกแล้วไม่มีอะไรเกิดขึ้น ช่องแถวที่ 1 ยังว่าง
 
 Actual Result
 - -
 
 หมายเหตุ
-- -
+- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน · ข้อความ / สี / รูปแบบ เหมือน tag เรื่อง pdx ทุกอย่าง ไม่มี tooltip (comment 17 ส.ค. เขียนเป็น "Unacceptable Sex") — QA ให้ยึดผลจริงก่อน ถ้าแก้ข้อความภายหลังต้องแก้ Expected ข้อนี้
 ```
 
-### [Required] TC-SBH-1198-013 - ตรวจสอบแสดง tag Unacceptable PDx ที่รหัสโรคเฉพาะเพศชายเมื่อผู้ป่วยเป็นหญิงในหน้า รหัสโรค OPD
-
-```
-ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-013
-- Scenario ID: TS-SBH-1198-UHP
-- Case Type: Unhappy
-- Test Level: System
-- Test Type: Functional
-- Priority: High
-- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
-
-Preconditions
-1. ผู้ป่วยหญิง HN 6932109 เปิดหน้า OPD Coding form ของ Visit V69102727694 แล้ว
-
-Test Data
-- N40 (pdx = true · sex M)
-
-Test Steps
-1. คลิกช่อง "ค้นหา ICD10" แถวที่ 1 แล้วพิมพ์ "N40"
-
-Expected Result
-- ตัวเลือก "N40 - Hyperplasia of prostate" มี tag "Unacceptable PDx" และเป็นสีจาง (disabled)
-
-Actual Result
-- -
-
-หมายเหตุ
-- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน (C61 ก็ได้ผลเดียวกัน) · ข้อความเหมือน tag เรื่อง pdx — ยึดผลจริงก่อน
-```
-
-### [Required] TC-SBH-1198-014 - ตรวจสอบผู้ป่วยหญิงเลือกรหัสโรคเฉพาะเพศชายเป็น primary-diagnosis ไม่ได้ในหน้า รหัสโรค OPD
+### [Required] TC-SBH-1198-011 - ตรวจสอบผู้ป่วยหญิงค้นรหัสโรคเฉพาะเพศชายในแถว primary-diagnosis ของหน้า รหัสโรค OPD แสดง tag Unacceptable PDx และเลือกไม่ได้
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-014
+- TC ID: TC-SBH-1198-011
 - Scenario ID: TS-SBH-1198-UHP
 - Case Type: Unhappy
 - Test Level: System
@@ -616,51 +549,21 @@ Test Steps
 2. คลิกตัวเลือก N40
 
 Expected Result
+- ตัวเลือก "N40 - Hyperplasia of prostate" มี tag "Unacceptable PDx" และเป็นสีจาง (disabled)
 - คลิกแล้วไม่มีอะไรเกิดขึ้น ช่องแถวที่ 1 ยังว่าง
 
 Actual Result
 - -
 
 หมายเหตุ
-- -
+- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน (C61 ก็ได้ผลเดียวกัน) · ข้อความเหมือน tag เรื่อง pdx — ยึดผลจริงก่อน
 ```
 
-### [Required] TC-SBH-1198-015 - ตรวจสอบแสดง tag Unacceptable PDx ที่รหัสโรค pdx = false ในแถว Category Principal ของ OPD Note
-
-```
-ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-015
-- Scenario ID: TS-SBH-1198-UHP
-- Case Type: Unhappy
-- Test Level: System
-- Test Type: Functional
-- Priority: High
-- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
-
-Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิด OPD Note ของ Visit V69102627662 แล้ว เพิ่มแถว Diagnosis 1 แถว (Category = Principal)
-
-Test Data
-- U071 (pdx = false)
-
-Test Steps
-1. พิมพ์ "U071" ในช่อง "ค้นหา" ของแถวที่ 1
-
-Expected Result
-- ตัวเลือก "U071 - 2019 nCov virus disease(Covid-19 disease)" มี tag "Unacceptable PDx"
-
-Actual Result
-- -
-
-หมายเหตุ
-- สำรวจ DEV-X 28 ต.ค. 2026 (V2 และ V1): **ไม่ผ่าน** — ตัวเลือกไม่มี tag · คาดว่าต้องเปิดการ์ด bug ด้วย skill `qa-bug-writer`
-```
-
-### [Required] TC-SBH-1198-016 - ตรวจสอบเลือกรหัสโรค pdx = false ในแถว Category Principal ของ OPD Note ไม่ได้
+### [Required] TC-SBH-1198-012 - ตรวจสอบรหัสโรค pdx = false ในแถว Category Principal ของ OPD Note แสดง tag Unacceptable PDx และเลือกไม่ได้
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-016
+- TC ID: TC-SBH-1198-012
 - Scenario ID: TS-SBH-1198-UHP
 - Case Type: Unhappy
 - Test Level: System
@@ -679,51 +582,22 @@ Test Steps
 2. คลิกตัวเลือก U071
 
 Expected Result
+- ตัวเลือก "U071 - 2019 nCov virus disease(Covid-19 disease)" มี tag "Unacceptable PDx"
 - คลิกแล้วไม่มีอะไรเกิดขึ้น ช่องรหัสและช่อง Diagnosis ของแถวที่ 1 ยังว่าง
 
 Actual Result
 - -
 
 หมายเหตุ
+- สำรวจ DEV-X 28 ต.ค. 2026 (V2 และ V1): **ไม่ผ่าน** — ตัวเลือกไม่มี tag · คาดว่าต้องเปิดการ์ด bug ด้วย skill `qa-bug-writer`
 - สำรวจ DEV-X 28 ต.ค. 2026 (V2 และ V1): **ไม่ผ่าน** — เลือกได้ แถวแสดง U071 / "2019 nCov virus disease(Covid-19 disease)" / Principal
 ```
 
-### [Required] TC-SBH-1198-017 - ตรวจสอบแสดง tag Unacceptable PDx ที่รหัสโรคเฉพาะเพศหญิงเมื่อผู้ป่วยเป็นชายในแถว Principal ของ OPD Note
+### [Required] TC-SBH-1198-013 - ตรวจสอบผู้ป่วยชายค้นรหัสโรคเฉพาะเพศหญิงในแถว Principal ของ OPD Note แสดง tag Unacceptable PDx และเลือกไม่ได้
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-017
-- Scenario ID: TS-SBH-1198-UHP
-- Case Type: Unhappy
-- Test Level: System
-- Test Type: Functional
-- Priority: High
-- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
-
-Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิด OPD Note ของ Visit V69102627662 แล้ว เพิ่มแถว Diagnosis 1 แถว (Category = Principal)
-
-Test Data
-- O923 (sex F)
-
-Test Steps
-1. พิมพ์ "O923" ในช่อง "ค้นหา" ของแถวที่ 1
-
-Expected Result
-- ตัวเลือก "O923 - Agalactia" มี tag "Unacceptable PDx" (ตามรูปใน comment dev 30 ก.ค.)
-
-Actual Result
-- -
-
-หมายเหตุ
-- สำรวจ DEV-X 28 ต.ค. 2026 (V2 และ V1): **ไม่ผ่าน** — ไม่มี tag
-```
-
-### [Required] TC-SBH-1198-018 - ตรวจสอบผู้ป่วยชายเลือกรหัสโรคเฉพาะเพศหญิงในแถว Principal ของ OPD Note ไม่ได้
-
-```
-ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-018
+- TC ID: TC-SBH-1198-013
 - Scenario ID: TS-SBH-1198-UHP
 - Case Type: Unhappy
 - Test Level: System
@@ -742,20 +616,21 @@ Test Steps
 2. คลิกตัวเลือก O923
 
 Expected Result
+- ตัวเลือก "O923 - Agalactia" มี tag "Unacceptable PDx" (ตามรูปใน comment dev 30 ก.ค.)
 - คลิกแล้วไม่มีอะไรเกิดขึ้น ช่องรหัสและช่อง Diagnosis ของแถวที่ 1 ยังว่าง
 
 Actual Result
 - -
 
 หมายเหตุ
-- -
+- สำรวจ DEV-X 28 ต.ค. 2026 (V2 และ V1): **ไม่ผ่าน** — ไม่มี tag
 ```
 
-### [Required] TC-SBH-1198-019 - ตรวจสอบตัวเลือก Principal ถูก disabled เมื่อเลือกรหัสโรค pdx = false ก่อนเลือก Category ใน OPD Note
+### [Required] TC-SBH-1198-014 - ตรวจสอบตัวเลือก Principal ถูก disabled เมื่อเลือกรหัสโรค pdx = false ก่อนเลือก Category ใน OPD Note
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-019
+- TC ID: TC-SBH-1198-014
 - Scenario ID: TS-SBH-1198-UHP
 - Case Type: Unhappy
 - Test Level: System
@@ -784,11 +659,11 @@ Actual Result
 - ยังไม่ได้ลองตอนสำรวจ
 ```
 
-### [Required] TC-SBH-1198-020 - ตรวจสอบเลือกรหัสโรค pdx = false ในแถวที่ 2 (ไม่ใช่ primary) ของหน้า รหัสโรค OPD ได้
+### [Required] TC-SBH-1198-015 - ตรวจสอบเลือกรหัสโรค pdx = false ในแถวที่ 2 (ไม่ใช่ primary) ของหน้า รหัสโรค OPD ได้
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-020
+- TC ID: TC-SBH-1198-015
 - Scenario ID: TS-SBH-1198-EDG
 - Case Type: Edge
 - Test Level: System
@@ -818,11 +693,11 @@ Actual Result
 - สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน
 ```
 
-### [Required] TC-SBH-1198-021 - ตรวจสอบเลือกรหัสโรค pdx = false ในแถว Category Comorbid ของ OPD Note ได้
+### [Required] TC-SBH-1198-016 - ตรวจสอบเลือกรหัสโรค pdx = false ในแถว Category Comorbid ของ OPD Note ได้
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-021
+- TC ID: TC-SBH-1198-016
 - Scenario ID: TS-SBH-1198-EDG
 - Case Type: Edge
 - Test Level: System
@@ -851,11 +726,11 @@ Actual Result
 - -
 ```
 
-### [Required] TC-SBH-1198-022 - ตรวจสอบผู้ป่วยไม่ระบุเพศค้นหารหัสโรคในหน้า รหัสโรค OPD ได้เหมือนผู้ป่วยทั่วไป
+### [Required] TC-SBH-1198-017 - ตรวจสอบผู้ป่วยไม่ระบุเพศค้นหารหัสโรคในหน้า รหัสโรค OPD ได้เหมือนผู้ป่วยทั่วไป
 
 ```
 ข้อมูลอ้างอิง
-- TC ID: TC-SBH-1198-022
+- TC ID: TC-SBH-1198-017
 - Scenario ID: TS-SBH-1198-EDG
 - Case Type: Edge
 - Test Level: System
