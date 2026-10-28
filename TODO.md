@@ -1468,4 +1468,4 @@ OR-69-000217 เดิมก่อน สร้างใหม่เฉพาะ
       ผล: หน้า รหัสโรค OPD แถวที่ 1 ขึ้น tag "Unacceptable PDx" + กดไม่ได้ ทั้ง pdx=false และเพศไม่ตรง (ตรง AC) · Age ยังไม่เช็ค · **หน้า OPD Note (V1/V2) ไม่มี tag เลือก U071 เป็น Principal ได้**
 - [x] **P3 — ร่าง TC** (28 ต.ค. 2026) — QA เลือก atomic · รวม OPD Note · Sex = Required · DEV-X → `test-cases/SBH-1198-dx-check-pdx-sex.md` 1 EXE / 3 Scenario / 24 TC (Required 21 · Optional 3)
 - [x] **P4 — QA ตอบ gap 4 ข้อ + สำรวจเพิ่ม** (28 ต.ค. 2026) — OPD Note เทสเผื่อ · ข้อความเตือนยึดผลจริง (pdx กับเพศใช้ "Unacceptable PDx" เหมือนกันทุกอย่าง ไม่มี tooltip) · ผู้ป่วยไม่ระบุเพศต้องเช็ค (มีได้จากฟอร์มผู้ป่วยระบุตัวตนไม่ได้ของ ER — เวชระเบียนมีแค่ชาย/หญิง) · ลากแถว (spec `ui17–19`, 5 กรณีแยกหน้า): รหัสที่ไม่ผ่านลากขึ้นแถว 1 ไม่ได้ เด้งกลับ ไม่มีข้อความ · Z017 ลากขึ้นได้แต่แถวที่ถูกดันลงถูกล้าง Category → draft เป็น 27 TC (Required 22 · Optional 5)
-- [ ] **P5 — QA review draft** แล้วยืนยัน QA Module / Sub-module + assignee + Expected ของ TC-028 ก่อนสร้างใน Linear
+- [ ] **P5 — QA review draft** แล้วยืนยัน QA Module / Sub-module + assignee + ลง comment ถาม BA ก่อนสร้างใน Linear
