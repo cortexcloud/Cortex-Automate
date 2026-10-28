@@ -3,8 +3,8 @@
 - Requirement: https://linear.app/cortexcloud/issue/SBH-1198
 - สร้างจาก Acceptance Criteria + comment ของการ์ด ตาม skill `linear-testcase-writer` (แบบ atomic: 1 TC = 1 จุดตรวจ)
 - สถานะไฟล์นี้: **Draft รอ QA review** — ยังไม่ได้สร้างอะไรใน Linear
-- รวม: 1 EXE, 3 Scenario, **24 Test Case** (Required 21 · Optional 3)
-- การตัดสินใจที่ QA ยืนยันแล้ว (28 ต.ค. 2026): Atomic · รวมหน้า OPD Note ด้วย · Sex เป็น Required · Age ไม่ใส่ · Environment DEV-X
+- รวม: 1 EXE, 3 Scenario, **27 Test Case** (Required 22 · Optional 5)
+- การตัดสินใจที่ QA ยืนยันแล้ว (28 ต.ค. 2026): Atomic · รวมหน้า OPD Note ด้วย (เทสเผื่อไว้) · Sex เป็น Required · Age ไม่ใส่ · Environment DEV-X · ข้อความเตือนให้ยึดผลจริงก่อน (อาจแก้ภายหลัง) · ผู้ป่วยไม่ระบุเพศต้องเช็ค · การลากสลับแถวลองเล่นแล้ว (ผลอยู่ใน TC-023, 026, 027)
 - Label: `QA Module` / `QA Sub-module / Feature` **[ยังไม่ยืนยัน: เสนอ `QA Module : OPD` + Sub-module ด้าน Diagnosis / Coding]** — ต้องยืนยันก่อนสร้างการ์ดจริง
 
 ### ผลสำรวจระบบจริง (DEV-X 28 ต.ค. 2026 · user1 · อ่านอย่างเดียว ไม่กดบันทึก)
@@ -15,8 +15,10 @@
 | หน้า **รหัสโรค OPD** (OPD Coding form) แถวที่ 1 | Category ล็อกเป็น `primary-diagnosis` · รหัสที่ `pdx=false` หรือเพศไม่ตรงผู้ป่วย ขึ้น tag **"Unacceptable PDx"** และกดเลือกไม่ได้ — **ตรง AC** |
 | หน้า รหัสโรค OPD แถวที่ 2 ขึ้นไป | Category มี comorbidity / complication / others / external-cause (ไม่มี primary) · เลือก U071 ได้ ไม่มี tag |
 | หน้า **OPD Note** (ทั้งมุมมอง V2 ค่าตั้งต้น และ V1) | แถวแรก Category ตั้งต้นเป็น Principal · ค้น U071 / O923 กับผู้ป่วยชาย **ไม่มี tag และเลือกเป็น Principal ได้** — ยังไม่ตรง AC และไม่ตรงรูปที่ dev แนบใน comment |
-| เพศ | ใช้ tag ตัวเดียว "Unacceptable PDx" (ไม่มี "Unacceptable Sex" ตามที่ comment 17 ส.ค. เขียน) |
+| ข้อความเตือน pdx เทียบกับเพศ | **เหมือนกันทุกอย่าง** — ข้อความ "Unacceptable PDx" ป้ายแดงแบบเดียวกัน (`ant-tag-error`) ไม่มี tooltip ไม่มีข้อความอธิบายเพิ่ม → ผู้ใช้แยกไม่ได้ว่าโดนกันเพราะ pdx หรือเพศ (comment 17 ส.ค. เขียนแยกเป็น "Unacceptable Sex") |
 | อายุ | ยังไม่เช็ค — ผู้ป่วยหญิง 64 ปี เลือก O923 (`age_max` 60) ได้ ตรงกับ comment 18 ส.ค. ว่าทำ Age หลัง Go-live |
+| เพศที่ระบบมี | ฟอร์มสร้างผู้ป่วยที่เวชระเบียนมีแค่ `male - เพศชาย` / `female - เพศหญิง` · ฟอร์ม "ผู้ป่วยระบุตัวตนไม่ได้" ของ ER มีช่อง `เพศ (ไม่บังคับ)` → มีผู้ป่วยที่ไม่ระบุเพศได้จริง (ยังไม่ได้สร้างมาลอง) |
+| ลากสลับแถว (Coding form) | ลากแถวที่มี U071 หรือ O923 (ผู้ป่วยชาย) ขึ้นแถวที่ 1 → **แถวเด้งกลับที่เดิม** ไม่มีข้อความแจ้ง · ลากแถว primary ลงให้ U071 ขึ้นมาแทน → เด้งกลับเหมือนกัน · ตัวเปรียบเทียบ: ลาก Z017 (ผ่านเงื่อนไข) ขึ้นแถวที่ 1 ได้ แต่แถว K30 ที่ถูกดันลงแถวที่ 2 ถูกล้างช่อง Category เป็นว่าง |
 
 ### รหัสโรคที่ใช้เป็น Test Data (flag จาก API 28 ต.ค. 2026)
 
@@ -38,19 +40,21 @@
 |---|---|---|
 | AC1 ระบบ search รายการ Dx ได้ | 001 | 006 |
 | AC2 ห้ามลง primary Dx ที่ `pdx=false` | 009, 010 | 015, 016, 019 |
-| AC3 ห้ามลง primary Dx ที่ sex ไม่ตรงผู้ป่วย | 011–014 | 017, 018 |
+| AC3 ห้ามลง primary Dx ที่ sex ไม่ตรงผู้ป่วย | 011–014, 025 (ไม่ระบุเพศ) | 017, 018 |
 | Dx ที่ผ่านเงื่อนไขลงเป็น primary ได้ | 002–004 | 007 |
 | บันทึกแล้วข้อมูลคงอยู่ | 005 | 008 |
 | comment 17 ส.ค.: `pdx=false` ลงเป็น Comorbid / อื่นๆ ได้ | 020 | 021 |
-| coverage เสริม | 022, 023 | 024 |
+| ลากสลับแถว | 023, 026, 027 | - |
+| coverage เสริม | 022 | 024 |
 
 ### Requirement gap
 
-- **expected behavior**: Overview เขียน "แก้หน้า opd note" แต่ระบบที่เห็นเช็คเฉพาะหน้า รหัสโรค OPD — ต้องให้ PO/dev ยืนยันว่า OPD Note อยู่ใน scope (QA เลือกให้รวมไว้ คาดว่า TC ของ OPD Note จะ Fail)
-- **expected behavior**: comment 17 ส.ค. แยก tag เป็น Unacceptable PDx / Sex / Age แต่ระบบใช้ "Unacceptable PDx" ตัวเดียวทั้งเรื่อง pdx และเพศ — draft ยึดตามระบบจริง
+- **expected behavior**: Overview เขียน "แก้หน้า opd note" แต่ระบบเช็คเฉพาะหน้า รหัสโรค OPD — QA ให้เทสเผื่อไว้ (TC-006–008, 015–019, 021, 024) คาดว่า TC เรื่องกันของ OPD Note จะ Fail
+- **expected behavior**: comment 17 ส.ค. แยกข้อความเป็น Unacceptable PDx / Sex / Age แต่ระบบใช้ "Unacceptable PDx" แบบเดียวกันทั้งเรื่อง pdx และเพศ — QA ให้ยึดผลจริงก่อน (Expected ของ TC-011, 013, 017 เขียนตามระบบ ถ้าแก้ภายหลังต้องแก้ Expected ตาม)
 - **expected behavior**: comment 18 ส.ค. บอกทำเฉพาะ PDx ก่อน แต่ระบบเช็คเพศแล้ว — QA ให้เทสเพศเป็น Required ตาม AC ข้อ 3
-- **validation**: ผู้ป่วยที่เพศไม่ระบุ / ไม่ใช่ชายหรือหญิง ควรเช็คอย่างไร — การ์ดไม่ได้เขียน
-- **edge cases**: Age (AgeMin / AgeMax / AgeDayMin) ไม่อยู่ใน draft นี้ (หลัง Go-live) · Coding form มีปุ่มลากสลับแถว — ยังไม่ยืนยันว่าลาก Dx ที่ไม่ผ่านขึ้นแถวที่ 1 ได้หรือไม่ (ลองด้วยสคริปต์แล้วลากไม่ขยับ ต้องลองมือ)
+- **validation**: ผู้ป่วยไม่ระบุเพศ (ลงทะเบียนเป็นผู้ป่วยระบุตัวตนไม่ได้ของ ER แล้วเว้นช่องเพศ) — QA ให้เช็ค แต่การ์ดไม่ได้บอกว่าควรได้ผลแบบไหน (TC-025 Expected = [ยังไม่ทราบ] ต้องถาม PO)
+- **edge cases**: ลากสลับแถวใน Coding form — กันรหัสที่ไม่ผ่านไม่ให้ขึ้นแถวที่ 1 ได้ (เด้งกลับ) แต่ไม่มีข้อความบอกผู้ใช้ · ลากรหัสที่ผ่านเงื่อนไขขึ้นแถวที่ 1 แล้ว Category ของแถวที่ถูกดันลงถูกล้างเป็นว่าง — ต้องให้ PO ยืนยันว่าตั้งใจไหม
+- **edge cases**: Age (AgeMin / AgeMax / AgeDayMin) ไม่อยู่ใน draft นี้ (หลัง Go-live)
 - **permission/role**: ไม่ได้ระบุว่าใคร (แพทย์ / Coder) ใช้หน้าไหน
 
 ---
@@ -527,7 +531,7 @@ Actual Result
 - -
 
 หมายเหตุ
-- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน · ระบบใช้ tag "Unacceptable PDx" ตัวเดียวกับเรื่อง pdx (comment 17 ส.ค. เขียนเป็น "Unacceptable Sex")
+- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน · ข้อความ / สี / รูปแบบ เหมือน tag เรื่อง pdx ทุกอย่าง ไม่มี tooltip (comment 17 ส.ค. เขียนเป็น "Unacceptable Sex") — QA ให้ยึดผลจริงก่อน ถ้าแก้ข้อความภายหลังต้องแก้ Expected ข้อนี้
 ```
 
 ### [Required] TC-SBH-1198-012 - ตรวจสอบผู้ป่วยชายเลือกรหัสโรคเฉพาะเพศหญิงเป็น primary-diagnosis ไม่ได้ในหน้า รหัสโรค OPD
@@ -590,7 +594,7 @@ Actual Result
 - -
 
 หมายเหตุ
-- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน (C61 ก็ได้ผลเดียวกัน)
+- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน (C61 ก็ได้ผลเดียวกัน) · ข้อความเหมือน tag เรื่อง pdx — ยึดผลจริงก่อน
 ```
 
 ### [Required] TC-SBH-1198-014 - ตรวจสอบผู้ป่วยหญิงเลือกรหัสโรคเฉพาะเพศชายเป็น primary-diagnosis ไม่ได้ในหน้า รหัสโรค OPD
@@ -898,23 +902,24 @@ Actual Result
 
 Preconditions
 1. ผู้ป่วยชาย HN 6932107 เปิดหน้า OPD Coding form ของ Visit V69102627662 แล้ว
-2. แถวที่ 2 เลือก U071 (comorbidity) แล้ว
+2. แถวที่ 1 เลือก K30 (primary-diagnosis) · แถวที่ 2 เลือก U071 (comorbidity)
 
 Test Data
 - U071 (pdx = false)
 
 Test Steps
 1. กดค้างที่ไอคอนลาก (⋮⋮) หน้าแถวที่ 2
-2. ลากขึ้นไปวางเหนือแถวที่ 1
+2. ลากขึ้นไปวางเหนือแถวที่ 1 แล้วปล่อย
 
 Expected Result
-- ระบบไม่ยอมให้ U071 อยู่ในแถว primary-diagnosis (ลากไม่ได้ หรือมีข้อความแจ้ง หรือ U071 ยังไม่เป็น primary)
+- แถวเด้งกลับที่เดิม: แถวที่ 1 ยังเป็น K30 / primary-diagnosis · แถวที่ 2 ยังเป็น U071 / comorbidity
 
 Actual Result
 - -
 
 หมายเหตุ
-- กรณีความเสี่ยงที่ไม่มีใน AC · ตอนสำรวจลองลากด้วยสคริปต์แล้วแถวไม่ขยับ ยังไม่ยืนยัน ต้องลองมือ · Expected ที่ถูกต้อง [ยังไม่ทราบ] ต้องถาม PO
+- กรณีความเสี่ยงที่ไม่มีใน AC · สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน (เด้งกลับ ไม่มีข้อความแจ้ง) · O923 กับผู้ป่วยชายได้ผลเดียวกัน · กรณีแถวที่ 1 ว่างแล้วลาก U071 ขึ้นก็เด้งกลับ
+- ข้อสังเกต: ไม่มีข้อความบอกผู้ใช้ว่าทำไมลากไม่ได้ — ถาม PO ว่าต้องมีไหม
 ```
 
 ### [Optional] TC-SBH-1198-024 - ตรวจสอบ OPD Note มุมมอง V1 กันรหัสโรค pdx = false ในแถว Principal เหมือนมุมมอง V2
@@ -948,6 +953,109 @@ Actual Result
 
 หมายเหตุ
 - สำรวจ DEV-X 28 ต.ค. 2026: **ไม่ผ่าน** เหมือน V2 (ไม่มี tag เลือกได้)
+```
+
+### [Required] TC-SBH-1198-025 - ตรวจสอบการเช็คเพศเมื่อผู้ป่วยไม่ระบุเพศ ค้นรหัสโรคเฉพาะเพศในแถว primary-diagnosis ของหน้า รหัสโรค OPD
+
+```
+ข้อมูลอ้างอิง
+- TC ID: TC-SBH-1198-025
+- Scenario ID: TS-SBH-1198-UHP
+- Case Type: Unhappy
+- Test Level: System
+- Test Type: Functional
+- Priority: Medium
+- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
+
+Preconditions
+1. ลงทะเบียนผู้ป่วยใหม่ที่หน้าคัดกรอง ER แบบ "ผู้ป่วยระบุตัวตนไม่ได้" โดยเว้นช่อง "เพศ (ไม่บังคับ)" ว่าง และเปิด Visit แล้ว
+2. เปิดหน้าผู้ป่วยของ Visit นั้น → เมนูขวา "รหัสโรค OPD"
+
+Test Data
+- O923 (sex F) · N40 (sex M) · K30 (sex M, F)
+
+Test Steps
+1. คลิกช่อง "ค้นหา ICD10" แถวที่ 1 แล้วพิมพ์ "O923"
+2. ล้างช่องแล้วพิมพ์ "N40"
+3. ล้างช่องแล้วพิมพ์ "K30"
+
+Expected Result
+- [ยังไม่ทราบ: การ์ดไม่ได้กำหนดว่าผู้ป่วยไม่ระบุเพศควรได้ผลอย่างไร — ต้องให้ PO ยืนยันก่อนรัน]
+
+Actual Result
+- -
+
+หมายเหตุ
+- QA ให้เช็คกรณีนี้ (28 ต.ค. 2026) · ยังไม่ได้สร้างผู้ป่วยมาลอง
+- ยังไม่ทราบว่าหน้า รหัสโรค OPD เปิดกับ Visit ER ได้ไหม — ถ้าไม่ได้ ต้องหาทางเปิด Visit OPD ให้ผู้ป่วยรายนี้แทน
+```
+
+### [Optional] TC-SBH-1198-026 - ตรวจสอบลากแถวที่มีรหัสโรคผ่านเงื่อนไขขึ้นเป็นแถวที่ 1 ของหน้า รหัสโรค OPD แล้วกลายเป็น primary-diagnosis
+
+```
+ข้อมูลอ้างอิง
+- TC ID: TC-SBH-1198-026
+- Scenario ID: TS-SBH-1198-EDG
+- Case Type: Edge
+- Test Level: System
+- Test Type: Functional
+- Priority: Low
+- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
+
+Preconditions
+1. ผู้ป่วยชาย HN 6932107 เปิดหน้า OPD Coding form ของ Visit V69102627662 แล้ว
+2. แถวที่ 1 เลือก K30 (primary-diagnosis) · แถวที่ 2 เลือก Z017 (comorbidity)
+
+Test Data
+- Z017 (pdx = true · sex M, F)
+
+Test Steps
+1. กดค้างที่ไอคอนลาก (⋮⋮) หน้าแถวที่ 2
+2. ลากขึ้นไปวางเหนือแถวที่ 1 แล้วปล่อย
+
+Expected Result
+- แถวที่ 1 เป็น Z017 / primary-diagnosis
+- แถวที่ 2 เป็น K30
+
+Actual Result
+- -
+
+หมายเหตุ
+- ใช้เป็นตัวเปรียบเทียบกับ TC-023 (ยืนยันว่าการลากทำงาน ไม่ใช่ลากไม่ได้ทั้งหมด)
+- สำรวจ DEV-X 28 ต.ค. 2026: Z017 ขึ้นแถวที่ 1 เป็น primary-diagnosis (ช่องแสดงแค่ชื่อ "Laboratory examination" ไม่มีรหัสนำหน้า) · **แถว K30 ที่ถูกดันลงถูกล้าง Category เป็นว่าง ("ประเภทโรค")** ต้องเลือกใหม่ — ถาม PO ว่าตั้งใจไหม
+```
+
+### [Optional] TC-SBH-1198-027 - ตรวจสอบลากแถว primary-diagnosis ลงล่างเพื่อให้รหัสโรค pdx = false ขึ้นเป็นแถวที่ 1 ของหน้า รหัสโรค OPD ไม่ได้
+
+```
+ข้อมูลอ้างอิง
+- TC ID: TC-SBH-1198-027
+- Scenario ID: TS-SBH-1198-EDG
+- Case Type: Edge
+- Test Level: System
+- Test Type: Functional
+- Priority: Medium
+- Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
+
+Preconditions
+1. ผู้ป่วยชาย HN 6932107 เปิดหน้า OPD Coding form ของ Visit V69102627662 แล้ว
+2. แถวที่ 1 เลือก K30 (primary-diagnosis) · แถวที่ 2 เลือก U071 (comorbidity)
+
+Test Data
+- U071 (pdx = false)
+
+Test Steps
+1. กดค้างที่ไอคอนลาก (⋮⋮) หน้าแถวที่ 1
+2. ลากลงไปวางใต้แถวที่ 2 แล้วปล่อย
+
+Expected Result
+- แถวเด้งกลับที่เดิม: แถวที่ 1 ยังเป็น K30 / primary-diagnosis · แถวที่ 2 ยังเป็น U071 / comorbidity
+
+Actual Result
+- -
+
+หมายเหตุ
+- สำรวจ DEV-X 28 ต.ค. 2026: ผ่าน (เด้งกลับ ไม่มีข้อความแจ้ง)
 ```
 
 ---
