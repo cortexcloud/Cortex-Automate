@@ -473,21 +473,29 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
 
 Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิด OPD Note ของ Visit V69102627662 แล้ว
+1. Visit สถานะ "เช็คอิน" → กรอก ฟอร์มคัดกรอง ครบ กด "สร้าง" จนวงกลมเขียว
+2. เปลี่ยนสถานะ Visit เป็น "พร้อมตรวจ" แล้วเปิดผู้ป่วยจากแท็บ "พร้อมตรวจ | พักการตรวจ"
+3. ผู้ป่วยหญิง HN 6932108 · Visit V69102827722 · เปิด OPD Note
 
 Test Data
-- Principal: K30
+- Principal: K30 · ส่วนอื่นของ OPD Note กรอกครบทุก field
 
 Test Steps
-1. ส่วน Diagnosis กด "+ เพิ่มรายการ" แล้วเลือก K30 (Category = Principal)
-2. กดปุ่ม "สร้าง" (V2) หรือ "บันทึก" (V1) ของ OPD Note
-3. โหลดหน้าใหม่ แล้วดูส่วน Diagnosis ของ OPD Note
+1. ส่วน Diagnosis เลือก K30 · Principal · Status / Severity / วันเวลา
+2. กรอกส่วนอื่นของ OPD Note ให้ครบ
+3. กดปุ่ม "สร้าง" ของ OPD Note
+4. โหลดหน้าใหม่ แล้วดูวงกลมสถานะและส่วน Diagnosis
 
 Expected Result
-- บันทึกสำเร็จ ไม่มีข้อความ error
-- หลังโหลดหน้าใหม่ แถวที่ 1 ยังเป็น K30 / Principal
+- บันทึกสำเร็จ วงกลมข้าง OPD Note เป็นสีเขียว
+- หลังโหลดหน้าใหม่ แถวที่ 1 ยังเป็น K30 / Functional dyspepsia / Principal
 
 Actual Result
+- **Passed** (DEV-X 28 ต.ค. 2026 · QA บันทึกด้วยมือบน V69102827722 แล้วตรวจซ้ำด้วย Playwright) — หลัง reload วงกลมเขียว "สร้างโดย user1 example 17:12" · Dx K30 / Functional dyspepsia / Principal
+- ข้อสังเกต: ต้องกด "สร้าง" หลายรอบ · หลังบันทึกหน้าจอขึ้น "ไม่สามารถแสดงฟอร์มได้" จนกว่าจะ reload · Playwright กดซ้ำ 10 รอบกับ V69102627662 ยังไม่บันทึก · ฟอร์มคัดกรองกรอก Comment ของ LMP ไม่มีวันที่ → server 500
+- หลักฐานรอบใหม่: `clips/SBH-1198 dev-x 2026-10-28/TC-008/rerun-ready-status/` · Linear SBH-3171
+
+รอบก่อนหน้า (ยังไม่รู้ลำดับคัดกรอง → พร้อมตรวจ)
 - **Blocked** (DEV-X 28 ต.ค. 2026 · ผ่านโมดูลผู้ป่วยนอก แผนกอายุรกรรม · Visit เช็คอินแล้ว)
 - เข้าผู้ป่วยจากรายการผู้ป่วยนอก (แท็บเช็คอิน คิว B0193) → OPD Note เลือก K30 เป็น Principal แล้วกด "สร้าง" — ไม่มีข้อความแจ้ง ไม่มีคำสั่งบันทึกถูกส่ง
 - โหลดหน้าใหม่ แถวเหลือแค่รหัส K30 ช่องชื่อโรค / Category ว่าง
