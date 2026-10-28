@@ -150,7 +150,7 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/jame4/OneDrive/Desktop
 ## 7) กฎการทำงาน (ผู้ใช้กำหนด)
 
 กฎที่ใช้ทั่วไปอยู่ตารางนี้ · **คำตอบรายงาน** (การ์ด SBH-xxxx · Mock Data ชุดใด · Scenario UAT ข้อใด) อยู่ที่ [references/decisions.md](references/decisions.md) — Grep เลขการ์ดก่อนเริ่มงานการ์ดนั้น
-เลขกฎที่ไม่อยู่ในตารางนี้ (R12 R19 R24 R26 R28–R43 R45 R46 R49–R51 R53–R59 R62–R67 และ `Rnn-2`) อยู่ใน decisions.md
+เลขกฎที่ไม่อยู่ในตารางนี้ (R12 R19 R24 R26 R28–R43 R45 R46 R49–R51 R53–R59 R62–R69 และ `Rnn-2`) อยู่ใน decisions.md
 
 | # | กฎ | ตั้งเมื่อ |
 |---|----|-----------|

@@ -150,6 +150,27 @@ export async function signDisposition(page: Page): Promise<ErDischargeSummary> {
   return summary;
 }
 
+/**
+ * ปุ่ม `เปิดแก้ไข` (Reopen) ของฟอร์มที่ลงนามแล้ว → แจ้งเตือน "เปิดแก้ไขการจำหน่ายผู้ป่วย ER แล้ว" + ช่องข้อความแก้ได้
+ * คืนเวลาที่ระบบตอบ (ISO — เวลาของ response ถ้าอ่าน updatedAt ไม่ได้) ไว้จับคู่กับรายการ เปิดแก้ไข ในประวัติ (SBH-2528)
+ */
+export async function reopenDisposition(page: Page): Promise<{ at: string }> {
+  // ชื่อ mutation ยังไม่เคยจด — จับ mutation ใดก็ได้ที่ชื่อมีคำว่า Reopen
+  const reopened = page.waitForResponse(
+    (res) => res.request().method() === 'POST' && res.url().endsWith('/cortex-api/graphql') && /mutation\s+\w*Reopen/i.test(res.request().postData() ?? ''),
+    { timeout: 60_000 },
+  );
+  reopened.catch(() => undefined);
+  await page.getByTestId('er-disposition-reopen').click();
+  const res = await reopened;
+  await expectOk(res, 'เปิดแก้ไขการจำหน่าย');
+  const body = (await res.json().catch(() => ({}))) as { data?: Record<string, { updatedAt?: string } | null> };
+  const summary = Object.values(body.data ?? {})[0];
+  await expect(page.getByText('เปิดแก้ไขการจำหน่ายผู้ป่วย ER แล้ว')).toBeVisible();
+  await expect(dispositionTextBoxes(page).clinical).toBeEnabled();
+  return { at: summary?.updatedAt ?? new Date().toISOString() };
+}
+
 // ---------------------------------------------------------------------------------------------
 // ประวัติ Disposition (การ์ด SBH-2462) — ปุ่มไอคอนบนหัวฟอร์ม → popover รายการ เริ่มบันทึก / บันทึกฉบับร่าง / ลงนาม / เปิดแก้ไข (ใหม่สุดอยู่บน)
 // ตรวจกับ SBH Prod 8 ต.ค. 2026 · dev-x มีปุ่มแล้วแต่ API ยังไม่มี query erDischargeSummaryHistory (popover ขึ้น "ไม่สามารถโหลดประวัติ Disposition ได้")

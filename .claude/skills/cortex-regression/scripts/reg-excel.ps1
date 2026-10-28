@@ -11,7 +11,7 @@ $path = (Resolve-Path $File).Path
 function Invoke-Retry([scriptblock]$Action) {
   for ($i = 0; ; $i++) {
     try { return & $Action }
-    catch { if ($i -ge 60 -or $_.Exception.Message -notmatch '0x8001010A|0x80010001') { throw }; Start-Sleep -Seconds 1 }
+    catch { if ($i -ge 60 -or $_.Exception.Message -notmatch '0x8001010A|0x80010001|0x800AC472') { throw }; Start-Sleep -Seconds 1 }
   }
 }
 $xl = New-Object -ComObject Excel.Application

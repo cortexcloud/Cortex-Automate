@@ -55,16 +55,32 @@ export function cprSavedBanner(form: Locator): Locator {
 }
 
 /**
+ * ปุ่มบันทึก event ของฟอร์ม — dev-x 28 ต.ค. 2026 (SBH-2355): ปุ่ม "Save CPR Progress" เปลี่ยนชื่อเป็น "บันทึก Cycle <n>" (n = รอบถัดไป) → รับได้ทั้ง 2 แบบ
+ */
+export function cprButton(form: Locator, button: 'Start CPR' | 'Save CPR Progress' | 'Stop CPR'): Locator {
+  if (button !== 'Save CPR Progress') return form.getByRole('button', { name: button, exact: true });
+  return form.getByRole('button', { name: /^(Save CPR Progress|บันทึก Cycle \d+)$/ }).first();
+}
+
+/**
  * กดปุ่มบันทึก event ของฟอร์ม (`Start CPR` / `Save CPR Progress` / `Stop CPR`) → รอคำสั่งบันทึก (POST …/contribution) สำเร็จ
  * → คืนชื่อ event + วันเวลาที่แถบ "Saved CPR event" แสดง (ใช้เป็นค่าที่ "จดไว้" ตอนบันทึก)
  */
 export async function saveCprEvent(page: Page, form: Locator, button: 'Start CPR' | 'Save CPR Progress' | 'Stop CPR', action: string): Promise<CprEvent> {
   const saved = waitForApi(page, 'POST', /\/contribution$/, 60_000);
-  await form.getByRole('button', { name: button, exact: true }).click();
+  await cprButton(form, button).click();
   await expectOk(await saved, `บันทึก CPR event ${action}`);
   const line = cprSavedBanner(form).locator('span').first();
-  await expect(line, `แถบ Saved CPR event ต้องแสดง ${action}`).toHaveText(new RegExp(`^${action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} · `), { timeout: 30_000 });
-  await expect(form).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+  const pattern = new RegExp(`^${action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} · `);
+  if (button === 'Save CPR Progress') {
+    // ฟอร์มรุ่นใหม่ (dev-x 28 ต.ค. 2026 · SBH-2355): บันทึกรอบแล้วไม่ขึ้นแถบ Saved CPR event — ยืนยันจากคำสั่งบันทึก (contribution) ที่ผ่านแล้ว + ปุ่มขึ้นรอบถัดไป
+    const shown = await expect(line).toHaveText(pattern, { timeout: 8_000 }).then(() => true, () => false);
+    await expect(form).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+    if (!shown) return { action, time: '' };
+  } else {
+    await expect(line, `แถบ Saved CPR event ต้องแสดง ${action}`).toHaveText(pattern, { timeout: 30_000 });
+    await expect(form).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+  }
   const [name, time] = ((await line.textContent()) ?? '').split(' · ');
   return { action: name.trim(), time: time.trim() };
 }

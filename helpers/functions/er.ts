@@ -94,6 +94,15 @@ export async function openTriagePage(page: Page) {
 /** "ผู้ป่วยใหม่" → กรอกเฉพาะช่องบังคับ → ลงทะเบียน → ระบบเปิด modal "เปิด Visit ER" ให้เองพร้อม HN ใหม่ */
 export async function registerNewPatient(page: Page, patient: NewPatient, beforeSubmit?: (submit: Locator) => Promise<void>): Promise<{ hn: string; dialog: Locator }> {
   await page.locator('label').filter({ hasText: 'ผู้ป่วยใหม่' }).click();
+  // dev-x 28 ต.ค. 2026 (ไฟล์แอป index-BaNu9Hqq.js): ช่องบังคับใหม่ "คำนำหน้าชื่อ" — ไม่เลือก = ขึ้น "กรุณาเลือกคำนำหน้าชื่อ" และไม่ส่งคำสั่งลงทะเบียน
+  // ระบบที่ยังไม่มีช่องนี้ (รุ่นเก่า) ข้ามไป · ตัวเลือกอาจมีรหัสนำหน้า ("003 - นาย") → จับคำนำหน้าท้ายข้อความ
+  const prefix = page.getByRole('combobox', { name: '* คำนำหน้าชื่อ', exact: true });
+  if (await prefix.count()) {
+    const title = patient.gender === 'ชาย' ? 'นาย' : 'นางสาว';
+    await prefix.click();
+    await prefix.fill(title).catch(() => undefined);
+    await page.locator('.ant-select-item-option').filter({ visible: true }).filter({ hasText: new RegExp(`^(\\d+\\s*-\\s*)?${title}$`) }).first().click();
+  }
   await page.getByRole('textbox', { name: '* เลขบัตรประชาชน', exact: true }).fill(patient.citizenId);
   await page.getByRole('textbox', { name: '* ชื่อ', exact: true }).fill(patient.firstName);
   await page.getByRole('textbox', { name: '* นามสกุล', exact: true }).fill(patient.familyName);

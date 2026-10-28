@@ -99,3 +99,74 @@ export async function saveTriage(page: Page, visit: ErVisit, level: 1 | 2 | 3 | 
   await saveButton(page).click();
   await expectOk(await saved, `บันทึกผล Triage ESI ${level} ของ ${visit.en}`);
 }
+
+// ---------- ฟอร์มคัดกรอง ER แบบใหม่ (clinical form) — dev-x 28 ต.ค. 2026 · ไฟล์แอป index-BaNu9Hqq.js · การ์ด SBH-2355 ----------
+// แท็บ "คัดกรอง ER" (ไม่มี tabpanel ชื่อ Triage แล้ว) · ระดับความเร่งด่วนเป็น radio ซ่อน (กดที่ตัวเลข) · GCS เป็น <select> 3 ช่อง ·
+// Chief Complaint เป็นปุ่มในกลุ่ม "Common chief complaints" · กดบันทึก = POST /cortex-api/clinical-form-groups/<id>/saves (ไม่ใช่ PATCH triage-result)
+
+/** แผงฟอร์มคัดกรอง (ครั้งแรก "คัดกรอง ER" / คัดกรองซ้ำ) — div ชั้นในสุดที่มีหัวแผงและระดับความเร่งด่วน */
+export function erTriagePanel(page: Page): Locator {
+  return page
+    .getByRole('main')
+    .locator('div')
+    .filter({ has: page.getByRole('heading', { name: /คัดกรอง ER|การคัดกรองครั้งใหม่/ }) })
+    .filter({ has: page.getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' }) })
+    .last();
+}
+
+/** ปุ่มบันทึกที่หัวแผงคัดกรอง (ปุ่มแรกของแผง — ส่วน Underlying Disease ในฟอร์มมีปุ่มบันทึกของตัวเองอีกปุ่ม) */
+export function erTriageSaveButton(page: Page): Locator {
+  return erTriagePanel(page).getByRole('button', { name: 'save บันทึก' }).first();
+}
+
+/** ช่องระดับความเร่งด่วน (radio ของระดับ) */
+export function erTriageLevel(page: Page, level: number): Locator {
+  return erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' }).getByRole('radio', { name: new RegExp(`^${level} `) });
+}
+
+/**
+ * กรอกฟอร์มคัดกรองแบบใหม่ (ยังไม่บันทึก): สัญญาณชีพ + Pain score · Chief Complaint ปุ่มแรก (`chiefComplaint: false` = ไม่กด — คัดกรองซ้ำมีค่าเดิมมาให้) ·
+ * GCS E4 V5 M6 · ระดับความเร่งด่วน
+ */
+export async function fillErTriageForm(page: Page, input: { level: 1 | 2 | 3 | 4; vitals: VitalSigns; chiefComplaint?: boolean }) {
+  const panel = erTriagePanel(page);
+  await expect(panel.getByRole('spinbutton', { name: 'Systolic' }).first(), 'ฟอร์มคัดกรองต้องโหลดเสร็จ').toBeVisible({ timeout: 90_000 });
+  const v = input.vitals;
+  const fields: [string, string][] = [['Systolic', v.systolic], ['Diastolic', v.diastolic], ['PR', v.pr], ['RR', v.rr], ['Temp', v.temp], ['SpO2', v.spo2]];
+  for (const [name, value] of fields) await panel.getByRole('spinbutton', { name }).first().fill(value);
+  await panel.getByRole('combobox').filter({ has: page.getByRole('option', { name: 'Pain score' }) }).first().selectOption(v.painScore);
+  if (input.chiefComplaint !== false) await panel.getByRole('group', { name: 'Common chief complaints' }).getByRole('button').first().click();
+  for (const [name, score] of [['Eye Opening (E)', '4'], ['Verbal Response (V)', '5'], ['Motor Response (M)', '6']]) {
+    const select = panel.getByRole('combobox', { name }).first();
+    const label = (await select.locator('option').allTextContents()).find((text) => text.startsWith(`${score} `));
+    if (!label) throw new Error(`ไม่เจอตัวเลือก GCS ${name} คะแนน ${score}`);
+    await select.selectOption({ label });
+  }
+  const levels = panel.getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' });
+  await levels.scrollIntoViewIfNeeded();
+  await levels.getByText(String(input.level), { exact: true }).click();
+  await expect(erTriageLevel(page, input.level), `ระดับความเร่งด่วนต้องเป็น ${input.level}`).toBeChecked();
+}
+
+/**
+ * กดบันทึกฟอร์มคัดกรองแบบใหม่ → รอ POST …/clinical-form-groups/<id>/saves สำเร็จ
+ * dev-x 28 ต.ค. 2026 (SBH-2355 run 4): กดตอนส่วน MEWS ยัง "กำลังโหลดข้อมูลต้นทาง / Loading sources…" → 400 INVALID_SNAPSHOT + แจ้ง "บันทึกคัดกรอง ER ไม่สำเร็จ"
+ * → รอข้อความโหลดหายก่อนกด · ยังได้ INVALID_SNAPSHOT ให้รอ 5 วินาทีแล้วกดใหม่ 1 ครั้ง
+ */
+export async function saveErTriageForm(page: Page, what = 'บันทึกฟอร์มคัดกรอง ER') {
+  const panel = erTriagePanel(page);
+  for (let attempt = 1; ; attempt++) {
+    await expect(panel.getByText(/กำลังโหลดข้อมูลต้นทาง|Loading sources/), 'MEWS ต้องโหลดข้อมูลต้นทางเสร็จก่อนบันทึก').toHaveCount(0, { timeout: 45_000 });
+    await page.waitForTimeout(1_500); // ให้ร่างของช่องที่เพิ่งกรอกเก็บเสร็จ (PUT …/draft/occurrences)
+    const saved = waitForApi(page, 'POST', /\/cortex-api\/clinical-form-groups\/[^/]+\/saves$/, 90_000);
+    await erTriageSaveButton(page).click();
+    const res = await saved;
+    if (attempt === 1 && res.status() === 400 && (await res.text()).includes('INVALID_SNAPSHOT')) {
+      console.log(`    ${what}: 400 INVALID_SNAPSHOT → รอ 5 วินาทีแล้วบันทึกใหม่`);
+      await page.waitForTimeout(5_000);
+      continue;
+    }
+    await expectOk(res, what);
+    return;
+  }
+}
