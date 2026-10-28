@@ -5,7 +5,7 @@
 - สถานะไฟล์นี้: **Draft รอ QA review** — ยังไม่ได้สร้างอะไรใน Linear
 - รวม: 1 EXE, 3 Scenario, **17 Test Case** (Required 17 · Optional 0) — คู่ "ขึ้น tag + เลือกไม่ได้" รวมเป็นข้อเดียวตามที่ QA สั่ง 28 ต.ค. 2026
 - การตัดสินใจที่ QA ยืนยันแล้ว (28 ต.ค. 2026): Atomic (ยกเว้น "ขึ้น tag + เลือกไม่ได้" รวมเป็นข้อเดียว) · รวมหน้า OPD Note ด้วย (เทสเผื่อไว้) · Sex เป็น Required · Age ไม่ใส่ · Environment DEV-X · ข้อความเตือนให้ยึดผลจริงก่อน (อาจแก้ภายหลัง) · ผู้ป่วยไม่ระบุเพศต้องค้นหารหัสโรคได้เหมือนผู้ป่วยทั่วไป (TC-017) · เรื่องนอก AC (ลากสลับแถว, ตัวเลือก Category แถว 2, OPD Note V1) ไม่ทำเป็น TC — ถาม BA ใน comment การ์ดหลักแทน
-- Label: `QA Module` / `QA Sub-module / Feature` **[ยังไม่ยืนยัน: เสนอ `QA Module : OPD` + Sub-module ด้าน Diagnosis / Coding]** — ต้องยืนยันก่อนสร้างการ์ดจริง
+- Label ที่ยืนยันแล้ว (28 ต.ค. 2026): `QA Module : OPD` · `QA Sub-module / Feature : OPD Note & Pre-assessment` (มีใน Linear แล้วทั้งคู่)
 
 ### ผลสำรวจระบบจริง (DEV-X 28 ต.ค. 2026 · user1 · อ่านอย่างเดียว ไม่กดบันทึก)
 
@@ -770,5 +770,6 @@ Actual Result
 - Project: UAT#2 OPD EMR CPOE · Team: SBH Project
 - Assignee: [ยังไม่ทราบ — ต้องถามก่อนสร้าง]
 - Status: EXE / Scenario = Ready for Testing · TC = Not Run
-- Label ทุกชั้น: label ของการ์ดแม่ (🍄 Improvement · Feature for golive - SBH · deployed on release version · 🐷 VERSION 2.8.0) + `QA Module` / `QA Sub-module / Feature` [ยังไม่ยืนยัน]
+- Label ทุกชั้น: label ของการ์ดแม่ (🍄 Improvement · Feature for golive - SBH · deployed on release version) + `VERSION 2.8.0` + `QA Module : OPD` + `QA Sub-module / Feature : OPD Note & Pre-assessment`
+- หมายเหตุ label: `🐷 VERSION 2.8.0` ของการ์ดแม่ถูก retire แล้ว (20 ต.ค. 2026) ใช้กับการ์ดใหม่ไม่ได้ → ใช้ `VERSION 2.8.0` (กลุ่ม 🐷VERSION ไม่มี emoji) แทน · label `Feature for golive - SBH` ยังไม่ได้เช็คว่ามีอยู่ — เช็คก่อนสร้าง
 - EXE + `QA Run : Cycle Test` · Scenario + `QA Case Type` ตาม suffix · TC + `QA Case Type` + `QA Type` + `QA Execution Type: Manual`
