@@ -1460,3 +1460,11 @@ OR-69-000217 เดิมก่อน สร้างใหม่เฉพาะ
       หลักฐาน: `temp_scripts/crud-flow-evidence/` (4 screenshots + 1 video `tc011-flow.webm` + result JSON)
       ตรวจสอบ: all steps [OK], no failures — video recorded, data persisted both create and modify rounds
 
+
+## SBH-1198 — ลงรหัสโรคเช็ค pdx / sex: สำรวจระบบ + ร่าง Test Case (Gate 1)
+
+- [x] **P1 — อ่านการ์ด + comment + รูป** (28 ต.ค. 2026) — AC 3 ข้อ (search Dx · กัน primary ที่ pdx=false · กัน primary ที่ sex ไม่ตรง) · comment 18 ส.ค. บอกทำ PDx ก่อน Sex/Age หลัง Go-live
+- [x] **P2 — สำรวจ DEV-X แบบอ่านอย่างเดียว** (28 ต.ค. 2026) — spec ชั่วคราว `temp_scripts/sbh1198/` + ภาพ `temp_scripts/sbh1198/shots/` · ผู้ป่วยชาย HN 6932107 (Visit V69102627662) / หญิง HN 6932109 · ไม่กดบันทึก · แถว Dx ทดลองใน OPD Note ลบแล้ว (เช็ค draft ว่างทั้ง V1/V2)
+      ผล: หน้า รหัสโรค OPD แถวที่ 1 ขึ้น tag "Unacceptable PDx" + กดไม่ได้ ทั้ง pdx=false และเพศไม่ตรง (ตรง AC) · Age ยังไม่เช็ค · **หน้า OPD Note (V1/V2) ไม่มี tag เลือก U071 เป็น Principal ได้**
+- [x] **P3 — ร่าง TC** (28 ต.ค. 2026) — QA เลือก atomic · รวม OPD Note · Sex = Required · DEV-X → `test-cases/SBH-1198-dx-check-pdx-sex.md` 1 EXE / 3 Scenario / 24 TC (Required 21 · Optional 3)
+- [ ] **P4 — QA review draft** แล้วยืนยัน QA Module / Sub-module + assignee ก่อนสร้างใน Linear
