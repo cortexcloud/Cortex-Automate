@@ -17,7 +17,7 @@
 
 | # | การ์ด | งาน | รออะไร |
 |---|---|---|---|
-| 1 | ทุกการ์ด | push commit บน branch `neran` ขึ้น remote | ผู้ใช้ยืนยัน |
+| 1 | ทุกการ์ด | ~~push commit บน branch `neran` ขึ้น remote~~ — **เสร็จ 29 ต.ค. 2026** push 38 commit (`ad30dba..1923b5a`) ขึ้น `origin/neran` | — |
 | 2 | SBH-498 | เช็คว่า Visit V69102627669 / V69102627670 ปิดแล้วหรือยัง ถ้ายังให้ปิดที่การเงิน | ผู้ใช้ยืนยันก่อนปิด |
 | 3 | SBH-1198 | การ์ด bug ที่ยังไม่สร้าง: LMP Comment ไม่มีวันที่ → 500 · Body Chart บันทึกไม่ได้ · Diagnosis general ใน SBH GENERAL OPD NOTE โหลดไม่ขึ้น | ผู้ใช้สั่งสร้าง |
 | 4 | SBH-1198 | โพสต์ comment ถาม BA (ร่างอยู่ในไฟล์ draft) | ผู้ใช้สั่ง |
@@ -1526,7 +1526,7 @@ OR-69-000217 เดิมก่อน สร้างใหม่เฉพาะ
 - [x] **P11.1 — สร้างการ์ด bug 3 ใบ** (29 ต.ค. 2026 · ผู้ใช้สั่ง · ไม่ assign · Backlog · label VERSION 2.8.0 / QA Module : OPD / QA Sub-module : OPD Note & Pre-assessment / QA : Bug · ผูก relation กับ TC ต้นทางและ SBH-1198) — SBH-3351 High: OPD Note เลือก U071 / O923 (ผู้ป่วยชาย) เป็น Principal ได้ ไม่มี tag + Principal ไม่ disabled (TC-012/013/014 รวมใบเดียวตามผู้ใช้เลือก) · SBH-3352 High: ผู้ป่วยไม่ระบุเพศ HN 6932131 หน้า รหัสโรค OPD ขึ้น Unacceptable PDx ทุกรหัส — ก่อนสร้างรัน `run21.spec.ts` ยืนยันว่า K30 / J00 มี tag สีจาง กด K30 แล้วแถวยังว่าง (หลักฐาน `clips/SBH-1198 dev-x 2026-10-28/bug-unknown-sex-2026-10-29/`) · SBH-3353 Low: เปลี่ยน Category แถวที่ยังไม่มีรหัสแล้วแถวหาย (ภาพ + คลิปรอบ 28 ต.ค. จาก TC-016) · อ่านการ์ดกลับแล้ว แก้ SBH-3351 (เหตุผล Severity) และ SBH-3352 (ตัดข้อมูล gender null ที่ยังไม่ได้เช็คกับ HN นี้ · วันที่ลองแต่ละรหัส) · ผู้ใช้สั่งย้ายทั้ง 3 ใบเป็น sub-issue ของ SBH-1198 แล้ว (parentId = SBH-1198 ยืนยันจากผลที่ระบบตอบกลับ) · ต่อมาเทียบกับ AC ของ SBH-1198 (check pdx / sex ตอนลง primary Dx): ใน scope = SBH-3351, 3352 คงเป็น sub-issue · นอก scope = SBH-3353, 3184, 3185 ผู้ใช้สั่งย้ายไป Triage — SBH-3353 เอาออกจาก parent · ตอนย้าย SBH-3353 เข้า Triage ระบบเปลี่ยน priority Low → High เอง จึงตั้งกลับเป็น Low · SBH-3184 (Medium) / 3185 (No priority) ใส่ priority เดิมไปพร้อมกัน ผลที่ตอบกลับยืนยันว่าไม่เปลี่ยน
 - [ ] **P11 — การ์ด bug ที่เหลือ** — ยังไม่สร้าง: ฟอร์มคัดกรอง LMP Comment ไม่มีวันที่ → 500 · Body Chart วาดแล้วบันทึกไม่ได้ · Diagnosis general ใน SBH GENERAL OPD NOTE โหลดไม่ขึ้น
 - [ ] **P12 — โพสต์ comment ถาม BA** — ร่างอยู่ในไฟล์ draft รอผู้ใช้สั่ง
-- [ ] **P13 — push commit ขึ้น remote** — commit ของ SBH-1198 ทั้งหมดอยู่ในเครื่อง (branch `neran`) รอผู้ใช้ยืนยันก่อน push
+- [x] **P13 — push commit ขึ้น remote** (29 ต.ค. 2026 · ผู้ใช้สั่ง) — push branch `neran` 38 commit (`ad30dba..1923b5a`) ขึ้น `origin/neran` สำเร็จ · ตรวจ: `git status -sb` แสดง `neran...origin/neran` ไม่มี ahead · ไฟล์ที่ไม่ได้ commit (`test-data/patients.json`, `utils/env.ts`, `test-cases/SBH-1321-auth-code-prefill.md`) ไม่ได้ขึ้นไปด้วย
 - [ ] **P14 — ตัดสินใจเรื่องข้อมูลทดสอบบน DEV-X** — HN 6932107 มีโรคประจำตัว I10 ที่ใส่ตอนทดสอบ (ลบไหม) · `test-data/patients.json` มีผู้ป่วยใหม่ 2 ราย (HN 6932144, 6932148) ต่อท้าย ยังไม่ commit เพราะไฟล์มีการแก้ของเดิมค้างอยู่ · Visit ที่เปิดค้าง: V69102927746 (6932144 แผนกอายุรกรรม รอเช็คอิน) · V69102927748 (6932148 SBH - ห้องตรวจสระบุรี)
 
 **สถานะล่าสุด SBH-1198 (29 ต.ค. 2026)**
