@@ -105,9 +105,11 @@ Cortex Automate/
 │  │  │                            insidePage() / overlaps() · ageOn() อายุ ปี / เดือน / วัน · parseThaiAge() / formatThaiAge() · badgeDateTime() / bangkokDate()
 │  │  ├─ er-cpr.ts              ฟอร์ม CPR Progression (`sbh-er-cpr-progression-v1`): cprForm() ฟอร์มที่กรอกได้ในแผงขวา · cprHistoryForm() โหมดอ่านอย่างเดียวในประวัติการรักษา · cprHistoryTab() · openCprForm() · saveCprEvent() (กดปุ่ม → รอ contribution → อ่านแถบ Saved CPR event) ·
 │  │  │                            cprTimeline() / readCprTimeline() · API อ่านอย่างเดียว: waitForCprQuery() / parseCprQuery() (query `get_er_cpr_progression_by_encounter`) · cprDisplayTime()
+│  │  ├─ opd-visit.ts              เปิด Visit OPD (เมนูขวา `จัดการ Visit`) · ลงตารางแพทย์ให้ "คำขอ Walk-in" · `OPD_DOCTOR` / `OPD_CLINIC` / `SBH_CLINIC` / `OPD_UNIT` · `openCareMenu` / `collapseCareMenu` · `gotoPatient` — ย้ายจาก mock-data/uat-er.ts 29 ต.ค. 2026 (mock-data export ต่อชื่อเดิม)
 │  │  └─ reception.ts              หน้าเวชระเบียน (iframe): สร้างผู้ป่วย · แก้ข้อมูลผู้ป่วย · คำนำหน้า · วันเกิด พ.ศ. · ที่อยู่สุ่ม (รอฟอร์มแยกช่องก่อนกรอก) · บันทึก · ค้นผล
 │  ├─ flows/                       **Layer 2: Business-level sequences** (ใช้ซ้ำข้าม spec ได้ — เรียก functions หลายอัน)
 │  │  ├─ er.flows.ts               prepareNewPatientErVisit(page, label) — Dashboard → Triage page → ลงทะเบียน AUTO → ยืนยัน Visit → รอฟอร์ม Triage → ปิด toast
+│  │  ├─ opd.flows.ts              openOpdWalkInVisit(page, hn, { clinic }) — เปิด Visit OPD Walk-in แล้วลงตารางแพทย์เองถ้าได้ "คำขอ Walk-in" (เช่น SBH - ห้องตรวจสระบุรี)
 │  │  └─ patient.flows.ts          createPatients(page, { channel: 'er' | 'reception', count, minAge, maxAge }) — ผู้ป่วย AIทดสอบ มี HN ไม่มี Visit → ต่อท้าย patients.json (R48)
 │  ├─ steps/                       **Layer 3: Reusable test step groups** (placeholder — เพิ่มเมื่อมี step group ที่ซ้ำข้าม spec)
 │  ├─ data/                        **ข้อมูลทดสอบ** (ไม่ใช่ page action — แยกออกจาก functions/ 22 ต.ค. 2026)
@@ -726,6 +728,8 @@ _(กฎและขั้นตอนถัดไปผู้ใช้จะส
 - session หมดอายุ (เจอหน้า "Welcome to CORTEX") → `rm -f .auth/Super_User.json && npx playwright test --project=setup` ด้วย config หลัก · setup ผ่าน config ชั่วคราวใน `temp_scripts/` ไม่สร้างไฟล์ `.auth`
 - หน้าขึ้น "Unexpected Application Error! Failed to fetch dynamically imported module" = dev-x โหลดไฟล์ไม่ทัน → รันซ้ำ · `net::ERR_CONNECTION_TIMED_OUT` ทุกหน้า = VPN หลุด (ตรวจด้วย `curl` ก่อน) แจ้งผู้ใช้
 - โฟลเดอร์ `results/` ของ config ชั่วคราวถูกล้างทุกรอบรัน → คัดลอกหลักฐานไป `clips/<การ์ด> <ระบบ> <วันที่>/<TC>/<ชุด>/` ทันทีก่อนรันรอบถัดไป
+- **เวชระเบียน "สร้างผู้ป่วยใหม่" มีฟอร์มที่อยู่ 2 แบบ**: แยกช่อง (บ้านเลขที่ / หมู่ / เลือกจังหวัด / อำเภอ / ตำบล) = บันทึกได้ · ช่องเดียว ("บ้านเลขที่ / หมู่ / ซอย / ถนน" + "ค้นหาที่อยู่") = ฟอร์มชั่วคราว ค้างอยู่เมื่อ session ใกล้หมด / dev-x ตอบ 502–503 กรอกครบแล้วกด "บันทึก" ไม่ส่ง request ไม่มีข้อความเตือน → `openReceptionCreatePatient` โหลดหน้าใหม่จนได้แบบแยกช่อง (สูงสุด 3 รอบ) · ช่อง "อายุ (ปี)" บังคับแต่ระบบคำนวณจากวันเกิด · หาสาเหตุได้ด้วยการเก็บ request หลังกดบันทึก (ไม่มี `POST new-demographic-api/patients` = ฟอร์มไม่ส่ง)
+- **เมนูขวา "จัดการ Visit" ขึ้นเฉพาะผู้ป่วยที่ไม่มี Visit เปิดค้าง** (HN ที่มี Visit รอเช็คอินเหลือ คัดกรอง / จัดการ Admission / สร้างนัดหมาย / การเงิน) · แถบเมนูขวากางเมื่อเมาส์ชี้และรายการเลื่อนระหว่างกาง → ห้ามกดแบบ force (เคยโดน "จัดการ Admission") · แถบที่กางค้างบังปุ่ม "สร้าง" มุมขวาบน → `collapseCareMenu()`
 - ชื่อภาพหลักฐานขึ้นต้นด้วย "ผ่าน —" ทุกภาพที่ step ไม่ throw แม้เทสจะ fail ตอน assert ท้าย → เปิดดูภาพจริงก่อนใช้ และตั้งชื่อใหม่ตอนอัปโหลด
 
 ## 10) ประวัติการปรับ
@@ -908,3 +912,4 @@ _(กฎและขั้นตอนถัดไปผู้ใช้จะส
 - 2026-10-27 — SBH-1085 ต่อ: สร้าง EXE SBH-3002 / SC SBH-3003–3005 / TC SBH-3006–3021 (16 TC) แล้วรันบน dev-x (spec ชั่วคราว `temp_scripts/sbh1085-run/`) · ผ่าน 11 · Failed 007 / 013 → bug SBH-3022 (แพ็กเกจไม่ขึ้น popup) / SBH-3023 (ค้นรหัสไม่เจอ) · Blocked 008 / 015 / 016 · popup เปลี่ยนหลัง deploy (`index-ivjfoyS9.js`) · ใช้ HN 6932108 / 6932109 + Visit ใหม่ (ปิดแล้ว) เพราะ HN 6932107 ติด Drug Alert ยาซ้ำ · ข้อมูลที่ค้าง: Order Set SBH1085-OS-2610271552 / -2610271555 · แพ็กเกจ SBH1085-PKG-2610271555 · เพิ่ม §9 บรรทัด "อัปเดต 27 ต.ค."
 - 2026-10-28 — ผู้ใช้สั่ง R50 (เทสผ่านโมดูลผู้ป่วยนอก แผนกอายุรกรรม เว้นแต่การ์ดระบุ ER · ห้ามเปิดหน้าผู้ป่วยด้วย URL ตรง) ระหว่างรัน SBH-1198 — ผลที่รันด้วย URL ตรงต้องรันใหม่
 - 2026-10-29 — ผู้ใช้สั่ง R51 (สีกรอบ: ทำ = น้ำเงิน · ผลถูก = เขียว · ผลผิด = แดง แทน R23 / R49) · R52 (ถามก่อนรันว่าเล่นจนบันทึกหรือแค่เลือก / แสดงถูก) · R53 (ตรวจ field ที่แสดงเป็น id) · R54 (บทเรียนการสำรวจ SBH-1198) → `helpers/support/evidence.ts` (`unexpected` / `verdict` / `rawIdShown` / `looksLikeRawId` · `alerted(x, ok)`) · §9 เพิ่มความรู้ OPD Note / ฟอร์มคัดกรอง + session / dev-x / หลักฐาน
+- 2026-10-29 (ต่อ) — ผู้ใช้สั่ง "แกต้องหาทางเล่นเองให้ได้" (เวชระเบียน) + "ใส่เงื่อนไขรองรับให้ได้ทั้ง 2 กรณี" (แถบเมนู) → `reception.ts` รอฟอร์มที่อยู่แบบแยกช่อง (ช่องเดียว = ชั่วคราว บันทึกไม่ได้) สร้าง HN 6932211 ผ่าน · `helpers/functions/opd-visit.ts` + `helpers/flows/opd.flows.ts` `openOpdWalkInVisit` (ลงตารางเอง) รันผ่าน V69102927825 · §2 / §9 เพิ่มรายละเอียด
