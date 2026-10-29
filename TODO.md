@@ -25,6 +25,15 @@
 | 6 | SBH-1321 | ไฟล์ `test-cases/SBH-1321-auth-code-prefill.md` ยังไม่ commit · Actual Result ในไฟล์ว่าง (ผลอยู่ใน Linear) | ผู้ใช้ตัดสิน |
 | 7 | SBH-2457 | ยืนยันสูตร BSA / การปัด BMI-BSA → เขียน helper `body-metrics.ts` → สำรวจตาม `qa-automate-readiness` | ผู้ใช้ยืนยันสูตร / approve TC |
 
+## ปรับมาตรฐานการเทส + helper ตามที่ผู้ใช้สั่ง — 29 ต.ค. 2026 (รอผู้ใช้สั่งเริ่ม)
+
+ข้อตกลง: กรอบ กรอก / กด = น้ำเงิน · ผลที่ตรวจ (รวมข้อความแจ้งเตือน) ถูก = เขียว ผิด = แดง (แทน R23 / R49 เดิม) · เทสต้องเล่นจนสุด flow (กรอก → กด สร้าง / บันทึก → ตรวจผลหลังบันทึก) · ระหว่างตรวจ ดู field ที่ผู้ใช้เห็นว่าแสดง id ยาวแทนชื่อหรือไม่ → ตีกรอบแดง + จดในหมายเหตุ TC + ถามผู้ใช้ก่อนเปิดการ์ด (ไม่เปลี่ยนผล TC ถ้า AC ไม่ได้พูดถึง) · กฎใส่เฉพาะ skill ในโปรเจกต์ (`cortex-automate`, `cortex-card-test`, `agent-app-testing`) + memory · ภาพหลักฐานเก่าไม่ทำใหม่
+
+- [ ] **P1 — สีกรอบใน `helpers/support/evidence.ts`** — `filled` / `clicked` = น้ำเงิน · `expected` = เขียว · เพิ่มตัวช่วยสำหรับผลที่ผิด (แดง) และให้ `alerted` เลือกได้ว่าถูก / ผิด · ตรวจ: typecheck + รันเทสสั้น ๆ แล้วเปิดดูภาพ
+- [ ] **P1 — แก้ helper สร้างผู้ป่วยทางเวชระเบียน** (`helpers/functions/reception.ts` + `createPatients` ช่องทาง reception) — สำรวจหน้า "สร้างผู้ป่วยใหม่" แบบใหม่บน dev-x ก่อน แล้วแก้ locator · ตรวจ: สร้างผู้ป่วยทดสอบ 1 รายสำเร็จ + ค้นเจอ + ต่อท้าย `test-data/patients.json`
+- [ ] **P2 — flow ลงตาราง Walk-in** — ย้าย `scheduleWalkInRequest` จาก `mock-data/uat-er.ts` ไปเป็น flow กลางใน `helpers/flows/` (mock-data เรียกใช้ต่อได้เหมือนเดิม) + ใช้ต่อจาก `openOpdVisit` เมื่อ Visit ไปค้างแท็บ "คำขอ Walk-in" · ตรวจ: เปิด Visit คลินิก SBH ใหม่แล้วลงตารางได้ + ไฟล์ mock-data ยัง typecheck ผ่าน
+- [ ] **P3 — อัปเดต skill + memory** — `cortex-automate`: กฎสีกรอบใหม่ (แทน R23 / R49) · กฎเล่นจนสุด flow · กฎตรวจ id ยาว · กฎการสำรวจ (ลองหลายลำดับก่อนสรุป Blocked / เช็คสถานะข้อมูล / ทำจริงก่อนเปิด bug / หาทางเข้าอื่นเมื่อหน้าจอเปลี่ยน) · ความรู้หน้าจอ OPD Note + ลำดับก่อนบันทึก · session / dev-x · คัดลอกหลักฐานออกจาก `results/` · `cortex-card-test`: อัปโหลด Linear 60 วินาที + ใช้ asset เดิมซ้ำ + หัวข้อ รอบล่าสุด / รอบก่อน + ชื่อภาพ "ผ่าน —" · `agent-app-testing`: สีกรอบใหม่ · memory: แก้ `feedback_evidence_green_result_box` · ตรวจ: อ่านไฟล์กลับ + ไม่มีกฎเก่าที่ขัดกันเหลืออยู่
+
 ## SBH-1085 — Order Set โหลดไม่ได้: สร้าง EXE / Scenario / TC แล้วรันบน dev-x — 27 ต.ค. 2569
 
 ข้อตกลง: atomic · EXE - RT - VERSION 2.7.0 · QA Module : OPD + QA Sub-module / Feature : CPOE · assignee Neranchara Kaewsiri · สร้างจากทั้ง 2 เมนู · 16 TC (HPY 8 · UHP 4 · EDG 4) · TC-011 รหัสซ้ำ = ต้องบันทึกไม่ได้ (QA กำหนด) · label 🐷 VERSION 2.7.0 ของการ์ดแม่ถูก retire ใส่ไม่ได้ · draft `test-cases/SBH-1085-order-set-load.md`
