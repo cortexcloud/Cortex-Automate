@@ -1487,7 +1487,9 @@ OR-69-000217 เดิมก่อน สร้างใหม่เฉพาะ
 - [ ] **P14 — ตัดสินใจเรื่องข้อมูลทดสอบบน DEV-X** — HN 6932107 มีโรคประจำตัว I10 ที่ใส่ตอนทดสอบ (ลบไหม) · `test-data/patients.json` มีผู้ป่วยใหม่ 2 ราย (HN 6932144, 6932148) ต่อท้าย ยังไม่ commit เพราะไฟล์มีการแก้ของเดิมค้างอยู่ · Visit ที่เปิดค้าง: V69102927746 (6932144 แผนกอายุรกรรม รอเช็คอิน) · V69102927748 (6932148 SBH - ห้องตรวจสระบุรี)
 
 **สถานะล่าสุด SBH-1198 (29 ต.ค. 2026)**
+- สถานะการ์ดใน Linear (อ่านจาก Linear 29 ต.ค. 2026 เทียบกับ TODO แล้วตรงกัน): SBH-1198 = Waiting for Fixing Bugs · EXE SBH-3160 = Testing · HPY SBH-3161 = Passed · UHP SBH-3162 = Testing · EDG SBH-3163 = Testing
 - TC 17 ข้อ: Passed 14 · Failed 3 (TC-012 SBH-3175 · TC-013 SBH-3176 · TC-014 SBH-3177) · Blocked 0
+  - Passed: 001–011 (SBH-3164–3174) · 015–017 (SBH-3178–3180) · Failed: 012–014 (SBH-3175–3177)
   - เปลี่ยนจากรอบแรก: TC-008 Blocked → Passed (มีหมายเหตุ) · TC-016 Blocked → Passed · TC-014 Blocked → Failed
 - การ์ด bug ใน scope (sub-issue ของ SBH-1198): SBH-3351 OPD Note ไม่กัน pdx/sex (High) · SBH-3352 ผู้ป่วยไม่ระบุเพศขึ้น Unacceptable ทุกรหัส (High)
 - การ์ดนอก scope (Triage · related กับ SBH-1198): SBH-3353 แถวหายเมื่อเปลี่ยน Category (Low) · SBH-3184 กด สร้าง ต้องกดหลายรอบ (Medium) · SBH-3185 improvement โหลดฟอร์มใหม่หลังสร้าง
