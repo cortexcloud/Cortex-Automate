@@ -47,7 +47,11 @@ export async function openRecordTypeOptions(page: Page): Promise<string[]> {
   const options = dropdownOptions(page);
   if (!(await options.first().isVisible().catch(() => false))) await nursingRecordSelector(page).click();
   await expect(options.first()).toBeVisible();
-  return options.evaluateAll((els) => els.map((el) => el.getAttribute('title') ?? (el.textContent ?? '').trim()));
+  // dev-x 28 ต.ค. 2026: อ่านตอน dropdown ยังเล่น animation ได้รายการว่าง (ภาพเห็นครบ 2 ตัว) → วนอ่านจนได้รายการ
+  const read = () => options.evaluateAll((els) => els.map((el) => el.getAttribute('title') ?? (el.textContent ?? '').trim()).filter(Boolean));
+  await expect.poll(async () => (await read()).length, { message: 'ต้องอ่านรายการตัวเลือกประเภทบันทึกได้', timeout: 10_000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(300);
+  return read();
 }
 
 export function recordTypeDropdown(page: Page): Locator {

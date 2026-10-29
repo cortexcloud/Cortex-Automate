@@ -1,6 +1,6 @@
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { createAdmissionWithoutBed, createAdmitRequest } from '../../../helpers/functions/er-admit';
-import { dismissToast, expectTriageFormOpen, expectVisitHeader, gotoErDashboard, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
+import { dismissToast, expectVisitHeader, gotoErDashboard, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
 import {
   GRAPHICAL_SHEET_RECORD,
   NURSE_FOCUS_NOTE,
@@ -45,12 +45,13 @@ import {
   type SheetInput,
 } from '../../../helpers/functions/er-nursing-records';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
-import { ESI_BUTTON, saveButton, triageForm } from '../../../helpers/functions/er-triage';
+import { erTriageLevel, erTriageSaveButton, fillErTriageForm, saveErTriageForm } from '../../../helpers/functions/er-triage';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, holdForClip, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { startClip } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { SYSTEM, registerAndOpenErVisit } from '../../../mock-data/uat-er';
-import { VITALS_NORMAL, fillTriage, gotoVisit, saveTriageForm } from '../../../mock-data/uat-play';
+import { VITALS_NORMAL, gotoVisit } from '../../../mock-data/uat-play';
 
 // SBH-2441 [ER] Nursing Record — AC: Copy and Apply → Nursing Record · Fixed Bug → Nurse Focus Save ไม่ได้
 // (เมนู Nursing Records ในแถบขวาของหน้าผู้ป่วย ER: Nurse Focus Note + Graphical Sheet Record — สเปกของ dev อยู่ในคอมเมนต์ของการ์ด)
@@ -58,6 +59,7 @@ import { VITALS_NORMAL, fillTriage, gotoVisit, saveTriageForm } from '../../../m
 // TC ที่ไม่ผ่านกลางทางไม่หยุดเทส: จดไว้แล้วเล่น TC ถัดไปที่ไม่ขึ้นกับมัน (TC-004 ไม่ขึ้นกับ Focus) แล้วเทสจบเป็นไม่ผ่านพร้อมรายการขั้นที่ไม่ผ่าน
 // TC-005 SBH-2524 (หอผู้ป่วย) เป็นเทสที่ 2 (ผู้ป่วย B · --grep @SBH-2524) · หน้าจอ Focus ที่บันทึกแล้ว / เพิ่ม A-I-E / Resolve ตรวจกับ dev-x 14 ต.ค. 2026 (หลัง upload template nursing_focus_v2)
 //   Resolve ไม่สำเร็จ (UpdateNursingFocusStatus ตอบ record not found) → TC-006 ตรวจ Focus ที่ค้างในแท็บ Focus แทน
+// 28 ต.ค. 2026 (รอบ 3 · ไฟล์แอป index-DRZUQ-Et.js): ฟอร์มคัดกรอง ER แบบใหม่ (fillErTriageForm) · คลิป 1 ไฟล์ต่อ 1 TC (R61 — startClip ต้นช่วงของแต่ละ TC) · retest TC-003 Resolve หลังแก้ SBH-2531
 // ข้อมูล: ผู้ป่วย AUTO ใหม่ 1 ราย → Visit ER สิทธิ UC → Triage ESI 3 → ปิด Visit ที่การเงิน (ขั้นของ TC-006 · afterEach ปิดให้ถ้าพังก่อนถึง)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-2441
 
@@ -99,7 +101,6 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
     { tag: ['@SBH-2441', '@SBH-2520', '@SBH-2521', '@SBH-2522', '@SBH-2523', '@SBH-2525'], annotation: ['SBH-2441', 'SBH-2520', 'SBH-2521', 'SBH-2522', 'SBH-2523', 'SBH-2525'].map(linear) },
     async ({ page }) => {
       const main = page.getByRole('main');
-      const form = triageForm(page);
       const authorization = trackAuthorization(page);
       const failures: string[] = [];
       const note = (type: string, description: string) => {
@@ -135,20 +136,24 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
         const patient = newTestPatient('Nrec2441');
         visit = await registerAndOpenErVisit(page, patient);
         note('ผู้ป่วย A', `${patient.firstName} ${patient.familyName} · HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
-        await expectTriageFormOpen(page, visit);
+        // หน้าคัดกรองแบบใหม่ (dev-x 28 ต.ค. 2026) ไม่มีแท็บ Triage → helper ฟอร์มใหม่ (แบบเดียวกับ SBH-2528 / SBH-2355)
+        await expectVisitHeader(page, visit);
+        await expect(main.getByRole('heading', { name: 'คัดกรอง ER', exact: true }), 'หลังเปิด Visit ต้องอยู่หน้าคัดกรอง ER').toBeVisible({ timeout: 60_000 });
         await dismissToast(page, 'สร้าง Visit สำเร็จ');
-        // หน้าผู้ป่วย ER มีแถบเมนูขวาหลังคัดกรองแล้ว → บันทึก Triage ก่อน
-        await fillTriage(page, visit, { level: TRIAGE_LEVEL, vitals: VITALS_NORMAL });
-        await markEvidence(filled(form.getByRole('button', { name: ESI_BUTTON[TRIAGE_LEVEL] })), clicked(saveButton(page)));
-        await snapEvidence(page, `ก่อนกด — บันทึก Triage ESI ${TRIAGE_LEVEL}`);
-        await saveTriageForm(page, visit);
-        await expect(main.getByText('Clinical Summary', { exact: true }), 'บันทึก Triage แล้วหน้าต้องเปลี่ยนเป็น Overview ของ Visit').toBeVisible({ timeout: 60_000 });
+        // หน้าผู้ป่วย ER มีแถบเมนูขวาหลังคัดกรองแล้ว → บันทึกคัดกรองก่อน
+        await fillErTriageForm(page, { level: TRIAGE_LEVEL, vitals: VITALS_NORMAL });
+        await markEvidence(filled(erTriageLevel(page, TRIAGE_LEVEL).locator('xpath=..'), `ESI ${TRIAGE_LEVEL}`), clicked(erTriageSaveButton(page)));
+        await snapEvidence(page, `ก่อนกด — บันทึกคัดกรอง ESI ${TRIAGE_LEVEL}`);
+        await saveErTriageForm(page, `บันทึกคัดกรองของ ${visit.en}`);
+        await expect(main.getByText('Clinical Summary', { exact: true }), 'บันทึกคัดกรองแล้วหน้าต้องเปลี่ยนเป็น Overview ของ Visit').toBeVisible({ timeout: 60_000 });
         await dismissToast(page, 'กรอกข้อมูล คัดกรอง ER สำเร็จ');
         await expectVisitHeader(page, visit);
-        await markEvidence(...[`HN ${visit.hn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first())));
+        await markEvidence(...[`HN ${visit.hn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first(), 'ผู้ป่วย A (Visit เปิดอยู่)')));
         await holdForClip(page);
       });
 
+      // คลิป TC-001 เริ่มที่หน้า Overview ของผู้ป่วย A (ช่วงลงทะเบียน + คัดกรองอยู่ใน video.webm)
+      await startClip(page, 'TC-001');
       await checkStep(page, `${TC1} ขั้น 2 แถบด้านขวามีเมนู Nursing Records`, async () => {
         const menu = nursingRecordsMenu(page);
         // แถบขวาพับเป็นไอคอน — ชี้เมาส์ให้กางจะเห็นชื่อเมนู
@@ -212,8 +217,9 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
         evaluation: 'pain score ลดเหลือ 3',
       };
       let focusSaved = false;
+      await gotoVisit(page, visit);
+      await startClip(page, 'TC-002');
       await soft(`${TC2} ขั้น 1-3 เปิด Nurse Focus Note แล้วสร้าง Focus ใหม่ กรอกข้อมูล`, async () => {
-        await gotoVisit(page, visit);
         await openNursingRecords(page);
         await chooseRecordType(page, NURSE_FOCUS_NOTE);
         await markEvidence(clicked(addNurseNoteButton(page)));
@@ -293,6 +299,7 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
           evaluation: 'pain score 1 ผู้ป่วยพักได้',
         };
         let aieSaved = false;
+        await startClip(page, 'TC-003');
         await soft(`${TC3} ขั้น 2-3 เปิด Focus จาก TC-002 แล้วเพิ่มบันทึก A-I-E`, async () => {
           const card = focusCard(page, focusNote.focus);
           await expandFocus(card);
@@ -380,6 +387,7 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
 
       // ───── TC-004 บันทึก Graphical Sheet Record ─────
       let sheetSaved = false;
+      await startClip(page, 'TC-004');
       await soft(`${TC4} ขั้น 1-2 เปิด Nursing Records แล้วเลือก Graphical Sheet Record`, async () => {
         if (!(await nursingRecordSelector(page).isVisible().catch(() => false))) await openNursingRecords(page);
         await chooseRecordType(page, GRAPHICAL_SHEET_RECORD);
@@ -417,7 +425,8 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
         const shown = (await readSheetRows(page))[0] ?? {};
         const want: Record<string, string> = { BT: SHEET.BT, BP: `${SHEET.SBP}/${SHEET.DBP}`, PR: SHEET.PR, RR: SHEET.RR, SpO2: `${SHEET.SpO2}%`, Pain: SHEET.pain, 'Input 24h': `${SHEET.Oral} ml`, 'Output 24h': `${SHEET.Urine} ml` };
         const rows: CompareRow[] = Object.entries(want).map(([label, value]) => ({ label, values: [value, shown[label] ?? '(ไม่มี)'], same: value === shown[label] }));
-        await showCompareTable(page, title, ['ค่าที่กรอก (ขั้น 3)', 'แถวในตาราง (หน้าจอ)'], rows);
+        // ตารางเทียบไว้ด้านล่าง — มุมขวาบนบังคอลัมน์ SpO2–Output ของแถวที่เป็นหลักฐาน (28 ต.ค. 2026 · R59)
+        await showCompareTable(page, title, ['ค่าที่กรอก (ขั้น 3)', 'แถวในตาราง (หน้าจอ)'], rows, { side: 'bottom' });
         return { shown, rows };
       };
 
@@ -456,6 +465,7 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
         evaluation: 'อาการคงที่',
       };
       let pendingSaved = false;
+      await startClip(page, 'TC-006');
       if (focusSaved)
         await soft(`${TC6} ขั้น 2 บันทึก Focus ใหม่อีก 1 รายการ ไม่ Resolve`, async () => {
           if (!(await nursingRecordSelector(page).isVisible().catch(() => false))) await openNursingRecords(page);
@@ -491,7 +501,11 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
         await soft(`${TC6} ขั้น 4 เปิดหน้าผู้ป่วย ER ของ Visit ที่ปิดแล้ว แล้วเปิด Nursing Records`, async () => {
           await gotoVisit(page, visit);
           await openNursingRecords(page);
-          await markEvidence(expected(nursingRecordsTab(page)), expected(main.getByText(visit.en, { exact: true }).filter({ visible: true }).first()));
+          await page.mouse.move(700, 700);
+          // หน้า Visit ที่ปิดแล้ว (dev-x 28 ต.ค. 2026): แท็บ Nursing Records ที่ระบบเปิดคืนให้เองไม่ตรง locator แท็บ · เลข EN ก็หาไม่เจอ (ตีกรอบแล้วค้าง 20 วิ ทั้ง 2 แบบ)
+          // → ตีกรอบช่องเลือกประเภทบันทึก (openNursingRecords ตรวจแล้วว่าเห็น) + หัวข้อ Nurse Note
+          await expect(nurseNoteTitle(page), 'Expected: เปิดหน้า Nursing Records ของ Visit ที่ปิดแล้วได้').toBeVisible({ timeout: 30_000 });
+          await markEvidence(expected(nursingRecordSelector(page), 'เปิด Nursing Records ของ Visit ที่ปิดแล้ว'), expected(nurseNoteTitle(page)));
           await holdForClip(page);
         });
 
@@ -502,7 +516,7 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
           const add = addNurseNoteButton(page);
           const state = !(await add.count()) ? 'ไม่มีปุ่ม' : (await add.isDisabled()) ? 'ปุ่มกดไม่ได้ (disabled)' : 'ปุ่มยังกดได้';
           note('ปุ่ม + เพิ่ม Nurse Note หลังปิด Visit', state);
-          await markEvidence(expected(nurseNoteTitle(page).locator('xpath=..')), expected(nurseNoteTab(page, 'Focus')));
+          await markEvidence(expected(nurseNoteTitle(page).locator('xpath=..'), `${state} + เพิ่ม Nurse Note`), expected(nurseNoteTab(page, 'Focus')));
           await holdForClip(page, 2_000);
           expect(state, 'Expected: ปิด Visit แล้วสร้าง Focus ใหม่ไม่ได้').not.toBe('ปุ่มยังกดได้');
         });
@@ -522,15 +536,23 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
             note('การ์ด Focus หลังปิด Visit', `แท็บ Focus แสดง ${shown.length}/${pendingNames.length} รายการ · เมนู: ${menus.join(' | ') || '-'}`);
             if (shown.length) {
               await openFocusMenu(page, focusCard(page, shown[0]));
-              await markEvidence(expected(focusCard(page, shown[0])), ...((await page.locator('.ant-dropdown:visible').count()) ? [expected(page.locator('.ant-dropdown:visible'))] : []));
+              const hasMenu = (await page.locator('.ant-dropdown:visible').count()) > 0;
+              await markEvidence(expected(focusCard(page, shown[0]), hasMenu ? 'การ์ด Focus ที่ค้าง' : 'การ์ด Focus ที่ค้าง — ไม่มีปุ่มเมนู ⋮ (เพิ่ม A-I-E / Resolve ไม่ได้)'), ...(hasMenu ? [expected(page.locator('.ant-dropdown:visible'))] : []));
               await holdForClip(page, 2_000);
               await snapEvidence(page, 'หลังปิด Visit — เมนูของการ์ด Focus');
               await page.keyboard.press('Escape');
             }
             if (resolved) {
               await nurseNoteTab(page, 'Resolved').click();
-              await expect(focusCard(page, focusNote.focus, 'Resolved'), 'Focus ที่ Resolve แล้วยังแสดงในแท็บ Resolved').toBeVisible({ timeout: 20_000 });
+              const resolvedCard = focusCard(page, focusNote.focus, 'Resolved');
+              await expect(resolvedCard, 'Expected: Focus ที่ Resolve แล้วยังแสดงในแท็บ Resolved หลังปิด Visit').toBeVisible({ timeout: 20_000 });
+              const resolvedMenu = await openFocusMenu(page, resolvedCard).catch(() => [] as string[]);
+              note('การ์ด Focus ในแท็บ Resolved หลังปิด Visit', `${focusNote.focus}: เมนู ${resolvedMenu.join(' · ') || '(ไม่มีเมนู)'}`);
+              await markEvidence(expected(nurseNoteTab(page, 'Resolved'), 'แท็บ Resolved'), expected(resolvedCard, 'Focus ที่ Resolve แล้วยังแสดง'));
+              await snapEvidence(page, 'หลังปิด Visit — แท็บ Resolved');
+              await page.keyboard.press('Escape');
               await nurseNoteTab(page, 'Focus').click();
+              expect(resolvedMenu.filter((m) => /เพิ่มข้อมูล AIE|Resolved \(ปิด\)|แก้ไข/.test(m)), 'ปิด Visit แล้วการ์ดในแท็บ Resolved แก้ไม่ได้').toEqual([]);
             }
             expect(shown, 'Expected: บันทึกเดิมของ Nurse Focus Note ยังแสดงครบ').toEqual(pendingNames);
             expect(menus.filter((m) => /เพิ่มข้อมูล AIE|Resolved \(ปิด\)/.test(m)), 'Expected: ปิด Visit แล้วเพิ่ม A-I-E และ Resolve ไม่ได้').toEqual([]);
@@ -544,7 +566,14 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
           const record = sheetRecordButton(page);
           const state = !(await record.count()) ? 'ไม่มีปุ่ม' : (await record.isDisabled()) ? 'ปุ่มกดไม่ได้ (disabled)' : 'ปุ่มยังกดได้';
           note('ปุ่ม + Record หลังปิด Visit', state);
-          await markEvidence(expected(sheetTable(page)));
+          const readOnly = main.getByText(/บันทึกการพยาบาลเป็นแบบอ่านอย่างเดียว/).filter({ visible: true }).first();
+          const readOnlyShown = await readOnly.isVisible().catch(() => false);
+          note('แถบแจ้งอ่านอย่างเดียว (Graphical Sheet)', readOnlyShown ? (await readOnly.innerText()).trim() : 'ไม่เห็น');
+          await markEvidence(
+            ...(sheetSaved ? [expected(sheetRows(page).first(), 'รายการเดิมยังแสดง')] : [expected(sheetTable(page))]),
+            ...(readOnlyShown ? [alerted(readOnly)] : []),
+            ...((await record.count()) ? [expected(record, state)] : []),
+          );
           await holdForClip(page, 3_000);
           expect(rows.filter((row) => !row.same).map((row) => `${row.label}: ${row.values.join(' ≠ ')}`), 'หลังปิด Visit ค่าของรายการเดิมยังตรงกับที่กรอก').toEqual([]);
           expect(state, 'Expected: ปิด Visit แล้วบันทึก Graphical Sheet Record ใหม่ไม่ได้').not.toBe('ปุ่มยังกดได้');
@@ -563,7 +592,6 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
     { tag: ['@SBH-2441', '@SBH-2524'], annotation: ['SBH-2441', 'SBH-2524'].map(linear) },
     async ({ page }) => {
       const main = page.getByRole('main');
-      const form = triageForm(page);
       const TC5 = 'TC-005 (SBH-2524)';
       const authorization = trackAuthorization(page);
       const note = (type: string, description: string) => {
@@ -583,14 +611,15 @@ test.describe(`SBH-2441 Nursing Records ของผู้ป่วย ER (${SYS
         const patient = newTestPatient('NrecB2441');
         visit = await registerAndOpenErVisit(page, patient);
         note('ผู้ป่วย B', `${patient.firstName} ${patient.familyName} · HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
-        await expectTriageFormOpen(page, visit);
+        await expectVisitHeader(page, visit);
+        await expect(main.getByRole('heading', { name: 'คัดกรอง ER', exact: true })).toBeVisible({ timeout: 60_000 });
         await dismissToast(page, 'สร้าง Visit สำเร็จ');
-        await fillTriage(page, visit, { level: TRIAGE_LEVEL, vitals: VITALS_NORMAL });
-        await saveTriageForm(page, visit);
+        await fillErTriageForm(page, { level: TRIAGE_LEVEL, vitals: VITALS_NORMAL });
+        await saveErTriageForm(page, `บันทึกคัดกรองของ ${visit.en}`);
         await expect(main.getByText('Clinical Summary', { exact: true })).toBeVisible({ timeout: 60_000 });
         await dismissToast(page, 'กรอกข้อมูล คัดกรอง ER สำเร็จ');
         await expectVisitHeader(page, visit);
-        await markEvidence(...[`HN ${visit.hn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first())), expected(form.getByRole('button', { name: ESI_BUTTON[TRIAGE_LEVEL] })));
+        await markEvidence(...[`HN ${visit.hn}`, visit.en].map((text) => expected(main.getByText(text, { exact: true }).filter({ visible: true }).first())));
         await holdForClip(page);
       });
 
