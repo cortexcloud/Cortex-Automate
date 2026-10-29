@@ -39,8 +39,21 @@ export async function pickOption(page: Page, prefer?: RegExp): Promise<string> {
  * (แถบกางค้างหลังกดเมนู แล้วบังปุ่มมุมขวาบน เช่น "ส่งคำสั่ง")
  */
 export async function openCareMenu(page: Page, name: string, ready: Locator) {
-  await page.getByRole('navigation', { name: 'การดำเนินการดูแลผู้ป่วย' }).getByRole('menuitem', { name }).click({ force: true });
-  await expect(ready).toBeVisible({ timeout: 45_000 });
+  // แถบเมนูกางเมื่อเมาส์ชี้ และรายการเลื่อนตำแหน่งระหว่างกาง — เดิมกดแบบ force แล้วโดนเมนูข้างเคียง ("จัดการ Admission" แทน "จัดการ Visit" dev-x 29 ต.ค. 2026)
+  // → ชี้ให้กางก่อน แล้วกดแบบปกติ (Playwright รอให้นิ่ง + เช็คว่าไม่มีอะไรบัง) · ใช้ได้ทั้งตอนแถบหุบและแถบกางค้าง
+  const nav = page.getByRole('navigation', { name: 'การดำเนินการดูแลผู้ป่วย' });
+  await expect(async () => {
+    await nav.hover({ timeout: 10_000 });
+    await nav.getByRole('menuitem', { name }).click({ timeout: 5_000 });
+    await expect(ready).toBeVisible({ timeout: 20_000 });
+  }, `เปิดเมนูขวา "${name}"`).toPass({ timeout: 120_000 }).catch(async (error: Error) => {
+    // เมนู "จัดการ Visit" ขึ้นเฉพาะผู้ป่วยที่ยังไม่มี Visit เปิดอยู่ (dev-x 29 ต.ค. 2026: HN ที่มี Visit รอเช็คอินค้าง ไม่มีเมนูนี้)
+    if (!(await nav.getByRole('menuitem', { name }).count())) {
+      const items = (await nav.getByRole('menuitem').allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+      throw new Error(`เมนูขวาไม่มี "${name}" — ผู้ป่วยอาจมี Visit เปิดค้างอยู่ (เมนูที่มี: ${items.join(' · ')})`);
+    }
+    throw error;
+  });
   // คลิก `ready` ให้แถบหุบ — ถ้าแถบบังอยู่จนคลิกไม่ได้ (dev-x 29 ต.ค. 2026) ใช้วิธีเลื่อนเมาส์ออกแล้วรอแถบหุบแทน
   await ready.click({ timeout: 5_000 }).catch(() => undefined);
   await collapseCareMenu(page);
