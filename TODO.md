@@ -21,7 +21,7 @@
 | 2 | SBH-498 | เช็คว่า Visit V69102627669 / V69102627670 ปิดแล้วหรือยัง ถ้ายังให้ปิดที่การเงิน | ผู้ใช้ยืนยันก่อนปิด |
 | 3 | SBH-1198 | การ์ด bug ที่ยังไม่สร้าง: LMP Comment ไม่มีวันที่ → 500 · Body Chart บันทึกไม่ได้ · Diagnosis general ใน SBH GENERAL OPD NOTE โหลดไม่ขึ้น | ผู้ใช้สั่งสร้าง |
 | 4 | SBH-1198 | โพสต์ comment ถาม BA (ร่างอยู่ในไฟล์ draft) | ผู้ใช้สั่ง |
-| 5 | SBH-1198 | ข้อมูลทดสอบ: ลบ I10 ของ HN 6932107 ไหม · commit ผู้ป่วยใหม่ 2 รายใน `test-data/patients.json` · Visit ค้าง V69102927746 / V69102927748 | ผู้ใช้ตัดสิน |
+| 5 | SBH-1198 | ข้อมูลทดสอบ: ลบ I10 ของ HN 6932107 ไหม · Visit ค้าง V69102927746 / V69102927748 / V69102927825 (HN 6932211) · ~~commit `test-data/patients.json`~~ เสร็จ 29 ต.ค. 2026 | ผู้ใช้ตัดสิน |
 | 6 | SBH-1321 | ไฟล์ `test-cases/SBH-1321-auth-code-prefill.md` ยังไม่ commit · Actual Result ในไฟล์ว่าง (ผลอยู่ใน Linear) | ผู้ใช้ตัดสิน |
 | 7 | SBH-2457 | ยืนยันสูตร BSA / การปัด BMI-BSA → เขียน helper `body-metrics.ts` → สำรวจตาม `qa-automate-readiness` | ผู้ใช้ยืนยันสูตร / approve TC |
 
