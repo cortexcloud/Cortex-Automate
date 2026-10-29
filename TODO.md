@@ -1,5 +1,30 @@
 # TODO
 
+## ภาพรวมการ์ด SBH (อัปเดต 29 ต.ค. 2026 · ตรวจสถานะกับ Linear แล้ว)
+
+สรุปจาก section ของแต่ละการ์ดด้านล่าง · รายละเอียดและประวัติอยู่ใน section ของการ์ดนั้น
+
+| การ์ด | เรื่อง | การ์ดแม่ | ผล TC | การ์ด bug / improvement |
+|---|---|---|---|---|
+| SBH-1198 | ลงรหัสโรคเช็ค pdx / sex | Waiting for Fixing Bugs | Passed 14 · Failed 3 | SBH-3351, 3352 (sub-issue · Backlog) · SBH-3353, 3184, 3185 (Triage) |
+| SBH-1085 | Order Set โหลดไม่ได้ | Waiting for Fixing Bugs | Passed 11 · Failed 2 · Blocked 3 | SBH-3022, 3023 (Triage) |
+| SBH-498 | On Warfarin บน Patient Banner | Done on dev-x | Passed 9 | SBH-2953 improvement (Triage) |
+| SBH-1308 | Checkbox ใบยารอจ่าย | Done on dev-x | Passed 8 · Failed 3 | SBH-2885 (Waiting for Fixing Bugs) |
+| SBH-2457 | Form OPD Note / Pre-assessment | Waiting for Fixing Bugs | Passed 13 · Failed 7 · Not Run 1 | SBH-2812–2817 (Backlog) |
+| SBH-1321 | Auth Code ไม่ดึงจาก Visit ก่อน | Waiting for Fixing Bugs | Passed 3 · Failed 1 · Blocked 1 · Not Test 1 | SBH-2886 (Backlog) |
+
+### งาน SBH ที่ยังค้าง (เรียงตามสิ่งที่ต้องทำก่อน)
+
+| # | การ์ด | งาน | รออะไร |
+|---|---|---|---|
+| 1 | ทุกการ์ด | push commit บน branch `neran` ขึ้น remote | ผู้ใช้ยืนยัน |
+| 2 | SBH-498 | เช็คว่า Visit V69102627669 / V69102627670 ปิดแล้วหรือยัง ถ้ายังให้ปิดที่การเงิน | ผู้ใช้ยืนยันก่อนปิด |
+| 3 | SBH-1198 | การ์ด bug ที่ยังไม่สร้าง: LMP Comment ไม่มีวันที่ → 500 · Body Chart บันทึกไม่ได้ · Diagnosis general ใน SBH GENERAL OPD NOTE โหลดไม่ขึ้น | ผู้ใช้สั่งสร้าง |
+| 4 | SBH-1198 | โพสต์ comment ถาม BA (ร่างอยู่ในไฟล์ draft) | ผู้ใช้สั่ง |
+| 5 | SBH-1198 | ข้อมูลทดสอบ: ลบ I10 ของ HN 6932107 ไหม · commit ผู้ป่วยใหม่ 2 รายใน `test-data/patients.json` · Visit ค้าง V69102927746 / V69102927748 | ผู้ใช้ตัดสิน |
+| 6 | SBH-1321 | ไฟล์ `test-cases/SBH-1321-auth-code-prefill.md` ยังไม่ commit · Actual Result ในไฟล์ว่าง (ผลอยู่ใน Linear) | ผู้ใช้ตัดสิน |
+| 7 | SBH-2457 | ยืนยันสูตร BSA / การปัด BMI-BSA → เขียน helper `body-metrics.ts` → สำรวจตาม `qa-automate-readiness` | ผู้ใช้ยืนยันสูตร / approve TC |
+
 ## SBH-1085 — Order Set โหลดไม่ได้: สร้าง EXE / Scenario / TC แล้วรันบน dev-x — 27 ต.ค. 2569
 
 ข้อตกลง: atomic · EXE - RT - VERSION 2.7.0 · QA Module : OPD + QA Sub-module / Feature : CPOE · assignee Neranchara Kaewsiri · สร้างจากทั้ง 2 เมนู · 16 TC (HPY 8 · UHP 4 · EDG 4) · TC-011 รหัสซ้ำ = ต้องบันทึกไม่ได้ (QA กำหนด) · label 🐷 VERSION 2.7.0 ของการ์ดแม่ถูก retire ใส่ไม่ได้ · draft `test-cases/SBH-1085-order-set-load.md`
