@@ -629,7 +629,9 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
 
 Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิด OPD Note ของ Visit V69102627662 แล้ว เพิ่มแถว Diagnosis 1 แถว (Category = Principal)
+1. ผู้ป่วยชาย HN 6932107 Visit V69102627662 กรอกฟอร์มคัดกรองครบ และสถานะ = พร้อมตรวจ
+2. เปิดผู้ป่วยจากแท็บ "พร้อมตรวจ | พักการตรวจ" แล้วกดเมนูขวา "OPD Note"
+3. กด "+ เพิ่มรายการ" ได้แถว Diagnosis 1 แถว (Category = Principal)
 
 Test Data
 - U071 (pdx = false)
@@ -647,6 +649,11 @@ Actual Result
 - ตัวเลือก "U071 - 2019 nCov virus disease(Covid-19 disease)" ในแถว Principal ไม่มี tag "Unacceptable PDx"
 - คลิกแล้วเลือกได้ แถวแสดง U071 / "2019 nCov virus disease(Covid-19 disease)" / Principal — รหัสที่ pdx = false ลงเป็น Principal ได้
 - หลักฐาน: `clips/SBH-1198 dev-x 2026-10-28/TC-012/` (ภาพ + คลิป)
+- **Failed — รันใหม่ 29 ต.ค. 2026** ตาม flow คัดกรองครบ → สถานะพร้อมตรวจ → เปิดจากแท็บ "พร้อมตรวจ | พักการตรวจ" → เมนูขวา "OPD Note"
+  - กด "+ เพิ่มรายการ" ได้แถว 1 ระบบตั้ง Category = Principal
+  - ค้น "U071" ตัวเลือก "U071 - 2019 nCov virus disease(Covid-19 disease)" ไม่มี tag "Unacceptable PDx"
+  - คลิกแล้วเลือกได้ แถว 1 แสดง U071 / "2019 nCov virus disease(Covid-19 disease)" / Principal
+  - หลักฐาน: `clips/SBH-1198 dev-x 2026-10-28/TC-012/rerun-ready-menu-2026-10-29/` (ภาพ 8 ภาพ + คลิป) · ลบแถวทิ้งหลังทดสอบ ไม่ได้กด สร้าง
 
 หมายเหตุ
 - สำรวจ DEV-X 28 ต.ค. 2026 (V2 และ V1): **ไม่ผ่าน** — ตัวเลือกไม่มี tag · คาดว่าต้องเปิดการ์ด bug ด้วย skill `qa-bug-writer`
