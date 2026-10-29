@@ -9,6 +9,8 @@
 - [x] **P1 — รัน 16 TC บน dev-x** — spec ชั่วคราว `temp_scripts/sbh1085-run/run.spec.ts` · 4 รอบ: รอบ 1 (SFX 2610271552) ค้นรหัสในหน้าตั้งค่าไม่เจอ → ค้นด้วยชื่อแทน (Order Set ชุดนี้ค้างในระบบ) · รอบ 2 (2610271555) TC-004 เจอ Drug Alert ยาซ้ำใน HN 6932107 → ผู้ใช้เลือกใช้ผู้ป่วยใหม่ แต่สร้างทางเวชระเบียนไม่ผ่าน (หาช่อง บ้านเลขที่ ไม่เจอ) → ผู้ใช้เลือกใช้ HN 6932108 (V69102727693) / 6932109 (V69102727694) + Visit OPD ใหม่ · รอบ 3–4 ผล: **ผ่าน** 001–006, 009–012, 014 (011 ข้อความ "ไม่สามารถสร้างแพ็กเกจได้" ไม่บอกว่ารหัสซ้ำ) · **ไม่ผ่าน** 007 (แพ็กเกจจากเมนู แพ็คเกจ ไม่ขึ้นใน popup ทั้ง 2 แท็บ) · 013 (ค้นรหัสไม่เจอ) · **Blocked** 008 / 015 / 016 · พบ popup เปลี่ยนหลัง deploy (ไฟล์แอป `index-ivjfoyS9.js`): พิมพ์ค้นไม่ยิง API · My Order Set เหลือ 4 รายการ ไม่มี aug14D · หลักฐาน `clips/SBH-1085 dev-x 2026-10-26/run2..run4-*`
 - [x] **P1 — ลงผล + รูป/คลิปใน Linear และปรับสถานะ TC** (ผู้ใช้เลือก: ผ่าน = Passed · 007/013 = Failed + ร่างการ์ด Bug ด้วย qa-bug-writer ให้ดูก่อน · 011 ผ่าน + ข้อสังเกต · 008/015/016 = Blocked · ปิด Visit 2 Visit) — ลงผลครบ 16 ใบผ่าน agent 3 ตัว: Passed SBH-3006–3011, 3014–3017, 3019 · Failed SBH-3012 (007), 3018 (013) · Blocked SBH-3013 (008), 3020 (015), 3021 (016) · ภาพ + คลิปฝังใน Actual Result + แนบคลิป · bug **SBH-3022** (แพ็กเกจไม่ขึ้น popup · High) และ **SBH-3023** (ค้นรหัสไม่เจอ · Medium) Triage ไม่มี assignee + comment หลักฐาน · ปิด Visit V69102727693 / 694 แล้ว · ไฟล์อัปโหลด + ข้อความผล `clips/SBH-1085 dev-x 2026-10-26/upload/` · ตรวจ: agent ยืนยันสถานะด้วย get_issue ทุกใบ · ปัญหา: `linear-put.sh` ไม่มี execute bit (agent ใช้สำเนาใน scratchpad) · Linear แปลง SBH-1085 ในข้อความเป็นลิงก์ · เหลือ: SC / EXE ผู้ใช้เปลี่ยนสถานะเอง · `temp_scripts/sbh1085*` เก็บไว้รันซ้ำหลัง dev แก้
 
+- **สถานะใน Linear (ตรวจกับ Linear 29 ต.ค. 2026)** — SBH-1085 = Waiting for Fixing Bugs · EXE SBH-3002 + Scenario SBH-3003/3004/3005 = Ready for Testing (ผู้ใช้เปลี่ยนเอง) · TC ตรงกับที่บันทึก: Passed 11 · Failed 2 (SBH-3012, 3018) · Blocked 3 (SBH-3013, 3020, 3021) · bug SBH-3022 (High) / SBH-3023 (Medium) = Triage ไม่มี parent
+
 ## SBH-498 — On Warfarin บน Patient Banner: สำรวจแอปจริงบน dev-x ก่อนเขียน TC — 26 ต.ค. 2569
 
 ข้อตกลง: dev-x (ไฟล์แอป `index-BrMeBDNJ.js` มี `UpsertOnWarfarinStatus` / `OnWarfarinStatusHistory` แล้ว) · ผู้ป่วย AIทดสอบ ใหม่ + Visit OPD (ผู้ใช้เลือก) · spec ชั่วคราวแบบเปิดจอใน `temp_scripts/sbh498/` อัดคลิปต่อเนื่อง + ภาพกรอบแดง (R13 / R23) · สำรวจก่อน แล้วค่อยเขียน TC จาก step จริง (ผู้ใช้สั่ง — ข้ามลำดับ "ร่าง TC ก่อน" ของ `qa-automate-readiness`)
@@ -24,8 +26,11 @@
 - [x] **P1 — รัน TC บน dev-x** — spec ชั่วคราว `temp_scripts/sbh498-run/` · ผู้ป่วย A น.ส. AIทดสอบuf HN 6932108 (V69102627663 / E69102632488) · ผู้ป่วยหญิง B น.ส. AIทดสอบvf HN 6932109 (V69102627664 / E69102632490 · ตั้งครรภ์ = มี + On Warfarin) · **ผ่าน 001–007, 009** · **008 รอผู้ใช้ตัดสิน**: Label On Warfarin อยู่แถวเดียวกับป้ายตั้งครรภ์ ฟอนต์/มุมโค้ง/padding เท่ากัน แต่สีต่าง (ตัวอักษร #C41D7F vs #EE0072 · พื้น #FFF0F6 vs #FFEBF4) มีขอบ 1px #FFADD2 (ป้ายตั้งครรภ์ไม่มี) สูง 21 vs 17 px (เป็นปุ่ม) · รอบแรก TC-009 / 008 พังเพราะ locator ของสคริปต์ (แก้แล้วรันผ่าน) · หลักฐาน `clips/SBH-498 dev-x 2026-10-26/tc-run1..3/` · ยังไม่ได้ลงผลใน Linear / ปิด Visit
 - [x] **P1 — ลงผลใน Linear + ปิด Visit** (ผู้ใช้เลือก: TC-008 = Pass + ข้อสังเกต · Actual Result + รูป/คลิป + Passed · ปิด Visit) — ลง `## Actual Result — Pass` + คลิป 1 + ภาพกรอบแดงฝังในการ์ด SBH-2956–2964 สถานะ Passed ครบ 9 ใบ (ทำผ่าน agent 3 ตัว + agent ตรวจซ้ำว่ารูป/คลิปตรงการ์ด) · ปิด Visit V69102627663 / V69102627664 ที่การเงิน (ปิดสิทธิอย่างละ 1) · ลบ `temp_scripts/sbh498-run/` · ไฟล์ upload + เนื้อหา Actual Result อยู่ `clips/SBH-498 dev-x 2026-10-26/upload/` · ยังไม่ได้ปรับสถานะ EXE SBH-2954 / Scenario SBH-2955
 - [x] **P1 — กรอบเขียว = ผลที่ได้ (R49)** (ผู้ใช้ทักภาพ TC-002: Label บน Banner ไม่มีกรอบ + กรอบ Expected เป็นแดง) — `helpers/support/evidence.ts` วาด `expected()` สีเขียว `#389e0d` · skill `cortex-automate` เพิ่ม R49 + memory · ตรวจ: typecheck ผ่าน · commit 7117852
-- [ ] **P1 — รัน 9 TC ใหม่ด้วยกรอบเขียว + แทนที่ผลใน Linear** (ผู้ใช้เลือก: รันใหม่ + แทนที่ + ลบไฟล์แนบเก่า) — spec `temp_scripts/sbh498-run2/` ผู้ป่วยใหม่ 2 ราย → ปิด Visit ท้ายงาน
+- [x] **P1 — รัน 9 TC ใหม่ด้วยกรอบเขียว + แทนที่ผลใน Linear** (ผู้ใช้เลือก: รันใหม่ + แทนที่ + ลบไฟล์แนบเก่า) — spec `temp_scripts/sbh498-run2/` · บันทึกย้อนหลัง 29 ต.ค. 2026 จากหลักฐาน: รันแล้ววันที่ 26 ต.ค. ผู้ป่วยหญิง A HN 6932112 (V69102627669 / E69102632496) · B HN 6932113 (V69102627670 / E69102632497) · ผลอยู่ `clips/SBH-498 dev-x 2026-10-26/green-run1/`, `green-run2/` · ไฟล์ที่อัปโหลด `upload2/` · ตรวจ: อ่าน SBH-2964 แล้วเป็นผลรอบใหม่ (HN 6932112 · กรอบเขียว = ผลที่ได้) · **ยังไม่ยืนยันว่าปิด Visit V69102627669 / 670 แล้ว** — ใน `green-run1/run.log` ขั้น `close` ถูกข้าม (ดู P3 ด้านล่าง)
 - ข้อตกลงที่ใช้ตอนเขียน TC (บันทึกไว้): ข้อตกลงที่ต้องใช้ตอนเขียน TC: (1) Label ตรวจเท่าที่การ์ดกำหนด (Checked แสดง / Unchecked ไม่แสดง) ไม่เพิ่ม TC เรื่องติ๊กซ้ำ (2) หน้ามี/ไม่มี Visit นอก scope — ใส่ช่อง หมายเหตุ ของ TC ที่เกี่ยวกับ Label: "การ์ดไม่ได้กำหนดว่า Label ต้องแสดงที่หน้าผู้ป่วยแบบไหน (นอก scope) · ที่เห็นบน dev-x: Label แสดงและคลิกได้ทั้งหน้าที่มี Visit และไม่มี Visit · ควรเป็น: Label แสดงเหมือนกันทุกหน้าที่มี Patient Banner (มี/ไม่มี Visit, OPD/ER/IPD) และคลิกแล้วไป Section On Warfarin ได้ทุกหน้า — ให้ BA ยืนยัน" (3) ข้อความว่างใต้วงหมุนของ drawer ประวัติ — ผู้ใช้ให้ปล่อย ไม่ใส่ใน TC
+
+- [ ] **P3 — เช็คว่า Visit V69102627669 (HN 6932112) และ V69102627670 (HN 6932113) ปิดแล้วหรือยัง** — ถ้ายังเปิดอยู่ ปิดที่การเงิน (`STAGE=close` ใน `temp_scripts/sbh498-run2/tc.spec.ts`) หลังผู้ใช้ยืนยัน
+- **สถานะใน Linear (ตรวจกับ Linear 29 ต.ค. 2026)** — SBH-498 = Done on dev-x · EXE SBH-2954 = Passed · Scenario SBH-2955 = Passed · TC SBH-2956–2964 = Passed ครบ 9 ใบ · improvement SBH-2953 = Triage ไม่มี parent
 
 ## Fixture ปิด Visit ท้ายเทส (`closeVisits`) — 22 ต.ค. 2569
 
@@ -72,6 +77,8 @@
   - [x] ใส่ลิงก์ bug ในหมายเหตุ SBH-2878/2879/2881 (patch แทน "ยังไม่สร้างการ์ด bug (รอ QA retest manual)") + ไฟล์ TC: บรรทัดสรุปผล + บรรทัด `- Linear:` ของ TC-005/006/008
   - [x] ปรับสถานะ: SBH-1308 → Waiting for Fixing Bugs (response ยืนยัน) · SBH-2885 สร้างเป็น Waiting for Fixing Bugs · EXE SBH-2871 + Scenario SBH-2872/2873 คง Testing (รอ retest bug ผ่านค่อยย้ายเป็น Done on dev-x ตามแบบ SBH-2802)
 
+- **สถานะใน Linear (ตรวจกับ Linear 29 ต.ค. 2026)** — SBH-1308 = **Done on dev-x** (เปลี่ยนจาก Waiting for Fixing Bugs ที่บันทึกไว้ — มีคนปรับภายหลัง) · EXE SBH-2871 + Scenario SBH-2872/2873 = Testing · TC Passed 8 · Failed 3 (SBH-2878, 2879, 2881) ตรงกับที่บันทึก · bug SBH-2885 = Waiting for Fixing Bugs (sub-issue ของ SBH-1308)
+
 ## Refactor รอบ 2 — แยกไฟล์ที่ไม่ใช่ page action ออกจาก `helpers/functions/` — 20 ต.ค. 2569
 
 ข้อตกลง: `functions/` เหลือเฉพาะ Layer 1 page action (`er.ts`, `er-triage.ts`) · เพิ่ม `helpers/data/` (`test-data.ts`, `patient-store.ts`) + `helpers/support/` (`fixtures.ts`, `evidence.ts`) · ยังไม่แยก `er.ts` · ย้ายไฟล์ + แก้ import เท่านั้น ไม่แก้ logic
@@ -99,7 +106,7 @@
 ข้อตกลง: ยึดตาม AC 1–16 · Fall risk = ต้องไม่มีใน Pre-assessment (AC 14) · Body chart = ใช้งานได้เหมือนเดิม ไม่ตรวจ default collapsed (AC 6) · Physical exam = ตรวจแค่ AC 5 ไม่ตรวจขนาดช่อง · Family history general = TC optional (ไม่มี AC) · Underlying disease = ไม่เขียน TC ใน 2457 แค่อ้างอิงว่าต้องเหมือน SBH-2413 · SBH-2413 ยังไม่เทสรอบนี้ · BMI/BSA = เทียบระบบเดิม ถ้าไม่มีข้อมูลให้ย้อนหาสูตรจากหน้าจอจริงแล้วทำ helper ที่ `helpers/functions/`
 
 - [x] **P1 — ร่าง TC ด้วย skill `linear-testcase-writer`** → `test-cases/SBH-2457-opd-note-pre-assessment.md` (ยังไม่เขียนลง Linear) — เขียนแล้ว: 1 EXE (`EXE - CT - 2.9.0`, DEV-X), 1 Scenario HPY, 18 TC flow-style (17 Required + TC-016 Family history Optional), AC 16 แยก Collapse/Expand เป็น TC-017/018, Underlying disease อ้างอิง SBH-2413 ไม่มี TC, ค่าที่ยังไม่รู้ใส่ "รอยืนยัน" + ตาราง AC→TC + Requirement gap · ตรวจสอบ: Final consistency check ของสกิล (ชื่อ/tag/ID plain text/ลำดับ 001–018/ทุก AC มี TC) · รอ user review (GATE 1) · **อัปเดตจากภาพหน้าจอของ user**: role = user1 (Super_User), Pre-assessment = tab OPD > "ฟอร์มคัดกรอง", OPD Note ใหม่ใช้ปุ่ม "สร้าง", CC suggestion = ปุ่ม "ปวดหัว", Pain score = ปุ่ม 0–10 · เพิ่ม TC-019/020 (BMI/BSA + Pain score ในฟอร์มคัดกรอง ตามที่ user ให้เทสทั้งสองที่) → รวม 20 TC · gap ใหม่: "การมาโรงพยาบาล" = AC 10 ไหมยังไม่ชัด, ภาพยังเห็น Note to Nurse ใน OPD Note
-- [ ] **P1 — (รอ user สั่งเริ่ม) สำรวจแอปจริงก่อนเขียน TC ให้เสร็จ (Playwright MCP, user1)** — ข้อตกลง: สร้างผู้ป่วย AUTO + visit OPD ใหม่เอง · Setting form เปลี่ยนได้ (user บอกว่าผูก 1:1 กับ visit ไม่กระทบคนอื่น — ถ้าเจอว่าเป็นค่ากลางให้หยุดถาม) · หลักฐานภาพ + วิดีโอ + วงแดง R23 เก็บที่ `.playwright-mcp/SBH-2457/explore/` · ผลใช้เติม "รอยืนยัน" ใน TC ไม่ใช่สรุป Pass/Fail
+- [x] **P1 — สำรวจแอปจริงก่อนเขียน TC ให้เสร็จ (Playwright MCP, user1)** (ติ๊กย้อนหลัง 29 ต.ค. 2026 — งานย่อยด้านล่างเสร็จครบ และ TC ถูกสร้างใน Linear แล้วตาม P2) — ข้อตกลง: สร้างผู้ป่วย AUTO + visit OPD ใหม่เอง · Setting form เปลี่ยนได้ (user บอกว่าผูก 1:1 กับ visit ไม่กระทบคนอื่น — ถ้าเจอว่าเป็นค่ากลางให้หยุดถาม) · หลักฐานภาพ + วิดีโอ + วงแดง R23 เก็บที่ `.playwright-mcp/SBH-2457/explore/` · ผลใช้เติม "รอยืนยัน" ใน TC ไม่ใช่สรุป Pass/Fail
   - [x] สร้างผู้ป่วย AUTO + เปิด visit OPD — HN 6931979 (หญิง) ลงทะเบียนผ่าน ER แล้วยกเลิก modal (R24) → เวชระเบียน "Visit ใหม่" Walk-in MED → OPD เช็คอิน · VN V69102027456 / EN E69102032174 · ตรวจสอบ: เห็นแถวในรายการผู้ป่วยนอกสถานะเช็คอิน + เปิดหน้า OPD ได้
   - [x] OPD Note — สร้าง 201 + reload: CC/PI/PE/Dx อยู่ · Body Chart โหมดดูขึ้น "-" แต่โหมดแก้ไขเห็นภาพ · ไฟล์แนบหาย 2 รอบ · ไม่มี Body metrics / Vital / Pain / Onset date / PE free text · ยังมี Note to Nurse · template `tmh_general_opd_note_v1` · ตรวจสอบ: reload + เปิดโหมดแก้ไข
   - [x] ฟอร์มคัดกรอง — สร้าง 201 + reload: การมาโรงพยาบาล/BMI/BSA/Pain/ผ่าตัด/ครอบครัว/บุหรี่/สุรา อยู่ครบ · ไม่พบ ประวัติแพ้ / คัดกรองเพศหญิง (มีแค่ LMP) / เอกสารแนบ / Fall risk · บังคับ CC+PI · template `nuh_general_opd_pre_assessment_v2` · ตรวจสอบ: reload แล้วดูค่าทีละ section + หัวจอผู้ป่วย
@@ -121,6 +128,8 @@
 - [ ] **P1 — (รอ user ยืนยัน) ย้อนหาสูตร BSA + การปัดทศนิยม BMI/BSA บน dev-x** — กรอกน้ำหนัก/ส่วนสูงหลายชุดใน test data ที่สร้างเอง เทียบกับ Mosteller/DuBois/สูตรอื่น พร้อมเก็บหลักฐาน
 - [ ] **P2 — เขียน helper `helpers/functions/body-metrics.ts`** (`calcBmi`, `calcBsa`) ตามสูตรที่ยืนยันแล้ว + อัปเดต expected ของ TC AC 3
 - [ ] **P3 — (รอ approve TC) สำรวจแอปจริงตาม `qa-automate-readiness`** ก่อนส่งต่อเขียน automate
+
+- **สถานะใน Linear (ตรวจกับ Linear 29 ต.ค. 2026)** — SBH-2457 = Waiting for Fixing Bugs · EXE SBH-2818 + Scenario SBH-2819 = Testing · TC Passed 13 · Failed 7 (SBH-2820, 2821, 2826, 2827, 2828, 2834, 2836) · Not Run 1 (SBH-2837 TC-018) ตรงกับที่บันทึก · bug SBH-2812–2817 = Backlog (sub-issue ของ SBH-2457)
 
 ## ปรับ content 29 TC ใต้ CTXN-12015 ให้อ่านง่าย (ชุดละ 5 ใบ) — 20 ต.ค. 2569
 
@@ -1460,6 +1469,15 @@ OR-69-000217 เดิมก่อน สร้างใหม่เฉพาะ
       หลักฐาน: `temp_scripts/crud-flow-evidence/` (4 screenshots + 1 video `tc011-flow.webm` + result JSON)
       ตรวจสอบ: all steps [OK], no failures — video recorded, data persisted both create and modify rounds
 
+
+## SBH-1321 — Auth Code ไม่ควรดึงข้อมูลจาก Visit ก่อนมาแสดง — 22 ต.ค. 2569 (บันทึกย้อนหลัง 29 ต.ค. 2026)
+
+ที่มา: เดิมไม่มี section ใน TODO · ข้อมูลด้านล่างอ่านจากไฟล์ `test-cases/SBH-1321-auth-code-prefill.md` และจาก Linear เท่านั้น
+
+- [x] **P1 — ร่าง TC + สร้างใน Linear** (22 ต.ค. 2026) — 1 EXE / 1 Scenario / 6 TC (Required 5 · Optional 1) · EXE SBH-2887 · Scenario SBH-2888 · TC-001–006 = SBH-2889–2894 · label `QA Module : Reception` + `QA Sub-module / Feature : Visit Management` · ผู้สร้าง Neranchara Kaewsiri
+- [x] **P1 — ผลใน Linear** — Passed 3 (001 SBH-2889 · 003 SBH-2891 · 004 SBH-2892) · Failed 1 (002 SBH-2890) · Blocked 1 (005 SBH-2893) · Not Test 1 (006 SBH-2894 Optional) · bug SBH-2886 (ไม่ดึงสิทธิ UC จาก Visit ก่อนหน้ามาแสดง) = Backlog sub-issue ของ SBH-1321
+- **สถานะใน Linear (ตรวจกับ Linear 29 ต.ค. 2026)** — SBH-1321 = Waiting for Fixing Bugs · EXE SBH-2887 = Ready for Testing
+- [ ] **P2 — ไฟล์ draft ยังไม่ commit** — `test-cases/SBH-1321-auth-code-prefill.md` เป็น untracked และช่อง Actual Result ในไฟล์ยังเป็น "-" (ผลอยู่ในการ์ด Linear) · รอผู้ใช้ตัดสินว่าจะ commit / เติมผลในไฟล์ไหม
 
 ## SBH-1198 — ลงรหัสโรคเช็ค pdx / sex: สำรวจระบบ + ร่าง Test Case (Gate 1)
 
