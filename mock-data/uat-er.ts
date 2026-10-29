@@ -445,14 +445,14 @@ export async function recordDrugAllergy(page: Page, drugSearch = 'paracetamol'):
  * (สิทธิใช้ค่าที่ฟอร์มใส่มาให้) → คืน VN / EN / ชื่อคลินิก / ชื่อแพทย์ · Visit ที่ได้สถานะ "รอเช็คอิน" — เช็คอินต่อด้วย `checkInOpdVisit()`
  * SBH Prod: คลินิกอายุรกรรมได้แถวประเภท "คำขอ Walk-in" (ไม่มีช่องแพทย์) → คืน `doctor: ''` ให้ไปลงตารางแพทย์ต่อด้วย `scheduleWalkInRequest()`
  */
-export async function openOpdVisit(page: Page): Promise<{ vn: string; en: string; clinic: string; doctor: string }> {
+export async function openOpdVisit(page: Page, clinicOpt: { search: string; prefer: RegExp } = OPD_CLINIC): Promise<{ vn: string; en: string; clinic: string; doctor: string }> {
   const main = page.getByRole('main');
   await openCareMenu(page, 'จัดการ Visit', main.getByText(/^รายการเข้ารับบริการ/));
 
   const clinic = main.locator('.ant-select').filter({ hasText: /^คลินิก$/ }).getByRole('combobox');
-  await clinic.fill(OPD_CLINIC.search);
-  await expect(openOptions(page).filter({ hasText: OPD_CLINIC.search }).first()).toBeVisible();
-  const clinicName = await pickOption(page, OPD_CLINIC.prefer);
+  await clinic.fill(clinicOpt.search);
+  await expect(openOptions(page).filter({ hasText: clinicOpt.search }).first()).toBeVisible();
+  const clinicName = await pickOption(page, clinicOpt.prefer);
 
   // แพทย์: ตัวเลือกมีเฉพาะแพทย์ที่มีตารางออกตรวจของคลินิกนั้น — ไม่เจอชื่อที่ต้องการให้พังพร้อมรายชื่อที่มี (ไม่เลือกคนอื่นแทน)
   const row = main.getByRole('row').filter({ hasText: 'Walk-in' }).first();

@@ -702,20 +702,25 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
 
 Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิด OPD Note ของ Visit V69102627662 แล้ว เพิ่มแถว Diagnosis 1 แถว
+1. ผู้ป่วยชาย HN 6932107 · Visit V69102627662 (คัดกรองแล้ว · สถานะพร้อมตรวจ) · เปิดจากแท็บ พร้อมตรวจ | พักการตรวจ → เมนูขวา "OPD Note" · ส่วน Diagnosis ว่าง
 
 Test Data
-- U071 (pdx = false)
+- แถวที่ 1: K30 (Principal) · แถวที่ 2: U071 (pdx = false)
 
 Test Steps
-1. กด x ที่ช่อง Category ของแถวที่ 1 ให้ว่าง (หรือเปลี่ยนเป็น Comorbid)
-2. พิมพ์ "U071" ในช่อง "ค้นหา" แล้วคลิกเลือก
-3. เปิด dropdown ช่อง Category ของแถวนั้น
+1. กด "+ เพิ่มรายการ" แล้วเลือก K30 ในแถวที่ 1 (Principal)
+2. กด "+ เพิ่มรายการ" ได้แถวที่ 2 (Comorbid)
+3. พิมพ์ "U071" ในช่อง "ค้นหา" ของแถวที่ 2 แล้วคลิกเลือก
+4. เปิด dropdown ช่อง Category ของแถวที่ 2
 
 Expected Result
 - ตัวเลือก "Principal" เป็นสีจาง (disabled) เลือกไม่ได้ (ตามรูปใน comment dev 30 ก.ค.)
 
 Actual Result
+- **Failed** (DEV-X 29 ต.ค. 2026 · ลำดับใหม่) — แถวที่ 2 เลือก U071 / Comorbid ได้ · เปิด Category แล้ว Principal ยังเป็นตัวปกติ ไม่ disabled (`sl-menu-item` ไม่มี `disabled` ทั้ง 3 ตัว)
+- หลักฐาน: `clips/SBH-1198 dev-x 2026-10-28/TC-014/rerun-order-C-2026-10-29/` · Linear SBH-3177
+
+รอบก่อน (ลำดับเดิม: เปลี่ยน Category แถวที่ยังไม่มีรหัส)
 - **Blocked** (DEV-X 28 ต.ค. 2026 · ผ่านโมดูลผู้ป่วยนอก แผนกอายุรกรรม)
 - ขั้นที่ 1 เปลี่ยน Category ของแถวที่ยังไม่ได้เลือกรหัสเป็น Comorbid (หรือกด x ล้าง Category) แล้วแถวหายทั้งแถว ส่วน Diagnosis กลับเป็น "ยังไม่มีรายการวินิจฉัย" — ทำขั้นที่ 2–3 ไม่ได้ (หลักฐานแถวหายชัดสุดอยู่ใน TC-016)
 - หลักฐาน: `clips/SBH-1198 dev-x 2026-10-28/TC-014/` (ภาพ + คลิป)
@@ -773,20 +778,26 @@ Actual Result
 - Requirement ที่อ้างอิง: SBH-1198 - [OPD] [EMR] - Improvement - แก้การลงรหัสโรคให้ check sex, pdx
 
 Preconditions
-1. ผู้ป่วยชาย HN 6932107 เปิด OPD Note ของ Visit V69102627662 แล้ว เพิ่มแถว Diagnosis 1 แถว
+1. ผู้ป่วยชาย HN 6932107 · Visit V69102627662 (คัดกรองแล้ว · สถานะพร้อมตรวจ) · เปิดจากแท็บ พร้อมตรวจ | พักการตรวจ → เมนูขวา "OPD Note" · ส่วน Diagnosis ว่าง
 
 Test Data
-- U071 (pdx = false) · Category: Comorbid
+- แถวที่ 1: K30 (Principal) · แถวที่ 2: U071 (pdx = false)
 
 Test Steps
-1. เปลี่ยน Category ของแถวที่ 1 เป็น "Comorbid"
-2. พิมพ์ "U071" ในช่อง "ค้นหา" แล้วคลิกเลือก
+1. กด "+ เพิ่มรายการ" แล้วเลือก K30 ในแถวที่ 1 (Principal)
+2. กด "+ เพิ่มรายการ" ได้แถวที่ 2
+3. พิมพ์ "U071" ในช่อง "ค้นหา" ของแถวที่ 2 แล้วคลิกเลือก
 
 Expected Result
+- แถวที่ 2 ขึ้น Category เป็น Comorbid
 - ตัวเลือก U071 ไม่มี tag "Unacceptable PDx"
-- แถวแสดง U071 / "2019 nCov virus disease(Covid-19 disease)" / Comorbid
+- แถวที่ 2 แสดง U071 / "2019 nCov virus disease(Covid-19 disease)" / Comorbid
 
 Actual Result
+- **Passed** (DEV-X 29 ต.ค. 2026 · ลำดับใหม่) — แถวที่ 2 ระบบตั้งเป็น Comorbid ให้เอง · U071 ไม่มี tag · เลือกแล้วแสดง U071 / 2019 nCov / Comorbid
+- หลักฐาน: `clips/SBH-1198 dev-x 2026-10-28/TC-016/rerun-order-C-2026-10-29/` · Linear SBH-3179
+
+รอบก่อน (ลำดับเดิม: เปลี่ยน Category แถวที่ยังไม่มีรหัสเป็น Comorbid)
 - **Blocked** (DEV-X 28 ต.ค. 2026 · ผ่านโมดูลผู้ป่วยนอก แผนกอายุรกรรม)
 - เปลี่ยน Category ของแถวที่ยังไม่ได้เลือกรหัสเป็น Comorbid → ทันทีหลังเลือกยังเห็น Comorbid แต่ไม่กี่วินาทีต่อมาแถวหายทั้งแถว ส่วน Diagnosis กลับเป็น "ยังไม่มีรายการวินิจฉัย" — ค้น / เลือก U071 ต่อไม่ได้
 - ทดสอบซ้ำหลายรอบได้ผลเดียวกัน ทั้งกดด้วยเมาส์และคีย์บอร์ด · ค่าใน Physical Examination ก็ว่างหลังแถวหาย (ต้องให้ dev ยืนยัน)
