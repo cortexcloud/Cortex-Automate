@@ -14,7 +14,7 @@ const fileOrder = new WeakMap<object, number>();
  * test.step ที่แนบภาพหน้าจอเป็นหลักฐานไว้ใต้ step นั้นในรายงาน (R13)
  * - เช็คผ่านครบ → ภาพ "ผ่าน — <ชื่อ step>" ณ จุดที่เช็ค Expected เสร็จ
  * - เกิด Error → ภาพ "Error — <ชื่อ step>" ณ จุดที่พัง แล้วโยน error ต่อ (เทสยัง fail ตามปกติ)
- * ภาพถ่ายเฉพาะส่วนที่อยู่ในจอ → ปิดท้าย body ด้วย markEvidence(<สิ่งที่เช็ค>) ให้ภาพเห็นจุดนั้นพร้อมกรอบแดง
+ * ภาพถ่ายเฉพาะส่วนที่อยู่ในจอ → ปิดท้าย body ด้วย markEvidence(<สิ่งที่เช็ค>) ให้ภาพเห็นจุดนั้นพร้อมกรอบ (R52: ทำ = น้ำเงิน · ผลถูก = เขียว · ผลผิด = แดง)
  * step ที่เช็คหลายสถานะต่อกัน (เช่น เลือก → ยกเลิก) ให้แยกเป็น checkStep ย่อยทีละสถานะ ภาพจะได้ตรงกับแต่ละ Expected
  * step ที่มี checkStep ย่อย: ไม่ถ่ายภาพ "ผ่าน" ของตัวเองซ้ำกับภาพย่อย — ยกเว้นเรียก markEvidence() หลัง step ย่อยตัวสุดท้าย
  */
@@ -35,18 +35,41 @@ export function checkStep<T>(page: Page, title: string, body: () => Promise<T>):
   });
 }
 
-/** ป้ายบนกรอบ (R23): ข้อมูลที่กรอก · ปุ่มที่กด · ข้อความแจ้งเตือนหลังกด = แดง · Expected / ผลที่ได้ = เขียว (R49) */
-export type EvidenceLabel = 'กรอก' | 'กด' | 'แจ้งเตือน' | 'Expected';
-export type EvidenceMark = { target: Locator; label?: EvidenceLabel };
+/**
+ * ป้ายบนกรอบ (R52 — แทน R23 / R49 เดิม ตั้งแต่ 29 ต.ค. 2026):
+ * - สิ่งที่ผู้ทดสอบทำ: กรอก · กด = น้ำเงิน
+ * - ผลที่ตรวจ: ถูก = เขียว (Expected / แจ้งเตือนที่ควรขึ้น) · ผิด = แดง (ไม่ถูกต้อง / แจ้งเตือนที่ไม่ควรขึ้น / แสดงเป็น id)
+ */
+export type EvidenceLabel = 'กรอก' | 'กด' | 'แจ้งเตือน' | 'Expected' | 'ไม่ถูกต้อง' | 'แสดงเป็น id';
+export type EvidenceTone = 'action' | 'pass' | 'fail';
+export type EvidenceMark = { target: Locator; label?: EvidenceLabel; tone?: EvidenceTone };
 
-export const filled = (target: Locator): EvidenceMark => ({ target, label: 'กรอก' });
-export const clicked = (target: Locator): EvidenceMark => ({ target, label: 'กด' });
-export const alerted = (target: Locator): EvidenceMark => ({ target, label: 'แจ้งเตือน' });
-export const expected = (target: Locator): EvidenceMark => ({ target, label: 'Expected' });
+const TONE_COLOR: Record<EvidenceTone, string> = { action: '#1677ff', pass: '#389e0d', fail: '#ff4d4f' };
+
+export const filled = (target: Locator): EvidenceMark => ({ target, label: 'กรอก', tone: 'action' });
+export const clicked = (target: Locator): EvidenceMark => ({ target, label: 'กด', tone: 'action' });
+/** ข้อความแจ้งเตือนของระบบนับเป็นผล: ok = ตรง Expected (เขียว) · ok = false = ไม่ควรขึ้น / ข้อความผิด (แดง) */
+export const alerted = (target: Locator, ok = true): EvidenceMark => ({ target, label: 'แจ้งเตือน', tone: ok ? 'pass' : 'fail' });
+/** ผลที่ตรวจแล้วถูกต้อง (เขียว) */
+export const expected = (target: Locator): EvidenceMark => ({ target, label: 'Expected', tone: 'pass' });
+/** ผลที่ตรวจแล้วไม่ตรง Expected (แดง) */
+export const unexpected = (target: Locator): EvidenceMark => ({ target, label: 'ไม่ถูกต้อง', tone: 'fail' });
+/** ผลที่ตรวจ: ok = true → expected() · false → unexpected() — ใช้เมื่อสคริปต์รู้ผลตอนรัน */
+export const verdict = (target: Locator, ok: boolean): EvidenceMark => (ok ? expected(target) : unexpected(target));
+/** ช่องที่ผู้ใช้เห็นแสดงเป็น id ยาวแทนชื่อ / ข้อความที่อ่านเข้าใจ (แดง · จดในหมายเหตุ TC แล้วถามผู้ใช้ก่อนเปิดการ์ด) */
+export const rawIdShown = (target: Locator): EvidenceMark => ({ target, label: 'แสดงเป็น id', tone: 'fail' });
+
+/** ข้อความที่ดูเหมือน id ระบบ (UUID / ObjectId / ตัวอักษรผสมยาว ๆ ไม่มีช่องว่าง) — ใช้ช่วยหา field ที่ควรแสดงเป็นชื่อ */
+export function looksLikeRawId(text: string): boolean {
+  const t = text.trim();
+  if (/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i.test(t)) return true;
+  if (/\b[0-9a-f]{24,}\b/i.test(t)) return true;
+  return t.split(/\s+/).some((w) => w.length >= 20 && /[a-z]/i.test(w) && /\d/.test(w) && !/[฀-๿]/.test(w));
+}
 
 /**
- * ชี้จุดในภาพหลักฐาน: ตีกรอบ + ป้ายบอกว่าเป็นอะไร (R23 — กรอก / กด / แจ้งเตือน = แดง · Expected = เขียว R49)
- * หลังกดให้ตีกรอบ expected() ที่ผลทุกจุดที่เกิดขึ้นในภาพ ไม่ใช่แค่ที่ Expected ของ TC พูดถึง (R49)
+ * ชี้จุดในภาพหลักฐาน: ตีกรอบ + ป้ายบอกว่าเป็นอะไร (R52 — กรอก / กด = น้ำเงิน · ผลถูก = เขียว · ผลผิด = แดง)
+ * หลังกดให้ตีกรอบผลทุกจุดที่เกิดขึ้นในภาพ ไม่ใช่แค่ที่ Expected ของ TC พูดถึง · Locator ที่ส่งมาเปล่า ๆ = ผลที่ตรวจผ่าน (เขียว ไม่มีป้าย)
  * ถ้ามีตัวไหนอยู่นอกจอ เลื่อนตัวแรกไว้กลางจอ (พ้นแถบที่ลอยทับขอบล่าง/บนของหน้า) — ตัวที่ยังอยู่นอกจอจะไม่มีกรอบในภาพ
  * กรอบเป็น div ลอยทับตำแหน่งของ element (position: fixed ใน body) — ไม่แก้ style ของแอป ไม่โดนกรอบแม่ที่ overflow ตัดทิ้ง
  * และไม่รับคลิก · ถูกลบเองหลังถ่ายภาพ (จบ checkStep หรือ snapEvidence) · ต้องเรียกใน checkStep
@@ -63,10 +86,10 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
     await first.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await expect(first).toBeInViewport();
   }
-  for (const { target, label } of marks) {
-    await target.first().evaluate((el, text) => {
+  for (const { target, label, tone } of marks) {
+    const markColor = TONE_COLOR[tone ?? 'pass'];
+    await target.first().evaluate((el, [text, color]) => {
       const rect = el.getBoundingClientRect();
-      const color = text === 'Expected' ? '#389e0d' : '#ff4d4f';
       const box = document.createElement('div');
       box.setAttribute('data-evidence-mark', '');
       Object.assign(box.style, {
@@ -102,7 +125,7 @@ export async function markEvidence(...items: (Locator | EvidenceMark)[]) {
         whiteSpace: 'nowrap',
       });
       document.body.appendChild(tag);
-    }, label);
+    }, [label, markColor] as const);
   }
   marked.add(page);
 }
