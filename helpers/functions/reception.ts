@@ -2,12 +2,19 @@ import { expect, type FrameLocator, type Locator, type Page, type Response } fro
 import { randomHouseNumber, randomMoo, toBuddhistDate, toIsoDate, type NewPatient } from '../data/test-data';
 import { expectOk } from './er';
 
-// ขั้นตอนหน้าจอโมดูลเวชระเบียน (Reception) — ตรวจกับ dev-x 20–22 ต.ค. 2026
+// ขั้นตอนหน้าจอโมดูลเวชระเบียน (Reception) — ตรวจกับ dev-x 20–22 ต.ค. 2026 · ฟอร์มที่อยู่แบบใหม่ 29 ต.ค. 2026
 // ทั้งหน้าอยู่ใน iframe (`/reception/embedded/...`) → ทุก locator ต้องผ่าน receptionFrame()
 // ฟอร์ม "สร้างผู้ป่วยใหม่" กับ "แก้ไขข้อมูลผู้ป่วย" ใช้ช่องชุดเดียวกัน · บันทึกได้ต้องมีที่อยู่ครบ 2 ชุด
+// ฟอร์มที่อยู่มี 2 แบบ (ยืนยันบน dev-x 22 ต.ค. และ 29 ต.ค. 2026):
+// - แบบแยกช่อง = ฟอร์มที่บันทึกได้จริง: ช่อง "บ้านเลขที่" / "หมู่" + ปุ่ม "เลือกจังหวัด" / "เลือกอำเภอ" / "เลือกตำบล"
+// - แบบช่องเดียว "บ้านเลขที่ / หมู่ / ซอย / ถนน" + ปุ่ม "ค้นหาที่อยู่" = ฟอร์มชั่วคราว ขึ้นก่อนแบบแยกช่อง และค้างอยู่แบบนี้เมื่อ
+//   session ใกล้หมดอายุ / dev-x ตอบ 502–503 — กรอกครบแล้วกด "บันทึก" ไม่ส่ง request ไม่มีข้อความเตือน (29 ต.ค. 2026 ลอง 6 รอบ)
+// → openReceptionCreatePatient โหลดหน้าใหม่จนได้แบบแยกช่อง · ลองครบแล้วยังเป็นช่องเดียวค่อยกรอกแบบช่องเดียว (เผื่อระบบเปลี่ยนเป็นแบบนี้ถาวร)
 
 /** ค่าในช่องเพศของฟอร์มเวชระเบียน */
 const GENDER_OPTION: Record<NewPatient['gender'], string> = { ชาย: 'male - เพศชาย', หญิง: 'female - เพศหญิง' };
+/** ช่องที่อยู่แบบใหม่ (placeholder) */
+const ADDRESS_LINE = 'บ้านเลขที่ / หมู่ / ซอย / ถนน';
 
 export function receptionFrame(page: Page): FrameLocator {
   return page.frameLocator('main iframe');
@@ -15,11 +22,21 @@ export function receptionFrame(page: Page): FrameLocator {
 
 /** หน้าค้นหาผู้ป่วยของเวชระเบียน → ปุ่ม "สร้างผู้ป่วยใหม่" → ฟอร์มว่าง */
 export async function openReceptionCreatePatient(page: Page) {
-  await page.goto('/cortex/reception/search-patient');
   const f = receptionFrame(page);
-  await f.getByRole('button', { name: 'สร้างผู้ป่วยใหม่' }).first().click();
-  await expect(f.getByRole('heading', { name: 'สร้างผู้ป่วยใหม่' })).toBeVisible();
-  await waitForReceptionFormSettled(page);
+  // dev-x ช้าเป็นพัก ๆ (29 ต.ค. 2026): iframe เวชระเบียนโหลดไม่เสร็จ ปุ่มไม่ขึ้น / ได้ฟอร์มที่อยู่ช่องเดียว (บันทึกไม่ได้) → โหลดหน้าใหม่แล้วลองซ้ำ
+  for (let attempt = 1; ; attempt++) {
+    await expect(async () => {
+      await page.goto('/cortex/reception/search-patient');
+      await f.getByRole('button', { name: 'สร้างผู้ป่วยใหม่' }).first().click({ timeout: 45_000 });
+      await expect(f.getByRole('heading', { name: 'สร้างผู้ป่วยใหม่' })).toBeVisible({ timeout: 30_000 });
+    }, 'เปิดฟอร์ม "สร้างผู้ป่วยใหม่" ของเวชระเบียน').toPass({ timeout: 240_000 });
+    if (await waitForSplitAddressForm(page, 45_000)) return;
+    if (attempt >= 3) {
+      console.log('    เวชระเบียน: ได้ฟอร์มที่อยู่ช่องเดียว 3 รอบ — กรอกแบบช่องเดียว (ถ้าบันทึกไม่ส่ง request ให้ล็อกอินใหม่แล้วลองอีกครั้ง)');
+      await waitForReceptionFormSettled(page);
+      return;
+    }
+  }
 }
 
 /**
@@ -27,7 +44,20 @@ export async function openReceptionCreatePatient(page: Page) {
  * กรอกระหว่างนั้นค่าหาย และกดบันทึกแล้วไม่ส่ง request → รอช่อง "บ้านเลขที่" แบบแยกช่องก่อนเริ่มกรอก
  */
 async function waitForReceptionFormSettled(page: Page) {
-  await expect(receptionFrame(page).getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  const f = receptionFrame(page);
+  const newForm = f.getByPlaceholder(ADDRESS_LINE, { exact: true }).first();
+  const oldForm = f.getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).first();
+  await expect(newForm.or(oldForm)).toBeVisible({ timeout: 30_000 });
+}
+
+/** รอฟอร์มที่อยู่แบบแยกช่อง (ฟอร์มที่บันทึกได้) — คืน false ถ้าหมดเวลาแล้วยังเป็นแบบช่องเดียว */
+async function waitForSplitAddressForm(page: Page, timeout: number): Promise<boolean> {
+  return receptionFrame(page).getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).first().waitFor({ timeout }).then(() => true, () => false);
+}
+
+/** ฟอร์มที่เปิดอยู่ใช้ที่อยู่แบบช่องเดียว (ช่องเดียว + "ค้นหาที่อยู่") หรือไม่ */
+async function isNewAddressForm(page: Page): Promise<boolean> {
+  return (await receptionFrame(page).getByPlaceholder(ADDRESS_LINE, { exact: true }).count()) > 0;
 }
 
 /** หน้าค้นหาผู้ป่วยของเวชระเบียน → ค้นด้วยชื่อ → คืนเลข HN ในตารางผล (ต้องเจอ) */
@@ -89,6 +119,14 @@ export async function fillRandomReceptionAddress(page: Page): Promise<string> {
   const houseNo = randomHouseNumber();
   const moo = randomMoo();
   await waitForReceptionFormSettled(page);
+  const split = await f.getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).count();
+  if (!split && (await isNewAddressForm(page))) {
+    // ช่องแรกของแต่ละชนิด = ที่อยู่ตามทะเบียนบ้าน (ส่วนที่อยู่ปัจจุบันได้จาก "บ้านเดียวกัน")
+    await f.getByPlaceholder(ADDRESS_LINE, { exact: true }).first().fill(`${houseNo} หมู่ ${moo}`);
+    const area = await pickRandomAddressItem(page, 'ค้นหาที่อยู่');
+    await f.getByRole('button', { name: 'บ้านเดียวกัน' }).first().click();
+    return `${houseNo} หมู่ ${moo} ${area} (ทะเบียนบ้าน = ปัจจุบัน)`;
+  }
   await f.getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).first().fill(houseNo);
   // exact: ไม่งั้นจับช่อง "ชื่อหมู่บ้าน"
   await f.getByRole('textbox', { name: 'หมู่', exact: true }).first().fill(moo);
@@ -99,7 +137,7 @@ export async function fillRandomReceptionAddress(page: Page): Promise<string> {
   return `${houseNo} หมู่ ${moo} ต.${subdistrict} อ.${district} จ.${province} (ทะเบียนบ้าน = ปัจจุบัน)`;
 }
 
-/** dropdown จังหวัด/อำเภอ/ตำบล = popover cmdk — บางครั้งเปิดแล้วไม่ขึ้นรายการ ต้องคลิกซ้ำ */
+/** dropdown ที่อยู่ (แบบใหม่ "ค้นหาที่อยู่" · แบบเดิม จังหวัด/อำเภอ/ตำบล) = popover cmdk — บางครั้งเปิดแล้วไม่ขึ้นรายการ ต้องคลิกซ้ำ */
 async function pickRandomAddressItem(page: Page, trigger: string): Promise<string> {
   const f = receptionFrame(page);
   const items = f.locator('[data-radix-popper-content-wrapper] [cmdk-item]');
@@ -128,8 +166,15 @@ export async function saveReceptionPatient(page: Page, what: string): Promise<Re
   const saved = page.waitForResponse(
     (res) => ['POST', 'PATCH'].includes(res.request().method()) && /^\/new-demographic-api\/patients(\/[^/]+)?$/.test(new URL(res.url()).pathname),
   );
+  const singleLine = !(await receptionFrame(page).getByRole('textbox', { name: 'บ้านเลขที่', exact: true }).count()) && (await isNewAddressForm(page));
   await receptionFrame(page).getByRole('button', { name: 'บันทึก' }).click();
-  const res = await saved;
+  const res = await saved.catch((e: Error) => {
+    throw new Error(
+      `${what}: กด "บันทึก" แล้วไม่มี request บันทึกผู้ป่วย` +
+        (singleLine ? ' — ฟอร์มที่อยู่เป็นแบบช่องเดียว (ฟอร์มชั่วคราวที่บันทึกไม่ได้) ลองล็อกอินใหม่ (rm .auth/Super_User.json) แล้วรันอีกครั้ง' : '') +
+        ` (${e.message.split('\n')[0]})`,
+    );
+  });
   await expectOk(res, what);
   return readSavedPatient(res);
 }

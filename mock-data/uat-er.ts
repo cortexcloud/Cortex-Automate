@@ -5,6 +5,9 @@ import { confirmOpenErVisit, expectOk, openTriagePage, registerNewPatient, selec
 import { graphqlMutation } from '../helpers/functions/er-disposition';
 import { randomThaiId, type NewPatient } from '../helpers/data/test-data';
 import { envName } from '../utils/env';
+import { OPD_DOCTOR, openCareMenu, openOptions, pickOption } from '../helpers/functions/opd-visit';
+// ย้ายไป helpers/functions/opd-visit.ts 29 ต.ค. 2026 — export ต่อให้สคริปต์เดิมเรียกได้เหมือนเดิม
+export { gotoPatient, openOpdVisit, scheduleWalkInRequest } from '../helpers/functions/opd-visit';
 
 // ส่วนใช้ร่วมของสคริปต์เตรียม Mock Data UAT ER (R31) — ลองบน dev-x ก่อน แล้วรันจริงบน SBH Prod
 // locator ตรวจกับหน้าจอ dev-x v2.2.4 เมื่อ 3 ต.ค. 2026 (ขั้นที่ยังไม่ได้ตรวจบน SBH Prod มีหมายเหตุกำกับ)
@@ -20,15 +23,11 @@ export const COVERAGE_UC = 'H03 - สิทธิ UC';
  * `extraCodes`: บน SBH Prod Order Lab ไม่เกิดงานพยาบาล (เกิดเฉพาะ Imaging) → สั่ง Imaging เพิ่มอีก 1 รายการให้ครบ 2 งาน
  */
 export const SETTINGS: { labCode: string; imagingCode: string; extraCodes: string[]; opdDoctor: { search: string; name: RegExp } } = {
-  'dev-x': { labCode: 'SBHLAB399', imagingCode: 'SBHIMG1', extraCodes: [], opdDoctor: { search: 'ทดสอบ', name: /ทดสอบ มานะ/ } },
-  // แพทย์ของ Visit OPD ราย D: "ดร. วิชัย รัตน์ เอื้อเฟื้อ" (ผู้ใช้กำหนด 3 ต.ค. 2026 — คือบัญชี user1 ที่ใช้เล่น UAT)
-  'sbh-prod': { labCode: 'LAB0000001', imagingCode: 'IMG0000194', extraCodes: ['IMG0000420'], opdDoctor: { search: 'วิชัย', name: /วิชัย.*เอื้อเฟื้อ/ } },
+  'dev-x': { labCode: 'SBHLAB399', imagingCode: 'SBHIMG1', extraCodes: [], opdDoctor: OPD_DOCTOR },
+  // แพทย์ของ Visit OPD (opdDoctor) ย้ายไป helpers/functions/opd-visit.ts (OPD_DOCTOR) — 29 ต.ค. 2026
+  'sbh-prod': { labCode: 'LAB0000001', imagingCode: 'IMG0000194', extraCodes: ['IMG0000420'], opdDoctor: OPD_DOCTOR },
 }[SYSTEM];
 
-/** คลินิกของ Visit OPD ราย D: แผนกอายุรกรรม (R31 ข้อ 5.2) — ค้นด้วยคำนี้แล้วเลือกตัวที่ขึ้นต้น "MED - " ถ้ามี */
-const OPD_CLINIC = { search: 'อายุรกรรม', prefer: /^MED - / };
-/** หน่วยบริการ + ช่องบริการ ที่เลือกก่อนเข้า "รายการผู้ป่วยนอก" เพื่อลงตารางแพทย์ให้คำขอ Walk-in */
-const OPD_UNIT = { name: 'แผนกอายุรกรรม', counter: 'ก่อนตรวจ' };
 
 const VITALS = { Systolic: '120', Diastolic: '80', PR: '80', RR: '18', Temp: '37', SpO2: '98' };
 const PAIN_SCORE = '3';
@@ -179,43 +178,6 @@ export function recordMockPatient(label: string, patient: NewPatient, ids: Parti
   const now = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok', dateStyle: 'short', timeStyle: 'short' }).format(new Date());
   if (!fs.existsSync(LOG_FILE)) fs.writeFileSync(LOG_FILE, LOG_HEADER);
   fs.appendFileSync(LOG_FILE, `| ${now} | ${SYSTEM} | ${label} | ${name} | ${ids.hn} | ${ids.vn ?? '-'} | ${ids.en ?? '-'} | ${patient.citizenId} | ${state} |\n`);
-}
-
-/** ตัวเลือกใน dropdown ของ Ant Design ที่เปิดอยู่ (ตัวเลือกของ Order / ยา ไม่มี title จึงจับด้วยข้อความ) */
-function openOptions(page: Page): Locator {
-  return page.locator('.ant-select-dropdown:visible .ant-select-item-option');
-}
-
-/** เลือกตัวเลือกที่ตรง `prefer` ถ้ามี ไม่งั้นเลือกตัวแรก → คืนข้อความของตัวที่เลือก */
-async function pickOption(page: Page, prefer?: RegExp): Promise<string> {
-  const options = openOptions(page);
-  await expect(options.first()).toBeVisible();
-  const preferred = prefer ? options.filter({ hasText: prefer }).first() : options.first();
-  const target = prefer && (await preferred.count()) ? preferred : options.first();
-  const text = (await target.textContent())?.trim() ?? '';
-  // dropdown ที่อยู่ชิดขอบล่างของจอขยับตามการเลื่อนหน้า ตัวเลือกจึงไม่นิ่งให้กด (หน้าผู้ป่วยของ Visit ER) → กดแบบไม่รอให้นิ่ง
-  await target.click({ timeout: 5_000 }).catch(() => target.click({ force: true }));
-  return text;
-}
-
-/**
- * เมนูในแถบขวา "การดำเนินการดูแลผู้ป่วย" ของหน้าผู้ป่วย → รอ `ready` ขึ้น แล้วคลิกมันให้แถบเมนูหุบ
- * (แถบกางค้างหลังกดเมนู แล้วบังปุ่มมุมขวาบน เช่น "ส่งคำสั่ง")
- */
-async function openCareMenu(page: Page, name: string, ready: Locator) {
-  await page.getByRole('navigation', { name: 'การดำเนินการดูแลผู้ป่วย' }).getByRole('menuitem', { name }).click({ force: true });
-  await expect(ready).toBeVisible({ timeout: 45_000 });
-  await ready.click();
-  await page.mouse.move(600, 600);
-}
-
-/** เปิดหน้าผู้ป่วยตาม HN (ไม่ผูก Visit) — ใช้กับผู้ป่วยที่ยังไม่มี Visit */
-export async function gotoPatient(page: Page, hn: string) {
-  // SBH Prod: หน้าผู้ป่วยบางครั้งโหลดไม่ขึ้น (API ตอบ 500 / 502 เป็นพักๆ) → เปิดใหม่อีกรอบ
-  await expect(async () => {
-    await page.goto(`/cortex/next/patients/${hn}`);
-    await expect(page.getByRole('main').getByText(`HN ${hn}`, { exact: true }).first()).toBeVisible({ timeout: 45_000 });
-  }, `เปิดหน้าผู้ป่วย HN ${hn}`).toPass({ timeout: 150_000 });
 }
 
 /**
@@ -438,119 +400,6 @@ export async function recordDrugAllergy(page: Page, drugSearch = 'paracetamol'):
   expect(body.data?.createMedicationAllergy?.compositionUid, `บันทึกแพ้ยาไม่สำเร็จ: ${body.errors?.map((e) => e.message).join(' · ')}`).toBeTruthy();
   await expect(main.locator('div').filter({ hasText: /^แพ้:/ }).last(), 'แถบหัวผู้ป่วยต้องแสดงยาที่แพ้').toContainText(drugPattern);
   return drugName;
-}
-
-/**
- * เปิด Visit OPD แบบ Walk-in ที่แผนกอายุรกรรม จากเมนูขวา "จัดการ Visit" โดยระบุแพทย์ตาม `SETTINGS.opdDoctor`
- * (สิทธิใช้ค่าที่ฟอร์มใส่มาให้) → คืน VN / EN / ชื่อคลินิก / ชื่อแพทย์ · Visit ที่ได้สถานะ "รอเช็คอิน" — เช็คอินต่อด้วย `checkInOpdVisit()`
- * SBH Prod: คลินิกอายุรกรรมได้แถวประเภท "คำขอ Walk-in" (ไม่มีช่องแพทย์) → คืน `doctor: ''` ให้ไปลงตารางแพทย์ต่อด้วย `scheduleWalkInRequest()`
- */
-export async function openOpdVisit(page: Page): Promise<{ vn: string; en: string; clinic: string; doctor: string }> {
-  const main = page.getByRole('main');
-  await openCareMenu(page, 'จัดการ Visit', main.getByText(/^รายการเข้ารับบริการ/));
-
-  const clinic = main.locator('.ant-select').filter({ hasText: /^คลินิก$/ }).getByRole('combobox');
-  await clinic.fill(OPD_CLINIC.search);
-  await expect(openOptions(page).filter({ hasText: OPD_CLINIC.search }).first()).toBeVisible();
-  const clinicName = await pickOption(page, OPD_CLINIC.prefer);
-
-  // แพทย์: ตัวเลือกมีเฉพาะแพทย์ที่มีตารางออกตรวจของคลินิกนั้น — ไม่เจอชื่อที่ต้องการให้พังพร้อมรายชื่อที่มี (ไม่เลือกคนอื่นแทน)
-  const row = main.getByRole('row').filter({ hasText: 'Walk-in' }).first();
-  await expect(row).toBeVisible();
-  let doctorName = '';
-  if (!(await row.getByText('คำขอ Walk-in').count())) {
-    await row.locator('.ant-select').first().click();
-    await expect(openOptions(page).first()).toBeVisible();
-    const available = await openOptions(page).allTextContents();
-    await row.getByRole('combobox').first().fill(SETTINGS.opdDoctor.search);
-    const doctorOption = openOptions(page).filter({ hasText: SETTINGS.opdDoctor.name }).first();
-    await expect(doctorOption, `คลินิก ${clinicName} ไม่มีแพทย์ ${SETTINGS.opdDoctor.name} ให้เลือก — ที่มี: ${available.join(' · ')}`).toBeVisible();
-    doctorName = (await doctorOption.textContent())?.trim() ?? '';
-    await doctorOption.click();
-    await expect(row).toContainText(doctorName);
-  }
-
-  const created = graphqlMutation(page, 'CreateVisit');
-  await main.getByRole('button', { name: 'สร้าง', exact: true }).click();
-  const res = await created;
-  await expectOk(res, 'เปิด Visit OPD');
-  const body = (await res.json()) as {
-    data?: { createVisit?: { visit?: { vn: string; encounters: { en: string; latestStatusCode: string }[] } } };
-    errors?: { message: string }[];
-  };
-  const visit = body.data?.createVisit?.visit;
-  if (!visit?.encounters?.length) throw new Error(`เปิด Visit OPD ไม่สำเร็จ: ${body.errors?.map((e) => e.message).join(' · ') ?? JSON.stringify(body).slice(0, 300)}`);
-  await test.info().attach('CreateVisit (OPD)', { body: JSON.stringify(body.data, null, 2), contentType: 'application/json' });
-  await expect(main.getByRole('row').filter({ hasText: 'Walk-in' }).first()).toBeVisible();
-  return { vn: visit.vn, en: visit.encounters[0].en, clinic: clinicName, doctor: doctorName };
-}
-
-/**
- * ลงตารางแพทย์ให้ "คำขอ Walk-in" (SBH Prod): โมดูลผู้ป่วยนอก → เลือกหน่วยบริการ + ช่องบริการ → แท็บ "คำขอ Walk-in"
- * → ปุ่ม `ลงตาราง` ในแถวของผู้ป่วย → dialog "ลงตารางแพทย์": เลือกแพทย์ตาม `SETTINGS.opdDoctor` + ช่วงเวลา → บันทึก → คืนชื่อแพทย์ + ช่วงเวลา
- */
-export async function scheduleWalkInRequest(page: Page, hn: string): Promise<{ doctor: string; slot: string }> {
-  const main = page.getByRole('main');
-  // หน่วยบริการที่เลือกเก็บในเบราว์เซอร์ (localStorage) — เบราว์เซอร์ของเทสเริ่มใหม่ทุกครั้งจึงต้องเลือกเสมอ
-  await page.goto('/cortex/opd/select-service-unit');
-  await main.getByRole('combobox').first().fill(OPD_UNIT.name);
-  await openOptions(page).filter({ hasText: new RegExp(`^${OPD_UNIT.name}$`) }).click();
-  await main.getByRole('combobox').nth(1).click();
-  await openOptions(page).filter({ hasText: new RegExp(`^${OPD_UNIT.counter}$`) }).click();
-  await page.getByRole('button', { name: 'ส่ง' }).click();
-  await page.waitForURL(/\/opd\/patient-list/);
-
-  // กดแท็บก่อนรายการโหลดเสร็จ แท็บไม่เปลี่ยน หรือเปลี่ยนแล้วเด้งกลับแท็บตั้งต้น (เช็คอิน) → กดซ้ำจนเห็นปุ่ม "ลงตาราง" ของผู้ป่วย
-  const schedule = main.getByRole('row').filter({ hasText: `HN ${hn}` }).getByRole('button', { name: 'ลงตาราง' });
-  // SBH Prod ช่วงที่ช้า รายการขึ้นหลังตัวนับบนแท็บหลายวินาที (5 ต.ค. 2026: แท็บนับ 1 แต่ตารางยัง "ไม่มีข้อมูล") — กดถี่ไปรายการจะโหลดใหม่ไม่จบ → รอรอบละ 20 วินาที
-  // รอบเดียวกับที่เพิ่งเปิด Visit OPD ตารางว่างค้างอยู่อย่างนั้น (5–6 ต.ค. 2026) เปิดเบราว์เซอร์ใหม่แล้วเห็น → รอบที่ 2 เป็นต้นไปโหลดหน้าใหม่ก่อน
-  let rounds = 0;
-  await expect(async () => {
-    if (rounds++) await page.reload();
-    await main.getByRole('tab', { name: /คำขอ Walk-in/ }).click();
-    await expect(schedule).toBeVisible({ timeout: 20_000 });
-  }, `ต้องเห็นคำขอ Walk-in ของ HN ${hn} ในแท็บ "คำขอ Walk-in"`).toPass({ timeout: 150_000 });
-  await schedule.click();
-
-  const dialog = page.getByRole('dialog', { name: 'ลงตารางแพทย์' });
-  await expect(dialog.getByText(`HN ${hn}`, { exact: true })).toBeVisible();
-  const doctorBox = dialog.getByRole('combobox', { name: '*แพทย์ :' });
-  await doctorBox.click();
-  await expect(openOptions(page).first()).toBeVisible();
-  const available = await openOptions(page).allTextContents();
-  // รายชื่อเป็น virtual list เรียงตามชื่อ — วันที่มีแพทย์ออกตรวจหลายคน ชื่อท้ายๆ ยังไม่ถูกวาด (SBH Prod จันทร์ 5 ต.ค. 2026) → พิมพ์ค้นก่อนเลือก
-  await doctorBox.fill(SETTINGS.opdDoctor.search);
-  const doctorOption = openOptions(page).filter({ hasText: SETTINGS.opdDoctor.name }).first();
-  await expect(doctorOption, `ค้น "${SETTINGS.opdDoctor.search}" แล้วไม่มีแพทย์ ${SETTINGS.opdDoctor.name} ให้เลือก — รายชื่อช่วงแรก: ${available.join(' · ')}`).toBeVisible();
-  const doctor = (await doctorOption.textContent())?.trim() ?? '';
-  await doctorOption.click();
-
-  // ช่วงเวลา: เลือกช่วงที่ครอบเวลาปัจจุบัน ถ้าไม่มีใช้ช่วงแรก
-  const radios = dialog.getByRole('radio');
-  await expect(radios.first(), `แพทย์ ${doctor} ไม่มีตารางตรวจวันนี้`).toBeVisible();
-  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
-  const pad = (n: number) => String(n).padStart(2, '0');
-  let slot = `${pad(hour)}:00 - ${pad(hour + 1)}:00`;
-  const current = dialog.getByText(slot, { exact: true });
-  if (await current.count()) await current.click();
-  if (!(await dialog.getByRole('radio', { checked: true }).count())) {
-    await radios.first().check();
-    slot = 'ช่วงแรกของตาราง';
-  }
-  // ไม่พิมพ์บัตรคิว (ไม่ให้มีหน้าต่างพิมพ์ค้างระหว่างรันสคริปต์)
-  await dialog.getByRole('checkbox', { name: 'Print บัตรคิวอัตโนมัติ' }).uncheck();
-
-  const saved = page.waitForResponse((res) => new URL(res.url()).pathname.endsWith('/graphql') && /mutation\s/.test(res.request().postData() ?? ''));
-  await dialog.getByRole('button', { name: 'บันทึก' }).click();
-  const res = await saved;
-  await expectOk(res, 'ลงตารางแพทย์');
-  const body = (await res.json()) as { errors?: { message: string }[] };
-  const operation = (res.request().postData() ?? '').match(/mutation\s+(\w+)/)?.[1] ?? '?';
-  await test.info().attach(`ลงตารางแพทย์ (${operation})`, { body: JSON.stringify(body, null, 2), contentType: 'application/json' });
-  console.log(`    ลงตารางแพทย์: ${operation} → ${JSON.stringify(body).slice(0, 400)}`);
-  expect(body.errors, `ลงตารางแพทย์ไม่สำเร็จ (${operation}): ${body.errors?.map((e) => e.message).join(' · ')}`).toBeUndefined();
-  await expect(dialog).toBeHidden();
-  return { doctor, slot };
 }
 
 /**
