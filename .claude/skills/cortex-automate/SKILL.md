@@ -15,7 +15,7 @@ description: สมุดกฎและคู่มือของโปรเ�
 1. **สงสัยตรงไหน ถามผู้ใช้ก่อน** (ผู้ใช้สั่งตอนเริ่มโปรเจกต์ 26 ก.ย. 2026) — โดยเฉพาะเรื่องใน §5 ห้ามเดาแล้วลงมือเอง
    ถ้ามีหลายเรื่อง รวบถามครั้งเดียว พร้อมตัวเลือกที่แนะนำ
 2. ตอบผู้ใช้เป็นภาษาไทยเสมอ (ศัพท์เทคนิค/ชื่อเมนู/ชื่อการ์ดเป็นอังกฤษได้)
-3. เทสการ์ด (`tests/`) รันกับ dev-x (`https://dev-x.cortexcloud.co`) เท่านั้น · **SBH Prod** (`https://cortex.srbrhospital.com` รพ.สระบุรี) ใช้ได้เฉพาะงานที่ผู้ใช้สั่งให้ทำบน Prod (ตอนนี้: Mock Data UAT ER — R31) ผ่าน `playwright.sbh-prod.config.ts` + `mock-data/` เท่านั้น ·
+3. เทสการ์ด (`tests/`) รันกับ dev-x (`https://dev-x.cortexcloud.co`) — หรือ **SBH Dev** (`https://cortex-dev.srbrhospital.com` clone ข้อมูล + user จาก **SBH Prod** · R76) ผ่าน `npm run test:sbh-dev` / `playwright.sbh-dev.mock.config.ts` — รันเมื่อผู้ใช้สั่ง · **SBH Prod** (`https://cortex.srbrhospital.com` รพ.สระบุรี) ใช้ได้เฉพาะงานที่ผู้ใช้สั่งให้ทำบน Prod (ตอนนี้: Mock Data UAT ER — R31) ผ่าน `playwright.sbh-prod.config.ts` + `mock-data/` เท่านั้น ·
    ยกเว้นเทสการ์ดที่ผู้ใช้อนุญาตให้รันบน Prod เป็นรายการ์ด (R40) — รันผ่าน `playwright.sbh-prod.cards.config.ts` ซึ่งระบุไฟล์ไว้เป็นรายการ (ตอนนี้: SBH-2394 อ่านอย่างเดียว · SBH-2471 สร้างผู้ป่วย AUTO 4 ราย แล้วปิด Visit — R42 · SBH-2462 สร้างผู้ป่วย AUTO 2 ราย + Disposition แล้วปิด Visit — R43 · SBH-2373 สร้างผู้ป่วย AUTO 1 ราย + Triage + Physician Note แล้วปิด Visit — R45)
    `loadEnv()` กันไว้ทั้ง 2 ทาง (config ปกติ + BASE_URL ของ Prod = error) · งานอื่นจะทำบน Prod ต้องถามก่อนทุกครั้ง
 4. ความลับ (user/pass, session) ทำตาม §6 ทุกกรณี
@@ -38,7 +38,8 @@ description: สมุดกฎและคู่มือของโปรเ�
 ```
 Cortex-Automate/
 ├─ playwright.base.ts / playwright.config.ts (dev-x) / playwright.sbh-prod.config.ts (Prod · mock-data) /
-│  playwright.mock.config.ts (dev-x · mock-data) / playwright.sbh-prod.cards.config.ts (Prod · การ์ดที่อนุญาตรายไฟล์ — R40)
+│  playwright.mock.config.ts (dev-x · mock-data) / playwright.sbh-prod.cards.config.ts (Prod · การ์ดที่อนุญาตรายไฟล์ — R40) /
+│  playwright.sbh-dev.config.ts (SBH Dev · เทสการ์ดทุกไฟล์ — R76)
 ├─ tests/auth.setup.ts                 เตรียม session ตาม ROLES_IN_USE
 ├─ tests/modules/{er,opd,registration,activity}/SBH-<เลข>-<เรื่อง>.spec.ts   เทสรายการ์ด (หัวไฟล์บอก TC / ข้อมูลที่ใช้)
 ├─ helpers/functions/*.ts              er*.ts · opd-*.ts · reception*.ts · cashier.ts · refer-in.ts · evidence.ts (checkStep / วงแดง / คลิป) · print-capture.ts (PDF) · fixtures.ts · test-data.ts
@@ -79,6 +80,7 @@ Cortex-Automate/
 | เช็ค type | `npm run typecheck` |
 | บังคับล็อกอินใหม่ | ลบ `.auth/<Role>.json` แล้วรัน (แก้ `.env` ก็ล็อกอินใหม่เอง) |
 | เตรียม session อย่างเดียว | `npx playwright test --project=setup` |
+| รันบน **SBH Dev** (R76) | `npm run test:sbh-dev -- --grep @SBH-1013` (เปิดจอเติม `--headed`) · โหมด UI `npm run test:ui:sbh-dev` · รายงาน `npm run report:sbh-dev` (`playwright-report-sbh-dev/`) · ผล / หลักฐานที่ `test-results-sbh-dev/` · codegen `npm run codegen:sbh-dev` · session `.auth/sbh-dev/` |
 | เทสการ์ดที่อนุญาตบน **SBH Prod** (R40) | `npm run card:prod -- --headed --grep @SBH-2394` (= `playwright test -c playwright.sbh-prod.cards.config.ts`) · รายงาน `playwright-report-sbh-prod/` · ภาพเรียงลำดับ + คลิปอยู่ที่ `test-results-sbh-prod/<เทส>/evidence/*.png` และ `video.webm` → คัดลอกไป `clips/` ทันที · ขั้นตอนเต็ม (อ่านการ์ด → รัน → แนบผลลง Linear) อยู่ในสกิล `cortex-card-test` · **ต้องใส่ `--grep` ทุกครั้ง** (ในรายการมี SBH-2471 ที่สร้างผู้ป่วย: `--grep @SBH-2497` = ผู้ป่วย A + B · `--grep @SBH-2500` = ผู้ป่วย C + D — รันทีละเทส แล้วคัดลอกหลักฐานก่อนรันตัวถัดไป · SBH-2462: `--grep @SBH-2490` = ผู้ป่วยรายที่ 1 · `--grep @SBH-2491` = ผู้ป่วยรายที่ 2 + หน้าต่างของ Doctor) |
 
 **Claude รันเอง (Bash tool)** — shell ของ Claude ยังไม่เห็น PATH ของ Node จนกว่าจะเปิดแอปใหม่:
@@ -150,7 +152,7 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/jame4/OneDrive/Desktop
 ## 7) กฎการทำงาน (ผู้ใช้กำหนด)
 
 กฎที่ใช้ทั่วไปอยู่ตารางนี้ · **คำตอบรายงาน** (การ์ด SBH-xxxx · Mock Data ชุดใด · Scenario UAT ข้อใด) อยู่ที่ [references/decisions.md](references/decisions.md) — Grep เลขการ์ดก่อนเริ่มงานการ์ดนั้น
-เลขกฎที่ไม่อยู่ในตารางนี้ (R12 R19 R24 R26 R28–R43 R45 R46 R49–R51 R53–R59 R62–R69 และ `Rnn-2`) อยู่ใน decisions.md
+เลขกฎที่ไม่อยู่ในตารางนี้ (R12 R19 R24 R26 R28–R43 R45 R46 R49–R51 R53–R59 R62–R71 และ `Rnn-2`) อยู่ใน decisions.md
 
 | # | กฎ | ตั้งเมื่อ |
 |---|----|-----------|
@@ -183,6 +185,9 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/jame4/OneDrive/Desktop
 | R52 | ผู้ใช้อนุมัติให้นำ Flaky Test Doctor (qaskills.sh) มาปรับใช้ → เทส fail ให้วินิจฉัยตาม `references/fail-diagnosis.md` · ห้ามแก้ / skip เทสเองก่อนผู้ใช้อนุมัติ diff · ห้าม `--repeat-each` บน SBH Prod · คง `retries: 0` | 14 ต.ค. 2026 |
 | R60 | "ทำเป็นกฏไว้หน่อยให้ Git pull วันล่ะ 1 ครั้งในครั้งแรกของวัน" (หลัง push 16 ต.ค. 2026 ชนกับงานที่อีกเครื่อง / session push เข้า Branch Jame — conflict ไฟล์สกิล 2 ไฟล์ · `evidence.ts` · SBH-1117 · เลขกฎ R54–R56 ซ้ำ) →<br>**งานแรกของวันในโปรเจกต์นี้ ก่อนแก้ไฟล์ใดๆ ให้ `git pull --rebase --autostash origin <branch ปัจจุบัน>`** · รู้ว่าวันนี้ pull แล้วหรือยังจากวันที่แก้ไขของ `.git/FETCH_HEAD` (ไม่ใช่วันนี้ = ยังไม่ pull · ไม่มีไฟล์ = ยังไม่เคย) ·<br>แจ้งผลสั้นๆ (ไม่มีอะไรใหม่ / ได้ commit ใหม่กี่อัน เรื่องอะไร) · **conflict = หยุด แจ้งผู้ใช้พร้อมไฟล์ที่ชน ก่อนแก้** · pull ไม่ได้ (เน็ต / VPN / สิทธิ์ GitHub) = แจ้งผู้ใช้แล้วทำงานต่อได้ · ตั้งเลขกฎใหม่ใน §7 หลัง pull เสมอ (กันเลขซ้ำกับอีกเครื่อง) | 16 ต.ค. 2026 |
 | R61 | ผู้ใช้หยุดรอบ Retest SBH-1290 แล้วบอก "อยากให้ช่วยแก้ไขคลิปหน่อย 1 คลิปต่อ 1 เทสเคสไม่เอามารวมกันดูแล้วทำให้งง" → **คลิปหลักฐาน 1 ไฟล์ต่อ 1 TC** ไม่ใช้คลิปเดียวร่วมหลาย TC (เดิมทำบ่อย เช่น SBH-2482 · SBH-1290 · SBH-1103) · ใช้กับการแนบผลทุกการ์ดตั้งแต่นี้ · spec ที่ 1 เทสเล่นหลาย TC ต้องปรับให้แต่ละ TC ได้คลิปของตัวเอง (วิธีที่ผู้ใช้เลือกต่อการ์ดจดในประวัติ §10) | 18 ต.ค. 2026 |
+
+| R76 | "อยากให้คุณช่วยเพิ่ม Env https://cortex-dev.srbrhospital.com/cortex/welcome ให้หน่อย Env Clone ข้อมูลมาจาก Dev-X …" → Smoke Test พบว่าข้อมูลเป็นของ SBH Prod → ผู้ใช้ยืนยัน "น่าจะมาจาก Prod" →<br>ระบบชื่อ **`sbh-dev`** (`SBH_DEV_HOST` ใน `utils/env.ts`) · **user/pass ยืมจาก `.env.sbh-prod` อัตโนมัติ** (`SYSTEMS['sbh-dev'].usersFrom`) — `.env.sbh-dev` มีแค่ BASE_URL (role ที่กรอกในไฟล์นี้ชนะ) · Keycloak คนละตัว (`id-cortex-dev.srbrhospital.com`) → session แยก `.auth/sbh-dev/` · config dev-x ที่ BASE_URL ชี้ SBH Dev = error ·<br>config: `playwright.sbh-dev.config.ts` (tests/) · `playwright.sbh-dev.mock.config.ts` (mock-data/ เช่น BizSim-OPD) · สคริปต์ mock-data ที่เช็ก `SYSTEM === 'dev-x'` ได้ค่าชุด Prod เอง · `SETTINGS` ใน `uat-er.ts` map sbh-dev → sbh-prod ·<br>การรันบน SBH Dev ยังถือเป็นงานที่ผู้ใช้สั่งเป็นรายครั้ง (ข้อมูลเป็นสำเนา Prod) · ผล Smoke Test อยู่ screens/general.md หัวข้อ SBH Dev | 29 ต.ค. 2026 |
+| R77 | "ในเคสพิมพ์บัตรคิวหรือเอกสารให้จับจาก API Generate แล้ว Copy Response ไปวางในลิงค์จะได้ไฟล์คิวมา ลองปรับตามนี้ดูถ้าสามารถใช้งานได้ให้จดลง Skill ไว้ด้วยนะ" →<br>**เช็คบัตรคิว / เอกสารพิมพ์จาก response ของ API ที่สร้างไฟล์** (ต่อยอด R18 ที่ใช้กับ PDF ป้ายปลายเตียง) — ใช้ `captureGeneratedDocs(page)` ใน `helpers/functions/print-capture.ts`: ดัก POST ที่ตรง `DOCUMENT_API` → zip แตกเป็นไฟล์ข้างใน (`unzipFiles` ด้วย zlib) · PDF / ข้อความเก็บตรงๆ · ไฟล์ลงโฟลเดอร์ผลของเทส `docs/` · `next(api, since)` รอเอกสารหลังกดพิมพ์ → อ่านข้อความด้วย `pdfPages()` · แสดงบนจอเป็นหลักฐานด้วย `showPdf()` ·<br>API ที่ตรวจแล้ว (SBH Dev 29 ต.ค. 2026): `queues/print` {queueFifoIds} → zip `queue-1.pdf` (บัตรคิวการเงิน / ห้องยา) · `queues/print-slips` {queueExamIds} → zip `queue_slip_1.pdf` (บัตรคิวพบแพทย์ตอนเช็คอิน) · `encounters/navigation-slips/print` {ens} → zip `navigation_slip-1.pdf` (ใบนำทาง) · `receipts/<เลข>/physical-print` → ข้อความ ESC/P (ใบเสร็จ dot-matrix ไม่ใช่ PDF) · `documents/generate` (บัตรนัด) 404 ReportNotFound · ใช้ได้แม้เครื่องเทสไม่มี print agent และไม่ต้องรอแอปส่งต่อไป `localhost:8081` (`capturePrintJobs` เดิมยังใช้ได้คู่กัน) | 29 ต.ค. 2026 |
 
 ### ขั้นตอนเมื่อได้การ์ดใหม่
 

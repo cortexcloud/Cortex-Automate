@@ -126,3 +126,8 @@
 - **เพิ่มอุปกรณ์ / เวชภัณฑ์ (Instrument):** มีเฉพาะใต้ Order Activity ในตาราง CPOE โหมด "ขยาย" → ส่วน ICD9 / Instrument (ไม่อยู่ใน `.ant-card` เสมอ) · combobox หาด้วย `getByText('Instrument',{exact:true})` → `xpath=following::input[@role="combobox"][1]` (อย่าใช้ placeholder `ค้นหา` — ชนช่อง Order Search) · พิมพ์ ≥ 2 ตัวอักษร (พิมพ์รหัส) · เลือกแล้ว `UpsertInstrumentChargeItem` ทันที · แถวรวมค่าใช้จ่ายเพิ่ม `INSTRUMENT/MED SUPPLY`
 - ยกเลิกรายการใน CPOE: ปุ่ม `ยกเลิก` ของแถว → popconfirm `ยืนยัน` (`cancelOpdMedicationRequestById`) · ปุ่มบันทึกของฟอร์มแก้ไข: `locator('button').filter({hasText:/^\s*บันทึก\s*$/})`
 - **Claim OPD สิทธิ UC บน dev-x เป็น exportType FDH** → อยู่หน้า `/cortex/claim/opd-fdh-list` (ไม่ใช่ `opd-eclaim-list`) · ค้นด้วยช่อง `ค้นหา VN` · คอลัมน์ Total Credit · แถวไม่มีปุ่มในคอลัมน์ จัดการ · API อ่านอย่างเดียว `GET /generated-emr-api/claims?filter[vn][equals]=` (`totalCredit` · `credits[{credit, productCategoryCode}]`) — Claim เกิดตอนปิด Visit
+
+### SBH Dev — ชื่อแท็บห้องยาใหม่ (29 ต.ค. 2026)
+
+- แท็บจัดรายการสั่งยา: `Order รอยืนยัน` · `ใบยารอจัด` · `ใบยาจัดแล้ว` · **`ใบยารอจ่าย`** (เดิม `ใบรอจ่าย`) · **`ใบยาจ่ายแล้ว`** (เดิม `จ่ายยาแล้ว`) · `ยกเลิกใบยา` · `ยาไปรษณีย์` · `Order เติมยา`
+- `dispensePrescription()` ใน bizsim-opd.ts ยังใช้ชื่อเดิม → บน SBH Dev หาแท็บไม่เจอ (คำสั่ง pack / verify / dispense ยังสำเร็จ 204) · `SBH-Dev-OPD-flow.spec.ts` ใช้ `/ใบ(ยา)?รอจ่าย/` + `/จ่าย(ยา)?แล้ว/` รับทั้ง 2 แบบ

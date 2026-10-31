@@ -10,7 +10,7 @@ import { envName } from '../utils/env';
 // locator ตรวจกับหน้าจอ dev-x v2.2.4 เมื่อ 3 ต.ค. 2026 (ขั้นที่ยังไม่ได้ตรวจบน SBH Prod มีหมายเหตุกำกับ)
 
 /** ระบบที่กำลังรัน: 'dev-x' (npm run mock:uat-er:dev) หรือ 'sbh-prod' (npm run mock:uat-er) */
-export const SYSTEM = (envName() ?? 'dev-x') as 'dev-x' | 'sbh-prod';
+export const SYSTEM = (envName() ?? 'dev-x') as 'dev-x' | 'sbh-prod' | 'sbh-dev'; // sbh-dev = clone ของ Prod → ที่เช็ก `SYSTEM === 'dev-x'` ได้ค่าชุดของ Prod
 
 /** สิทธิที่ใช้เปิด Visit ER ให้ผู้ป่วย Mock (ชื่อเต็มตามตัวเลือกใน modal เปิด Visit — เหมือนกันทั้ง 2 ระบบ) */
 // env MOCK_COVERAGE เปลี่ยนสิทธิได้ เช่น 'H35 - UC ER คุณภาพ' (ชื่อเต็มตามตัวเลือกใน modal บน SBH Prod)
@@ -24,7 +24,7 @@ export const SETTINGS: { labCode: string; imagingCode: string; extraCodes: strin
   'dev-x': { labCode: 'SBHLAB399', imagingCode: 'SBHIMG1', extraCodes: [], opdDoctor: { search: 'ทดสอบ', name: /ทดสอบ มานะ/ } },
   // แพทย์ของ Visit OPD ราย D: "ดร. วิชัย รัตน์ เอื้อเฟื้อ" (ผู้ใช้กำหนด 3 ต.ค. 2026 — คือบัญชี user1 ที่ใช้เล่น UAT)
   'sbh-prod': { labCode: 'LAB0000001', imagingCode: 'IMG0000194', extraCodes: ['IMG0000420'], opdDoctor: { search: 'วิชัย', name: /วิชัย.*เอื้อเฟื้อ/ } },
-}[SYSTEM];
+}[SYSTEM === 'dev-x' ? 'dev-x' : 'sbh-prod']; // sbh-dev ใช้รหัส / แพทย์ชุดของ Prod
 
 /** คลินิกของ Visit OPD ราย D: แผนกอายุรกรรม (R31 ข้อ 5.2) — ค้นด้วยคำนี้แล้วเลือกตัวที่ขึ้นต้น "MED - " ถ้ามี */
 const OPD_CLINIC = { search: 'อายุรกรรม', prefer: /^MED - / };

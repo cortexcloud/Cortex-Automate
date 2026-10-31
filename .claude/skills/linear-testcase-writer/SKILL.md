@@ -21,8 +21,9 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
 2. วิเคราะห์ requirement ตาม **Generation rules**
 3. Resolve ค่าตาม **Resolve test attributes**
 4. สร้างโครงตาม **Naming rules**, **Body rules**, **Label rules**
-5. รัน **Final consistency check** ก่อนส่งคำตอบทุกครั้ง
-6. ทำตาม **Creation behavior** — อย่าสร้างอะไรจริงจนกว่าจะได้รับการยืนยันชัดเจน
+5. ทำ **ตารางสรุป Test Case** (TC + Expected Result) ตามหัวข้อด้านล่าง
+6. รัน **Final consistency check** ก่อนส่งคำตอบทุกครั้ง
+7. ทำตาม **Creation behavior** — อย่าสร้างอะไรจริงจนกว่าจะได้รับการยืนยันชัดเจน
 
 ## กฎทั่วไป (บังคับ)
 
@@ -273,6 +274,23 @@ Actual Result
 
 Use plain text only for TC ID and Scenario ID.
 
+## ตารางสรุป Test Case
+
+ทุกครั้งที่ส่งร่าง EXE / Scenario / Test Case ให้ผู้ใช้ review ต้องมีตารางสรุป Test Case **ทุกข้อ** พร้อม Expected Result
+ทั้งในไฟล์ร่างและในคำตอบแชท
+
+```
+| TC | Scenario | ชื่อ Test Case | Expected Result |
+|---|---|---|---|
+| 001 | HPY | <ชื่อ Test Case> | <Expected Result> |
+```
+
+- 1 แถว = 1 Test Case เรียงตามเลข TC ครบทุกข้อ ห้ามตัดหรือรวมแถว
+- คอลัมน์ TC ใส่เลข 3 หลัก · คอลัมน์ Scenario ใส่ Suffix (`HPY` / `UHP` / `EDG` / `ERR`)
+- Expected Result คัดจาก Expected Result ของ TC นั้น ย่อได้แต่ห้ามเปลี่ยนความหมาย · หลายข้อคั่นด้วย ` · `
+- ในไฟล์ร่าง: วางตารางนี้ก่อน body เต็มของ EXE · ในแชท: ใช้ตารางนี้สรุป TC แทนการเขียนเป็นรายการ
+- ตารางนี้ไม่แทน body เต็ม — body เต็มของทุก TC ยังต้องอยู่ในไฟล์ร่างให้ review
+
 ## Final consistency check (เช็คก่อนตอบทุกครั้ง)
 
 - titles ตรงรูปแบบที่กำหนดเป๊ะ
@@ -288,6 +306,7 @@ Use plain text only for TC ID and Scenario ID.
 - Test Case แบบ Optional technical/Unit ที่ไม่ได้รัน ต้องเป็นสถานะ `Not Test` และไม่มี label `QA Execution Type`
 - TC ที่ได้จากเทคนิค ISTQB: มีชื่อเทคนิคใน "หมายเหตุ" · ค่าขอบ / เงื่อนไขมาจากการ์ดหรือแอปจริง ไม่มีค่าที่แต่งเอง
 - ช่องใน Decision Table ที่การ์ดไม่ตอบ ถูกรายงานเป็น requirement gap แล้ว ไม่ใช่ TC
+- มีตารางสรุป Test Case ครบทุกข้อ และ Expected Result ในตารางตรงกับ body ของ TC
 
 ถ้าเจอจุดไม่ตรง ให้แก้ก่อนส่งคำตอบ
 
@@ -303,6 +322,8 @@ Use plain text only for TC ID and Scenario ID.
 ## Skill update log
 
 หลังแก้สกิลนี้สำเร็จทุกครั้ง เพิ่ม entry ใหม่ไว้บนสุดของ log นี้ รูปแบบ `YYYY-MM-DD` — สรุปสั้นๆ ว่าแก้กฎ/ขั้นตอนไหน แล้วแจ้งผู้ใช้ด้วยวันที่ + สรุปที่แก้ ห้ามบอกว่าอัปเดตแล้วถ้ายังไม่ได้ save จริง
+
+`2026-10-29` — เพิ่มหัวข้อ "ตารางสรุป Test Case" (TC | Scenario | ชื่อ Test Case | Expected Result) ต้องมีทุกครั้งที่ส่งร่าง ทั้งในไฟล์ร่างและในแชท · เพิ่ม 1 ข้อใน Final consistency check
 
 `2026-10-14` — เพิ่มหัวข้อ "เทคนิคออกแบบ Test Case (ISTQB black-box)" + เช็กลิสต์วันที่/เวลา (ปรับจากสกิล ISTQB Test Design Techniques และ Timezone Bug Hunter บน qaskills.sh, MIT) · เพิ่ม 2 ข้อใน Final consistency check · สร้างไฟล์ global `~/.claude/skills/linear-testcase-writer/SKILL.md` ที่ยังไม่มีในเครื่อง ให้เหมือนกับไฟล์นี้ทุกตัวอักษร
 

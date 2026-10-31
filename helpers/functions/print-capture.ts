@@ -1,6 +1,8 @@
 import { expect, type Browser, type Locator, type Page } from '@playwright/test';
+import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import zlib from 'node:zlib';
 import { cacheAppAssets } from '../../mock-data/fixtures';
 import { getCredentials } from '../../utils/env';
 import { loadPdfJs } from './er-badge';
@@ -36,6 +38,84 @@ export async function capturePrintJobs(page: Page) {
     return undefined;
   };
   return { jobs, next };
+}
+
+// ---------- จับเอกสารจาก response ของ API Generate (ผู้ใช้สอน 29 ต.ค. 2026) ----------
+// "เคสพิมพ์บัตรคิวหรือเอกสารให้จับจาก API Generate แล้ว Copy Response ไปวางในลิงค์จะได้ไฟล์คิวมา"
+// ตรวจบน SBH Dev 29 ต.ค. 2026: แอปขอไฟล์จาก API ก่อน แล้วค่อยส่งต่อให้ print agent — response = ไฟล์จริง
+//   POST /cortex-api/queues/print            {queueFifoIds}  → zip "queue.zip" ข้างในเป็น queue-1.pdf (บัตรคิวการเงิน / ห้องยา ตอนจำหน่าย)
+//   POST /cortex-api/queues/print-slips      {queueExamIds}  → zip "queue_slips.zip" → queue_slip_1.pdf (บัตรคิวห้องตรวจ ตอนเช็คอิน)
+//   POST /cortex-api/encounters/navigation-slips/print {ens} → zip "navigation_slips.zip" → navigation_slip-1.pdf (ใบนำทาง)
+//   POST /cortex-api/receipts/<เลข>/physical-print          → text/plain คำสั่งเครื่องพิมพ์ dot-matrix (ESC/P) ไม่ใช่ PDF
+//   POST /cortex-api/documents/generate      (บัตรนัด default_appointment_slip) → SBH Dev / Prod 404 ReportNotFound
+//   POST …/pdf (เช่น ป้ายปลายเตียง R18)                      → application/pdf ตรงๆ
+
+/** API ที่สร้างไฟล์เอกสาร / บัตรคิว (POST) */
+export const DOCUMENT_API = /\/cortex-api\/(queues\/print(-slips)?|encounters\/navigation-slips\/print|documents\/generate|reports\/generate|receipts\/[^/]+\/physical-print|.+\/pdf)$/;
+
+export interface GeneratedDoc {
+  /** path ของ API เช่น /cortex-api/queues/print */
+  api: string;
+  status: number;
+  /** body ที่แอปส่งไป (JSON) เช่น {queueFifoIds:[4934]} */
+  request: string;
+  /** ไฟล์ใน response — zip แตกเป็นไฟล์ข้างใน · PDF / ข้อความ = 1 ไฟล์ · error = ว่าง */
+  files: { name: string; data: Buffer }[];
+  /** response ไม่ใช่ 2xx: "404 {...}" */
+  error?: string;
+  at: number;
+}
+
+/** แตกไฟล์ zip (stored / deflate) ด้วย zlib ของ Node — ไม่ต้องลง package เพิ่ม */
+export function unzipFiles(zip: Buffer): { name: string; data: Buffer }[] {
+  const eocd = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  if (eocd < 0) throw new Error('response ไม่ใช่ไฟล์ zip');
+  const files: { name: string; data: Buffer }[] = [];
+  let p = zip.readUInt32LE(eocd + 16);
+  for (let i = 0, count = zip.readUInt16LE(eocd + 10); i < count; i++) {
+    const method = zip.readUInt16LE(p + 10);
+    const size = zip.readUInt32LE(p + 20);
+    const [nameLen, extraLen, commentLen] = [zip.readUInt16LE(p + 28), zip.readUInt16LE(p + 30), zip.readUInt16LE(p + 32)];
+    const local = zip.readUInt32LE(p + 42);
+    const name = zip.subarray(p + 46, p + 46 + nameLen).toString('utf8');
+    const start = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+    const raw = zip.subarray(start, start + size);
+    files.push({ name, data: method === 8 ? zlib.inflateRawSync(raw) : Buffer.from(raw) });
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return files;
+}
+
+/**
+ * เริ่มเก็บเอกสารที่ API Generate ตอบกลับของหน้านี้ (บัตรคิว / ใบนำทาง / ใบเสร็จ / PDF) — ใช้คู่หรือแทน capturePrintJobs ได้
+ * ไฟล์ที่ได้บันทึกลงโฟลเดอร์ผลของเทส `docs/` ด้วย (เปิดดูเองได้) · อ่านข้อความ PDF ด้วย pdfPages() · แสดงบนจอเป็นหลักฐานด้วย showPdf()
+ */
+export function captureGeneratedDocs(page: Page) {
+  const docs: GeneratedDoc[] = [];
+  page.on('response', async (res) => {
+    const api = new URL(res.url()).pathname;
+    if (res.request().method() !== 'POST' || !DOCUMENT_API.test(api)) return;
+    const body = await res.body().catch(() => Buffer.alloc(0));
+    const type = res.headers()['content-type'] ?? '';
+    const doc: GeneratedDoc = { api, status: res.status(), request: res.request().postData() ?? '', files: [], at: Date.now() };
+    if (!res.ok()) doc.error = `${res.status()} ${body.toString('utf8').slice(0, 200)}`;
+    else if (/zip/.test(type) || body.subarray(0, 2).toString() === 'PK') doc.files = unzipFiles(body);
+    else doc.files = [{ name: /pdf/.test(type) ? 'document.pdf' : 'document.txt', data: body }];
+    const dir = test.info().outputPath('docs');
+    fs.mkdirSync(dir, { recursive: true });
+    // นับต่อจากไฟล์ที่มีในโฟลเดอร์ (หลายหน้าต่างเขียนโฟลเดอร์เดียวกัน เช่น หน้าหลัก + Nurse) กันชื่อซ้ำทับกัน
+    for (const file of doc.files) {
+      const n = String(fs.readdirSync(dir).length + 1).padStart(2, '0');
+      fs.writeFileSync(path.join(dir, `${n} ${file.name}`), file.data);
+    }
+    docs.push(doc);
+  });
+  /** รอเอกสารจาก API ที่ตรง `api` ซึ่งมาหลังเวลา `since` (Date.now() ก่อนกดปุ่มพิมพ์) */
+  const next = async (api: RegExp, since: number, timeout = 30_000): Promise<GeneratedDoc> => {
+    await expect.poll(() => docs.some((d) => api.test(d.api) && d.at >= since), { message: `รอเอกสารจาก ${api.source}`, timeout }).toBe(true);
+    return docs.filter((d) => api.test(d.api) && d.at >= since).at(-1)!;
+  };
+  return { docs, next };
 }
 
 let pdfjsNode: Promise<any> | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any

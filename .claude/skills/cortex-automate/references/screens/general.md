@@ -100,3 +100,21 @@
 - `.claude\skills\er-run-test\SKILL.md` — flow ER ทีละขั้น + บั๊กที่รู้แล้ว · `.claude\skills\er-testing\SKILL.md` — โดเมน ER / การ์ด
 - `playbooks\01-open-visit.md` — เปิด Visit OPD · `playbooks\99-test-data.md` — คนไข้ทดสอบ (ค้นชื่อ "Jame")
 - สกิล `cortex-db-query` ต่อ **prod_cortex** (read-only) ไม่ใช่ dev-x → ใช้เช็คผลเทส automate ไม่ได้
+
+### SBH Dev (`https://cortex-dev.srbrhospital.com` — ตรวจ 29 ต.ค. 2026 · R76)
+
+- clone ข้อมูล + user มาจาก **SBH Prod** (Smoke Test 29 ต.ค. 2026 · ผู้ใช้ยืนยัน — ตอนแรกแจ้งว่า dev-x) · บัญชีใช้ `.env.sbh-prod` · หน้าเข้า `/cortex/welcome` · แอป `/cortex/apps` เหมือน dev-x
+- `env.js`: `KEYCLOAK_URL = https://id-cortex-dev.srbrhospital.com` · realm `cortex` · client `cortex-ui` — Keycloak คนละตัวกับ dev-x (`id-dev-x.cortexcloud.co`) → session ใช้ร่วมกันไม่ได้ (`.auth/sbh-dev/`)
+- ล็อกอินด้วยบัญชีใน `.env`: Super_User ✓ · Nurse ✓ · Doctor (`phy-1`) ✗ "Invalid username or password" → ใช้ Doctor ของ SBH Prod (`x-physician2` ใน `.env.sbh-dev`) ✓ (หน้า Keycloak หน้าตาเดียวกับ dev-x แต่ selector `#input-error` ไม่จับข้อความนี้ — error ของ setup จึงไม่มีข้อความ Keycloak ต่อท้าย)
+- **Smoke Test 29 ต.ค. 2026 (อ่านอย่างเดียว + สเปก 4 ไฟล์):** ข้อมูล**ไม่ได้มาจาก dev-x** — มีผู้ป่วยของ SBH Prod (HN 6904485 / 6903968 เจอครบ) ไม่มีของ dev-x (6932050 / 6932076 ไม่เจอ) · HN ใหม่ต่อเลข Prod (6904545) · VN รูปแบบ Prod · จำนวน: ผู้ป่วย 2,323 (dev-x 23,960) · Visit 4,141 (307,508) · แพทย์ 1,993 (248) · คลินิก 232 (40) · เตียง 2 (148) · Ward 1 (4) · ไม่มีเมนู "คลัง"
+- เปิดทุกแอปในเมนูได้ (24 แอป) — รับ Refer เข้า MOPH 503 (dev-x 502 เหมือนกัน)
+- **`GET /cortex-api/er/encounters/<EN>` + `er/clinical-acknowledgements?en=` ตอบ 500 ทุก Visit ER** ("Failed to get ER encounter") → หน้า ER ของผู้ป่วยว่าง ฟอร์ม Triage ไม่ขึ้น (SBH-1013 / SBH-2373 พังที่แท็บ Triage)
+- ลงทะเบียนผู้ป่วยใหม่ + เปิด Visit ER ได้ · ผู้ป่วยที่สร้างแสดงอายุ "579 ปี" (วันเกิด 1990 ถูกอ่านเป็น พ.ศ.) — ยังไม่ได้เทียบ dev-x
+- Visit Walk-in OPD "รับยาต่อเนื่อง (Refill)" ไปอยู่แท็บ "คำขอ Walk-in" (SBH-1717 ขั้น TC-001 — สเปกเขียนตาม dev-x · บน Prod Walk-in ก็เข้าแท็บคำขอเหมือนกัน (WLK001 22 ต.ค.) จึงไม่ใช่บั๊ก) · SBH-2085 ไม่มีค่า SETTINGS ของ sbh-dev ในสเปก
+- ข้อมูลที่เทสทิ้งไว้: ผู้ป่วย AUTO 4 ราย (เช่น HN 6904545 · 6904549) + Visit ER / OPD ค้าง
+- **OPD ครบวง (BizSim APM-OPD-001 · 29 ต.ค. 2026 · ผู้ป่วย UAT BIZSIM-APM001-08 HN 6904550 · V6910294196 / E6910294757):** ลงทะเบียน ✓ · สร้างนัด ✓ (บัตรนัดอัตโนมัติ 404 ReportNotFound = บั๊กเดียวกับ Prod) · **เปิด Visit ตามนัด: Encounter ค้าง `pending-check-in` · `queueExamId` null · ไม่มีเลขคิวห้องตรวจ** — Visit นัดของ Prod ที่ติดมาใน clone (คลินิก 412 · 22–23 ต.ค. รวมรอบ 22:32) มี `queueExamId` ทุกตัว + `completed` → พฤติกรรมต่างจาก Prod · ขั้นที่เหลือ (คัดกรอง → แพทย์ → ยา → จำหน่าย → การเงิน → ปิด Visit) Block — ยังไม่ได้ทดสอบ
+- เทคนิค: เช็กพฤติกรรม Prod โดยไม่แตะ Prod = อ่านข้อมูลของ Prod ที่ติดมาใน clone (`/generated-emr-api/encounters?filter[en][equals]=<EN>`)
+- **OPD ครบวงด้วยสคริปต์แยก `SBH-Dev-OPD-flow.spec.ts` (29 ต.ค. 2026 · ผู้ป่วยล่าสุด UAT BIZSIM-SBHDEV001-04 HN 6904555):** เช็คอินเองแล้วเล่นได้ครบจนปิด Visit (`completed`) — คัดกรอง · OPD Note · Home med · จำหน่าย · ใบยา · ปิดสิทธิ UC + ชำระเงินสด · จัด / จ่ายยา ผ่านหมด
+  - **บัตรคิวพบแพทย์ตอนเช็คอินจากรายการผู้ป่วยนอก** (`queues/print-slips` → `queue_slip_1.pdf`) แสดง **"null"** แทนเลขคิว + หัวข้อทุกช่อง (รายการแสดง MED452 แต่บัตรเป็น null) · บน Prod บัตรคิวพบแพทย์มาจาก `queues/print` ตอนเปิด Visit (มีเลข MED170) — ยังไม่ได้เทียบ print-slips บน Prod
+  - บัตรคิวการเงิน / ห้องยา ตอนจำหน่าย (`queues/print`) + ใบนำทาง (`navigation-slips/print`) ข้อมูลครบ · บัตรนัดอัตโนมัติ 404 ReportNotFound เหมือน Prod
+  - ห้องยา: แท็บชื่อใหม่ (screens/pharmacy-refill.md)

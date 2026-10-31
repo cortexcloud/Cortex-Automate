@@ -128,7 +128,7 @@ export function erTriageLevel(page: Page, level: number): Locator {
  * กรอกฟอร์มคัดกรองแบบใหม่ (ยังไม่บันทึก): สัญญาณชีพ + Pain score · Chief Complaint ปุ่มแรก (`chiefComplaint: false` = ไม่กด — คัดกรองซ้ำมีค่าเดิมมาให้) ·
  * GCS E4 V5 M6 · ระดับความเร่งด่วน
  */
-export async function fillErTriageForm(page: Page, input: { level: 1 | 2 | 3 | 4; vitals: VitalSigns; chiefComplaint?: boolean }) {
+export async function fillErTriageForm(page: Page, input: { level: 1 | 2 | 3 | 4 | 5; vitals: VitalSigns; chiefComplaint?: boolean }) {
   const panel = erTriagePanel(page);
   await expect(panel.getByRole('spinbutton', { name: 'Systolic' }).first(), 'ฟอร์มคัดกรองต้องโหลดเสร็จ').toBeVisible({ timeout: 90_000 });
   const v = input.vitals;
