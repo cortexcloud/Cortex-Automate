@@ -86,6 +86,7 @@ description: ขั้นตอนทำรอบ Regression ของ Cortex HI
    - config: `playwright.sbh-prod.regression.config.ts` = `buildConfig({ env: 'sbh-prod', testDir: './tests/regression' })` · import `test` จาก `mock-data/fixtures` (กันไฟล์แอปโหลดไม่ผ่านบน Prod) · กัน config dev-x ไม่ให้เก็บ `tests/regression` ไปรันด้วย (`testIgnore`)
    - **อย่าตั้งโฟลเดอร์ `regression/` ที่ราก** — Windows ไม่แยกตัวพิมพ์ จะชนกับ `Regression/` ที่เก็บไฟล์ Excel
    - คลิป 1 ไฟล์ต่อ 1 Scenario (`startClip(page, 'SMK-OPD-001')` — แนวเดียวกับ R61) · ภาพ `checkStep` / `snapEvidence` ทุก Expected (กรอบห้ามบัง Expected — R59)
+   - หลังเก็บหลักฐานแต่ละรอบ เรียก Sub Agent `cortex-evidence-checker` ตรวจภาพ + คลิปทั้งชุดก่อนลงผล / แนบ (R86) แล้วเปิดดูเองใบที่ Agent บอกก้ำกึ่ง / ไม่ผ่าน
 4. ของที่ใช้ซ้ำได้แล้ว (ตรวจชื่อจริงก่อนใช้):
 
    | Scenario | helper ที่มี |

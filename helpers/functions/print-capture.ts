@@ -163,11 +163,14 @@ export function thaiShortDate(be: string): string {
 /**
  * วาดหน้า `pageNo` ของ PDF ซ้อนครึ่งขวาของจอ (ภาพหลักฐาน / คลิปเห็นเอกสารที่ถูกส่งไปพิมพ์) — กล่องบอกชัดว่าเป็นภาพที่สคริปต์เปิด
  * แต่ละบรรทัดมีกรอบโปร่งใส `[data-pdf-line]` (title = ข้อความ) ไว้ตีกรอบแดงด้วย pdfLine() · ลบด้วย hidePdf()
+ * `fit: 'height'` = ย่อให้ทั้งหน้าพอดีความสูงจอ (เอกสารแคบยาว เช่น บัตรคิว — ส่วนท้ายใบไม่ถูกตัด · SBH-2785) · ตีกรอบพื้นที่ใดๆ บนหน้าด้วย pdfBox()
+ * `textLayer: true` = ใส่ข้อความโปร่งใสในกรอบของแต่ละบรรทัด → ป้ายของ markEvidence หลบตัวอักษรบน PDF ได้ (ภาพ PDF เป็น canvas ป้ายมองไม่เห็นตัวอักษร)
+ *   ไม่ใช่ค่าตั้งต้น เพราะ getByText ของหน้าจะเจอข้อความเหล่านี้ด้วยระหว่างที่ PDF เปิดอยู่
  */
-export async function showPdf(page: Page, pdf: Buffer, caption: string, pageNo = 1): Promise<Locator> {
+export async function showPdf(page: Page, pdf: Buffer, caption: string, pageNo = 1, options: { fit?: 'width' | 'height'; textLayer?: boolean } = {}): Promise<Locator> {
   await loadPdfJs(page);
   await page.evaluate(
-    async ({ base64, caption, pageNo }) => {
+    async ({ base64, caption, pageNo, fit, textLayer }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pdfjs = (globalThis as any).__pdfjs;
       const data = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
@@ -175,7 +178,7 @@ export async function showPdf(page: Page, pdf: Buffer, caption: string, pageNo =
       const pdfPage = await doc.getPage(pageNo);
       const flat = pdfPage.getViewport({ scale: 1 });
       // ขยายเต็มความกว้างครึ่งจอ (A4 ทั้งหน้าในความสูงจอตัวเล็กเกินอ่าน) — ส่วนล่างของหน้าที่เกินจอถูกตัด (หัวเอกสาร + รอบเติมยาอยู่ครึ่งบน)
-      const scale = (window.innerWidth / 2 - 40) / flat.width;
+      const scale = fit === 'height' ? (window.innerHeight - 72 - 70) / flat.height : (window.innerWidth / 2 - 40) / flat.width;
       const viewport = pdfPage.getViewport({ scale });
       document.querySelector('[data-pdf-overlay]')?.remove();
       const overlay = document.createElement('div');
@@ -193,6 +196,7 @@ export async function showPdf(page: Page, pdf: Buffer, caption: string, pageNo =
       Object.assign(sub.style, { color: '#666', fontSize: '12px', marginBottom: '4px' });
       const sheet = document.createElement('div');
       sheet.setAttribute('data-pdf-page', '');
+      sheet.dataset.scale = String(scale);
       Object.assign(sheet.style, { position: 'relative', width: `${viewport.width}px`, height: `${viewport.height}px`, border: '1px solid #999' });
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(viewport.width * 2);
@@ -223,13 +227,17 @@ export async function showPdf(page: Page, pdf: Buffer, caption: string, pageNo =
         box.setAttribute('data-pdf-line', String(i));
         box.title = l.text.replace(/\s+/g, ' ').trim();
         Object.assign(box.style, { position: 'absolute', left: `${l.x * scale - 2}px`, top: `${(l.base - l.size * 0.85) * scale}px`, width: `${l.width * scale + 4}px`, height: `${l.size * 1.15 * scale}px` });
+        if (textLayer) {
+          box.textContent = box.title;
+          Object.assign(box.style, { color: 'transparent', fontSize: `${l.size * scale * 0.9}px`, lineHeight: `${l.size * 1.15 * scale}px`, whiteSpace: 'nowrap', overflow: 'hidden', userSelect: 'none' });
+        }
         sheet.appendChild(box);
       });
       overlay.append(head, sub, sheet);
       document.body.appendChild(overlay);
       await pdfPage.render({ canvas, canvasContext: canvas.getContext('2d'), viewport: pdfPage.getViewport({ scale: scale * 2 }) }).promise;
     },
-    { base64: pdf.toString('base64'), caption, pageNo },
+    { base64: pdf.toString('base64'), caption, pageNo, fit: options.fit ?? 'width', textLayer: options.textLayer ?? false },
   );
   const overlay = page.locator('[data-pdf-overlay]');
   await expect(overlay).toBeVisible();
@@ -244,6 +252,30 @@ export async function pdfLineAt(overlay: Locator, text: string | RegExp, nth = 0
     { source, nth },
   );
   return idx >= 0 ? overlay.locator(`[data-pdf-line="${idx}"]`) : undefined;
+}
+
+/**
+ * กรอบโปร่งใสบนหน้า PDF ที่ showPdf() วาด ตามพื้นที่ `box` (หน่วย point ของหน้า · มุมซ้ายบน · y ลง — เช่น `box` ของ readPdfLayout())
+ * ไว้ตีกรอบแดงสิ่งที่ไม่ใช่บรรทัดข้อความ (Barcode / ภาพ) · `pad` = ขยายรอบนอก (point)
+ */
+export async function pdfBox(overlay: Locator, box: { x: number; y: number; width: number; height: number }, name: string, pad = 2): Promise<Locator> {
+  await overlay.locator('[data-pdf-page]').evaluate(
+    (sheet, { box, name, pad }) => {
+      const scale = Number((sheet as HTMLElement).dataset.scale);
+      const el = document.createElement('span');
+      el.setAttribute('data-pdf-box', name);
+      Object.assign(el.style, {
+        position: 'absolute',
+        left: `${(box.x - pad) * scale}px`,
+        top: `${(box.y - pad) * scale}px`,
+        width: `${(box.width + pad * 2) * scale}px`,
+        height: `${(box.height + pad * 2) * scale}px`,
+      });
+      sheet.appendChild(el);
+    },
+    { box, name, pad },
+  );
+  return overlay.locator(`[data-pdf-box="${name}"]`);
 }
 
 export async function hidePdf(page: Page) {

@@ -976,6 +976,92 @@ Test Type: UIUX
 
 ---
 
+## TC เพิ่ม (31 ต.ค. 2026 · ผู้ใช้ review แล้วพิมพ์ "สร้างได้" → สร้างใน Linear แล้ว: 036 = SBH-3450 · 037 = SBH-3451 · 038 = SBH-3452 · สร้างโดยบัญชี Suchat)
+
+> ที่มา: ตอนตรวจความครอบคลุมก่อนทดสอบบน dev-x (สกิล cortex-card-test ขั้น 2) พบ AC 2 ข้อที่ยังไม่มี TC → ผู้ใช้เลือก "ร่าง TC เพิ่มให้ review ก่อน" (decisions R80)
+> - AC "แต่ละส่วนมีปุ่มเพิ่มของตัวเองและพับ/ขยายได้" → มีแค่ TC-004 (Note แพทย์) → เพิ่ม 036 (Note พยาบาล)
+> - AC "เลือกหลายแถวแล้วสั่งพร้อมกันได้" → มีแค่ TC-017 (รับ Order) → เพิ่ม 037 (ให้ยาแล้ว) · 038 (ยกเลิก Order)
+> - ทั้ง 3 ใบอยู่ใต้ TS-SBH-2593-HPY (SBH-3204) · เลขต่อจาก 035 · ค่าอื่นเหมือนชุดเดิม (Not Run · Assignee Suchat · milestone ER - เก็บตก, edge case)
+
+| TC | Scenario | ชื่อ Test Case | Expected Result |
+|---|---|---|---|
+| 036 | HPY | ทดสอบพับและขยายส่วน Note พยาบาล | กดพับแล้วส่วน Note พยาบาลพับลง ไม่แสดงรายการ Note · กดขยายแล้วกลับมาแสดงรายการ Note ครบ |
+| 037 | HPY | ทดสอบเลือกยาหลายแถวแล้วกดให้ยาแล้วพร้อมกัน | ระบบถามผู้ให้ยาและเวลา · ยา 2 รายการที่เลือกเป็น "ให้ยาแล้ว" · ยาที่ไม่ได้เลือกยังเป็น "กำลังให้ยา" |
+| 038 | HPY | ทดสอบเลือกยาหลายแถวแล้วยกเลิก Order พร้อมกัน | ยา 2 รายการที่เลือกเป็น "ยกเลิก" · ยาที่ไม่ได้เลือกยังเป็น "รอรับ Order" |
+
+### TC-SBH-2593-036 - ทดสอบพับและขยายส่วน Note พยาบาล
+
+Status: Not Run · Priority: Medium · Labels: เหมือน TC-004 (QA Case : Happy + QA Type : UIUX + QA : Manual)
+
+```
+TC ID: TC-SBH-2593-036
+Case Type: Happy
+Test Type: UIUX
+
+## Test Step
+1. ใช้ผู้ป่วย A ที่มี Nurse Focus Note จาก TC-003 > Order Summary
+2. กดพับส่วน Note พยาบาล
+3. กดขยายส่วน Note พยาบาลอีกครั้ง
+
+## Expected Result
+กดพับแล้วส่วน Note พยาบาลพับลง ไม่แสดงรายการ Note
+กดขยายแล้วส่วน Note พยาบาลกลับมาแสดงรายการ Note ครบ
+
+## Test Result : (Env: Dev-X) (Status)
+
+## Test Result : (Env: SBH Prod) (Status)
+```
+
+### TC-SBH-2593-037 - ทดสอบเลือกยาหลายแถวแล้วกดให้ยาแล้วพร้อมกัน
+
+Status: Not Run · Priority: High · Labels: เหมือน TC-017 (QA Case : Happy + QA Type : Functional + QA : Manual)
+
+```
+TC ID: TC-SBH-2593-037
+Case Type: Happy
+Test Type: Functional
+
+## Test Step
+1. ใช้ผู้ป่วย A ที่มียาสถานะ "กำลังให้ยา" อย่างน้อย 3 รายการ
+2. Login ระบบด้วย user พยาบาล ER > Order Summary
+3. ติ๊ก checkbox ยา 2 รายการ > กด ให้ยาแล้ว จากแถบสั่ง
+4. เลือกผู้ให้ยาและเวลา แล้วกดยืนยัน
+
+## Expected Result
+ระบบแสดงหน้าต่างให้ระบุผู้ให้ยาและเวลา
+ยา 2 รายการที่เลือกเปลี่ยนเป็น "ให้ยาแล้ว"
+ยารายการที่ไม่ได้เลือกยังเป็น "กำลังให้ยา"
+
+## Test Result : (Env: Dev-X) (Status)
+
+## Test Result : (Env: SBH Prod) (Status)
+```
+
+### TC-SBH-2593-038 - ทดสอบเลือกยาหลายแถวแล้วยกเลิก Order พร้อมกัน
+
+Status: Not Run · Priority: Medium · Labels: เหมือน TC-017 (QA Case : Happy + QA Type : Functional + QA : Manual)
+
+```
+TC ID: TC-SBH-2593-038
+Case Type: Happy
+Test Type: Functional
+
+## Test Step
+1. ใช้ผู้ป่วย A ที่มียาลงนามแล้วสถานะ "รอรับ Order" อย่างน้อย 3 รายการ
+2. Login ระบบด้วย user พยาบาล ER > Order Summary
+3. ติ๊ก checkbox ยา 2 รายการ > กด ยกเลิก Order จากแถบสั่ง > กดยืนยันยกเลิก
+
+## Expected Result
+ยา 2 รายการที่เลือกเปลี่ยนเป็น "ยกเลิก"
+ยารายการที่ไม่ได้เลือกยังเป็น "รอรับ Order"
+
+## Test Result : (Env: Dev-X) (Status)
+
+## Test Result : (Env: SBH Prod) (Status)
+```
+
+---
+
 ## Requirement gap (ไม่สร้างเป็น TC)
 
 - **Expected behavior**

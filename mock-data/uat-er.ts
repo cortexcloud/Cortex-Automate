@@ -463,7 +463,7 @@ export async function recordDrugAllergy(page: Page, drugSearch = 'paracetamol'):
   await expectOk(res, 'บันทึกประวัติแพ้ยา');
   const body = (await res.json()) as { data?: { createMedicationAllergy?: { compositionUid?: string } }; errors?: { message: string }[] };
   expect(body.data?.createMedicationAllergy?.compositionUid, `บันทึกแพ้ยาไม่สำเร็จ: ${body.errors?.map((e) => e.message).join(' · ')}`).toBeTruthy();
-  await expect(main.locator('div').filter({ hasText: /^แพ้:/ }).last(), 'แถบหัวผู้ป่วยต้องแสดงยาที่แพ้').toContainText(drugPattern);
+  await expect(main.locator('div').filter({ hasText: /^แพ้(ยา)?:/ }).last(), 'แถบหัวผู้ป่วยต้องแสดงยาที่แพ้').toContainText(drugPattern);
   return drugName;
 }
 
