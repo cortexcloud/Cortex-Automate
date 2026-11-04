@@ -34,7 +34,9 @@ import { registerAndOpenErVisit } from '../../../mock-data/uat-er';
 //     · "เรียกแล้ว" หน้าละ 4 ตายตัว · หัว "n คิว" · ป้าย "หน้า X / N" มีเมื่อเกิน 1 หน้า · เปลี่ยนหน้าทุก 15 วินาที
 //   คอลัมน์ "คิว": ปุ่ม "เรียกคิว <เลข>" (ไอคอนลำโพง + เลข) + ปุ่มไอคอน "จบคิว <เลข>" → POST /er/encounters/<EN>/queue-call | queue-complete
 // ข้อมูล (ผู้ใช้ตอบ 31 ต.ค. 2026): ผู้ป่วย AUTO ใหม่ 6 ราย เปิด Visit ER (ไม่คัดกรอง — เลขคิวได้ตั้งแต่เปิด Visit) → ปิด Visit ที่การเงินท้ายเทส
-//   ค่าตั้งค่าข้อความจอคิว: คืน "เปิด + ข้อความ Default" (ตามที่เจอก่อนเทส) ท้ายเทส 1
+//   ค่าตั้งค่าข้อความจอคิว: คืน "เปิด + ข้อความ Default" ท้ายเทส 1 (31 ต.ค. = ค่าที่เจอ · Retest 3 พ.ย. ผู้ใช้เลือก "คืนเป็น Default" แม้เจอข้อความอื่น)
+// Retest 3 พ.ย. 2026 (ตัวแก้ SBH-3606 · ไฟล์แอป index-DyRN9hyS.js · จอ TV chunk index-DKyHEsfV.js): หน้าตั้งค่าอ่านค่าที่บันทึกมาใส่ฟอร์ม · API จอ ?v=2 ส่ง banner
+//   TC-002: ถ้าข้อความที่บันทึกไม่ใช่ Default → บันทึกข้อความ Default ก่อน แล้วโหลดหน้าใหม่ค่อยดูช่อง (ผู้ใช้เลือก 3 พ.ย.)
 // ลำดับเทส 2: TC-007 / 008 → TC-009 (เรียกรายที่ 1) → เรียกต่อจน "เรียกแล้ว" = 4 คิว → TC-011 → อีก 1 ราย = 5 คิว → TC-006 → TC-010 (จบคิวรายที่ 1)
 // หน้าต่าง: เจ้าหน้าที่ (Super_User — R6) + จอ TV แยก (ไม่มี session) · คลิป clip-TC-00x-staff.webm (เจ้าหน้าที่) + clip-TC-00x.webm (จอ TV)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-3117   · เทส 1: --grep @SBH-3462 · เทส 2: --grep @SBH-3471
@@ -50,6 +52,8 @@ const DEFAULT_TEXT = 'ขณะนี้มีผู้ป่วยฉุกเ�
 const CUSTOM_TEXT = 'ทดสอบ SBH3117 แจ้งผู้ป่วย';
 const OLD_TAG = 'กำลังกู้ชีพ · การรักษาอาจล่าช้า';
 const SETTINGS_API = '/cortex-api/er/tv-queue/settings';
+/** ชื่อเมนู: 31 ต.ค. "ตั้งค่าข้อความจอคิว ER" · 3 พ.ย. "ประกาศหน้าจอผู้ป่วย" */
+const SETTINGS_MENU = /^(ตั้งค่าข้อความจอคิว ER|ประกาศหน้าจอผู้ป่วย)$/;
 
 type TvBoardWithBanner = TvBoard & { banner?: { show: boolean; text: string } };
 
@@ -164,7 +168,8 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
         const item = page.getByRole('menuitem', { name: /^(\S+ )?ตั้งค่า$/ }).first();
         if (!(await item.isVisible())) await er.click();
         await expect(item).toBeVisible();
-        const settingsItem = page.getByRole('menuitem', { name: 'ตั้งค่าข้อความจอคิว ER' });
+        // dev-x 3 พ.ย. (index-DyRN9hyS.js) ชื่อเมนูเปลี่ยนเป็น "ประกาศหน้าจอผู้ป่วย" (หัวหน้ายังเป็น "ตั้งค่าข้อความจอคิว ER")
+        const settingsItem = page.getByRole('menuitem', { name: SETTINGS_MENU });
         if (!(await settingsItem.isVisible())) await item.click();
         await expect(settingsItem, 'ใต้ ห้องฉุกเฉิน > ตั้งค่า ต้องมีเมนูตั้งค่าข้อความของจอคิว').toBeVisible();
         menuName = (await settingsItem.innerText()).trim();
@@ -172,7 +177,7 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
         await markEvidence(clicked(item), expected(settingsItem));
       });
       await checkStep(page, `${TC(1)} ขั้น 3 เปิดหน้าตั้งค่าข้อความ — มี Slider Switch และช่องข้อความ`, async () => {
-        await page.getByRole('menuitem', { name: 'ตั้งค่าข้อความจอคิว ER' }).click();
+        await page.getByRole('menuitem', { name: SETTINGS_MENU }).click();
         await expect(page).toHaveURL(/\/setting\/admin\/er-tv-queue/);
         await expect(settingsTitle(page)).toBeVisible({ timeout: 60_000 });
         await expect(bannerSwitch(page)).toBeVisible();
@@ -192,12 +197,27 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
       // ---------- TC-002 ข้อความ Default ----------
       await startClip(page, CLIP(2));
       let shownText = '';
+      const textBeforeTest = before.text;
+      if (before.text !== DEFAULT_TEXT) {
+        // Retest 3 พ.ย.: ก่อนเทสข้อความถูกแก้เป็นค่าอื่น → บันทึก Default ก่อน แล้วโหลดหน้าใหม่ (ผู้ใช้เลือก)
+        await checkStep(page, `${TC(2)} เตรียม: บันทึกข้อความ Default (ก่อนเทสเป็น "${before.text}")`, async () => {
+          await expect(bannerText(page)).toHaveValue(before.text, { timeout: 15_000 });
+          await applySettings({ text: DEFAULT_TEXT, enabled: before.enabled }, 'บันทึกข้อความ Default');
+          await markEvidence(expected(bannerText(page), 'ข้อความ Default'));
+        });
+        await page.reload();
+        await expect(settingsTitle(page)).toBeVisible({ timeout: 60_000 });
+        await expect(bannerText(page)).toBeVisible();
+      }
+      const savedForTc2 = await readSavedSettings(page, authorization);
       await soft(`${TC(2)} ขั้น 3 ช่องข้อความแสดงข้อความ Default`, async () => {
-        await page.waitForTimeout(3_000); // ให้ฟอร์มเติมค่าที่โหลดมา (ถ้ามี)
+        // ให้ฟอร์มเติมค่าที่โหลดมา — รอได้ถึง 10 วินาที
+        await expect.poll(() => bannerText(page).inputValue(), { timeout: 10_000, intervals: [500] }).toBe(DEFAULT_TEXT).catch(() => undefined);
         shownText = await bannerText(page).inputValue();
         const rows: CompareRow[] = [
           { label: 'ข้อความในช่อง', values: [DEFAULT_TEXT, shownText || '(ว่าง)'], same: shownText === DEFAULT_TEXT },
-          { label: 'ค่าที่บันทึกไว้ (API)', values: ['-', `"${before.text}" · enabled ${before.enabled}`], same: true },
+          { label: 'ค่าที่บันทึกไว้ (API)', values: ['-', `"${savedForTc2.text}" · enabled ${savedForTc2.enabled}`], same: true },
+          ...(textBeforeTest !== DEFAULT_TEXT ? [{ label: 'ก่อนเทส', values: ['-', `"${textBeforeTest}" → บันทึก Default แล้วโหลดหน้าใหม่`], same: true }] : []),
         ];
         await showCompareTable(page, `${ISSUE[2]} ข้อความ Default`, ['Expected', 'หน้าจอ'], rows, { side: 'right' });
         // ป้ายต้องบอก Expected + ผลจริง ไม่ใช่เขียนผลจริงต่อท้าย "Expected:" (Sub Agent ทัก 31 ต.ค. — อ่านกลับความหมาย)
@@ -323,7 +343,7 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
         await startClip(page, 'after-test');
         await startClip(tv, 'after-test');
       } finally {
-        // คืนค่าตามที่เจอก่อนเทส: เปิด + ข้อความ Default (ผู้ใช้ตอบ 31 ต.ค. 2026)
+        // คืนค่า เปิด + ข้อความ Default (31 ต.ค. = ค่าที่เจอ · Retest 3 พ.ย. ผู้ใช้เลือก "คืนเป็น Default")
         await hideCompareTable(tv).catch(() => undefined);
         await page.bringToFront();
         const restored = await (async () => {
@@ -331,7 +351,7 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
             await page.goto('/cortex/setting/admin/er-tv-queue');
             await expect(bannerText(page)).toBeVisible({ timeout: 60_000 });
           }
-          await applySettings({ text: before.text || DEFAULT_TEXT, enabled: before.enabled });
+          await applySettings({ text: DEFAULT_TEXT, enabled: true });
           return JSON.stringify(await readSavedSettings(page, authorization));
         })().catch((error: Error) => `คืนค่าไม่สำเร็จ — ${error.message.split('\n')[0]}`);
         note('หลังเทส: คืนค่าตั้งค่าข้อความจอคิว ER', restored);

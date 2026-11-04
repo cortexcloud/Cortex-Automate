@@ -7,6 +7,8 @@
 > - ใส่เฉพาะ TC ที่จะทดสอบจริง · ชื่อ TC ไม่มี `[Required]` นำหน้า · body ของ TC ใช้รูปแบบ SBH-1972
 > - scope ตาม AC ของการ์ดแม่ + validation ปุ่มบันทึก (In Scope) ที่ Sub-Issue SBH-3186 ข้อ 1 ระบุ Expected ไว้ · ตัวเลือก Fast Track ตาม SBH-3187
 
+> แก้ 4 พ.ย. 2026 ตามคำตอบ BA (decisions R117): TC-001 = 6 ตัวเลือกบน dev-x · TC-004 = 9 ตัวเลือก · TC-009 ตรวจที่ ER Summary · TC-010/011/012 Canceled (การดูแลระหว่างนำส่งย้ายไปฟอร์ม ER Physician)
+
 Requirement: SBH-1678 — [ ER ] [ Triage ] Truama-Form
 URL: https://linear.app/cortexcloud/issue/SBH-1678/er-triage-truama-form
 Project: [SBH] ER · Team: SBH Project · Milestone: ER - เก็บตก, edge case · Priority: Urgent · State: Ready for Testing
@@ -126,7 +128,7 @@ Test Type: UIUX
 
 ## Expected Result
 ช่อง Suspect Fast Track Type มีเครื่องหมาย * และค่าเริ่มต้นเป็น Not Suspect Fast Track
-dropdown มี 5 ตัวเลือก: Not Suspect Fast Track · Stroke Fast Track · STEMI / ACS Fast Track · Sepsis Fast Track · Trauma Fast Track
+dropdown มี 6 ตัวเลือก: Not Suspect Fast Track · STEMI · STROKE · SEPSIS · HEAD TRAUMA · TRAUMA WITH SHOCK
 
 ## Test Result : (Env: Dev-X) (Status)
 
@@ -192,7 +194,7 @@ Test Type: UIUX
 
 ## Expected Result
 ช่องผู้นำส่งว่าง แสดง placeholder "เลือกผู้นำส่ง"
-dropdown มี 6 ตัวเลือก: ไม่มีผู้นำส่ง/มาเอง · ตำรวจ/ทหาร · EMS ขึ้นทะเบียน · องค์กรไม่ขึ้นทะเบียน (มูลนิธิ/อาสา) · ญาติ/ผู้พบเห็น/อื่นๆ · ไม่ทราบ
+dropdown มี 9 ตัวเลือก: ไม่มีผู้นำส่ง/มาเอง · ตำรวจ/ทหาร · EMS ขึ้นทะเบียน · องค์กรไม่ขึ้นทะเบียน (มูลนิธิ/อาสา) · ญาติ/ผู้พบเห็น/อื่นๆ · ไม่ทราบ · ไม่มีผู้มาด้วย · ผู้ดูแล · เจ้าหน้าที่ EMS
 
 ## Test Result : (Env: Dev-X) (Status)
 
@@ -290,7 +292,7 @@ Test Type: Functional
 ## Test Result : (Env: SBH Prod) (Status)
 ```
 
-### TC-SBH-1678-009 - บันทึกข้อมูล ER Arrival แบบ EMS แล้วค่าที่บันทึกแสดงครบ
+### TC-SBH-1678-009 - บันทึกข้อมูล ER Arrival แบบ EMS แล้วค่าที่บันทึกแสดงบน ER Summary
 
 Status: Not Run · Priority: High · Labels: เหมือน TC-005
 
@@ -304,11 +306,11 @@ Test Type: Functional
 2. ส่วน ER Arrival: วิธีการมาถึง = EMS · ระดับความเร่งด่วน EMS = ALS · ผู้นำส่ง = EMS ขึ้นทะเบียน (ค่าอัตโนมัติ)
 3. ชื่อผู้นำส่ง, ชื่อหน่วยงาน, มูลนิธิ = "หน่วยกู้ภัยทดสอบ" · ข้อมูลก่อนถึงโรงพยาบาล = "BP 110/70 ระหว่างนำส่ง"
 4. กรอกช่องบังคับที่เหลือ เลือกระดับความเร่งด่วนและโซน แล้วกดบันทึกคัดกรอง
-5. เปิดดูผลคัดกรองที่บันทึก
+5. เปิดหน้า ER Summary ของ Visit นี้
 
 ## Expected Result
 บันทึกคัดกรองสำเร็จ
-ข้อมูล ER Arrival ที่บันทึกแสดงตรงกับที่กรอก: EMS · ALS · EMS ขึ้นทะเบียน · หน่วยกู้ภัยทดสอบ · BP 110/70 ระหว่างนำส่ง
+หน้า ER Summary ส่วนการนำส่งแสดงข้อมูล ER Arrival ตรงกับที่กรอก: EMS · ALS · EMS ขึ้นทะเบียน · หน่วยกู้ภัยทดสอบ · BP 110/70 ระหว่างนำส่ง
 
 ## Test Result : (Env: Dev-X) (Status)
 

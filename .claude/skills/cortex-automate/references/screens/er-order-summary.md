@@ -36,8 +36,21 @@
 - ส่วนของ AN: ตัวเลือก สรุปรายวัน / สรุป Admission / Sign All / Show Inactive / แสดงแบบแท็บ · คอลัมน์ Note แบบ ER · ORDER FOR ONE DAY แถบ `รับไว้รักษา: … วันที่รับเข้าเตียง: - วันที่สร้าง AN: … PDx: K30 - Functional dyspepsia` + "Admit Ward … สั่งโดย …"
 - หอผู้ป่วย `/cortex/next/patients/<HN>?an=<AN>&fromApp=ipd` แผง IPD Summary ตั้งต้น "แสดงแบบฟิลเตอร์" (มีแถบรับไว้รักษาเดิม) · "แสดงแบบแท็บ" = Note มี dropdown `แพทย์` / พยาบาล · ไม่มีแถบรับไว้รักษา
 
+- **ปุ่ม `+` ท้ายหัว ORDER FOR CONTINUE** (context ER `fromApp=er` ผู้ป่วยมี AN รอเตียง · dev-x 4 พ.ย. 2026): เปิดหน้าต่างลอย `Physician Order` (ประเภท `One Day Order` / `Continue Order` · ค้นหา · ตะกร้า · ปุ่ม `บันทึก` หัวหน้าต่าง) — **บันทึกไม่ได้ทุกแบบ** toast "บริบทของคำสั่งยาไม่ถูกต้อง" (`upsertIpdOrder` → ErrMedicationOrderInvalidContext · ส่ง encounterEn = EN ER) = บั๊ก SBH-3884 · สั่งบน AN ให้ใช้ context IPD (`ipdContinueOrder` ใน helpers/functions/ipd-admit.ts) · เมนูขวา context ER ไม่มี `Physician Order` มีแค่ `One Day Order` (แผง Order แบบ OPD) · หัตถการในหน้าต่างนี้ปุ่มชื่อ `เพิ่มลงตะกร้า` (ยา = `เพิ่มออเดอร์`) · ยาที่กด `เพิ่มออเดอร์` เร็วก่อนวิธีใช้สร้างเสร็จ ขึ้น toast "กรุณาระบุวิธีใช้งาน" (รอ ~2.5 วิ หลังกรอกขนาดยา) · ยาซ้ำกับที่สั่งบน AN แล้ว เด้ง `Drug Alert` ต้องกรอก `ระบุเหตุผล` → `ยืนยันการสั่งออเดอร์`
+
 **OPD (ไม่กระทบ)**
 - ไม่มีเมนูขวาชื่อ Order Summary · เมนู `คำสั่งการรักษา` + สวิตช์ `ดูรวม` (`[class*="_opd-summary-version-switch_"] [role=switch]`) V2 (checked) = Order Form · V1 = แบบ Order Summary (คอลัมน์ ลงนาม · การ์ด ICD9-CM "ไม่มีข้อมูล" + Add ICD9-CM · Instrument) — ทั้ง 2 แบบไม่มีปุ่มงานพยาบาล · สลับแล้วคืนค่าเดิม
 - ผู้ป่วย OPD ใช้อ่าน: AUTO MockOrder1022140821 HN 6932050 · V69102227565 · E69102232339 (med0000008 + ECG + Lab + X-ray ส่งคำสั่งแล้ว)
 
 **ผู้ป่วยสำรวจ 31 ต.ค. (AUTO · ทิ้งไว้ R11)**: Os2593X HN 6932341 (Disposition With Approval ลงนามแล้ว · ใบยา 691031-01001) · Os2593Y HN 6932352 (AN 6903027 แบบไม่ผูก + Admit Request ค้าง · Disposition รับไว้รักษาต่อIPD) · Os2593Z HN 6932356 (AN 6903029 ผูก ER · เตียง SBH009)
+
+### SBH-2265 ปุ่มเมนู "พิมพ์บัตรคิวและใบนำทาง ER" (dev-x 3 พ.ย. 2026 · ไฟล์แอป index-D-2VfyUS.js · flag `reception.visit-slip.print` = true)
+
+- ปุ่ม `getByRole('main').getByRole('button', { name: 'พิมพ์บัตรคิวและใบนำทาง ER', exact: true })` มุมขวาบนของ Order Summary (อย่าใช้ regex /พิมพ์บัตรคิว/ — ชนปุ่ม "พิมพ์บัตรคิว / พิมพ์ OPD Slip" ที่แถบหัวผู้ป่วย) · แผง Overview ที่โหลดตามหลังทับ Order Summary → วนกดเมนูจนปุ่มนี้อยู่ 3 วิ
+- หน้าต่าง `getByRole('dialog', { name: 'พิมพ์บัตรคิวและใบนำทาง ER' })`: หัว "คิวรับยา การเงิน และบริการ" + แถว `div.ant-flex-justify-space-between` ข้อความ "คิวการเงินชั้น 1 · R001" / "คิวรับยาหุ่นยนต์ (Robot) · R001" + ปุ่ม `พิมพ์บัตรคิว <เลข>` — **แถวคิวโหลดตามหลัง destinations** (อ่านทันทีได้ 0 แถว → `expect.poll` count > 0) · คิวเกิดเมื่อมียาที่ส่งคำสั่งแล้ว
+- กดพิมพ์บัตรคิว → `POST /cortex-api/queues/print {queueFifoIds:[…]}` → zip `queue-1.pdf` แล้วส่งงานพิมพ์ `localhost:8081/print/thermal` (ดักด้วย `captureGeneratedDocs` + `capturePrintJobs`) · บัตร ER หัวข้อ / การจัดวางเหมือนบัตร OPD ทุกบรรทัด
+- section `section[aria-label="ใบนำทางไปจุดบริการอื่น"]` component เดียวกับ OPD (SBH-2233) · หน้าต่างเรียก `GET /visits/<VN>/visit-slip/destinations?en=<EN ของ ER>` → `[]` ทุก Visit ER (Order จาก ER ได้ Encounter LAB / IMAGING / ACTIVITY ของตัวเอง) → "ไม่มีจุดบริการถัดไปสำหรับ Visit นี้" = บั๊ก SBH-3879 · ไม่ส่ง en: Lab → QSU 2 "ห้องเจาะเลือด ชั้น 1" · Imaging / Activity (PROC1) จาก ER = "destination location is incomplete"
+- รหัสหน่วยบริการ dev-x (graphql `queueServiceUnits{id code info}`): `23` = QSU 344 ห้องปฏิบัติการ ชั้น 6 · `q-img` = QSU 23 ห้อง(X-ray) · `100` = QSU 347 ห้องหัตถการ · `q-lab` = QSU 2 · `q-echo` = QSU 36 (ECG 89.52)
+- หัตถการ: `NUH-OS-ACT-019` / `NUH-OS-ACT-024` เพิ่มลงตะกร้าไม่ได้ · `PROC1` ส่งได้ · ยังไม่พบหัตถการที่ไปห้องหัตถการ
+- ฟอร์มคัดกรอง ER (dev-x 3 พ.ย.): ช่อง "โซน *" บังคับ ระบบไม่เลือกโซนแนะนำให้แล้ว → กดปุ่มโซนที่มีป้าย "แนะนำ" ก่อน `saveErTriageForm` (helper ร่วมยังไม่เลือกให้ — แก้ในสเปก SBH-2265)
+- ผู้ป่วย: A HN 6932607 (VN V69110328273 · ปิด Visit ไม่ได้ 400 ErrAccountHasUninvoicedItems — ทิ้งไว้ R11) · B HN 6932610 (ปิดแล้ว) · OPD สำหรับบัตรคิวเทียบ HN 6932033 (SBH-2233)

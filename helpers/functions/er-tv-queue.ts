@@ -22,10 +22,15 @@ export interface TvBoard {
   patients: { publicId: string; queueNumber: string | null; maskedName: string; status: string }[];
   isResuscitationActive: boolean;
   isPatientAnnouncementActive: boolean;
+  /** มีเมื่อส่ง ?v=2 (SBH-3606) — จอแสดง Banner ในแถบหัวเมื่อ show true */
+  banner?: { show: boolean; text: string };
 }
 
-/** URL ของ API สาธารณะ (CORTEX_SERVER_URL = <origin>/cortex-api ทั้ง dev-x และ Prod) */
-export const tvApiUrl = (page: Page) => `${new URL(page.url()).origin}/cortex-api/public/er/tv-queue`;
+/**
+ * URL ของ API สาธารณะ (CORTEX_SERVER_URL = <origin>/cortex-api ทั้ง dev-x และ Prod)
+ * `?v=2` เหมือนที่จอส่ง (dev-x 3 พ.ย. 2026 · SBH-3606): ไม่ใส่ = ไม่มี field `banner` ใน response · ใส่ = มี `banner {show,text}` ตามหน้าตั้งค่าข้อความจอคิว ER
+ */
+export const tvApiUrl = (page: Page) => `${new URL(page.url()).origin}/cortex-api/public/er/tv-queue?v=2`;
 
 /** อ่าน snapshot เดียวกับที่จอใช้ (ไม่ส่ง token — หน้าสาธารณะ) */
 export async function fetchTvBoard(page: Page): Promise<TvBoard> {

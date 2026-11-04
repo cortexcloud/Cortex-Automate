@@ -285,12 +285,17 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
         const doc = await docs.next(/\/cortex-api\/queues\/print$/, since, 60_000);
         note(`${TC['012']} คำสั่งพิมพ์`, `POST ${doc.api} ${doc.status} · body ${doc.request} · ไฟล์ ${doc.files.map((f) => f.name).join(', ')}`);
         pdfs = await Promise.all(doc.files.filter((f) => f.name.endsWith('.pdf')).map(async (f) => ({ ...f, queue: (await pdfPages(f.data)).join(' ').match(/หมายเลขบัตรคิวของท่าน\s*(\S+)/)?.[1] ?? '-' })));
-        await page.waitForTimeout(2_000);
+        // Retest 4 พ.ย. 2026: toast หายระหว่างตีกรอบ → markEvidence ค้าง 20 วิ — จับทันทีที่ขึ้น และไม่ให้ toast ทำขั้นนี้พัง
         const toast = page.locator('.ant-message-notice, .ant-notification-notice').last();
-        if (await toast.isVisible().catch(() => false)) {
-          note(`${TC['012']} แจ้งเตือนหลังกดพิมพ์`, (await toast.innerText()).replace(/\s+/g, ' '));
-          await markEvidence(alerted(toast));
-          await snapEvidence(page, 'หลังกด — แจ้งเตือนพิมพ์บัตรคิว');
+        if (await toast.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false)) {
+          note(`${TC['012']} แจ้งเตือนหลังกดพิมพ์`, (await toast.innerText().catch(() => '(หายก่อนอ่าน)')).replace(/\s+/g, ' '));
+          try {
+            await toast.hover({ trial: true, timeout: 2_000 });
+            await markEvidence(alerted(toast));
+            await snapEvidence(page, 'หลังกด — แจ้งเตือนพิมพ์บัตรคิว');
+          } catch {
+            note(`${TC['012']} แจ้งเตือนหลังกดพิมพ์`, 'หายก่อนตีกรอบ (ดูในคลิป)');
+          }
         }
       });
       await checkStep(page, `${TC['012']} ขั้น 4 ไฟล์ที่ได้ — บัตรคิว 5 ใบ ครบทุก member (เทียบเลขคิวของแต่ละ Visit)`, async () => {
@@ -316,8 +321,11 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
 
       }
       // ─── TC-014: รายที่ 02 ยังไม่ยืนยันอายุ/เพศ → mark ready ต้องไม่ได้
+      // Retest 4 พ.ย. 2026: TC-014 / 008 / 009 / 010 ถูก Canceled (Dev แยกเรื่องยืนยันอายุ/เพศ ไปการ์ดใหม่) → SBH2470_SKIP=014,008,009,010
       const confirmAction = main.getByRole('button', { name: /ยืนยัน.*(อายุ|เพศ)|ยืนยันข้อมูล/ });
       const m2 = bySeq(2);
+      const m3 = bySeq(3);
+      if (!SKIP.has('014')) {
       await startClip(page, 'TC-014');
       await checkStep(page, `${TC['014']} ขั้น 2 เปิดการ์ด member "${m2.patientName}" — ไม่ยืนยันอายุ/เพศ`, async () => {
         await selectMember(page, m2.hn);
@@ -338,9 +346,10 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
         await markEvidence(expected(memberRow(page, m2.hn), `สถานะ ${after.status}`), ...(enabled ? [] : [expected(readyButton(page), 'กดไม่ได้')]));
         expect(after.status, 'member ที่ยังไม่ยืนยันอายุ/เพศต้องไม่เป็น READY').not.toBe('READY');
       });
+      }
 
       // ─── TC-008: รายที่ 03 ยืนยันอายุ/เพศ → ready
-      const m3 = bySeq(3);
+      if (!SKIP.has('008')) {
       await startClip(page, 'TC-008');
       await checkStep(page, `${TC['008']} ขั้น 1 เปิดการ์ด member "${m3.patientName}" (ระบบสร้าง ยังไม่ยืนยันอายุ/เพศ)`, async () => {
         await selectMember(page, m3.hn);
@@ -357,9 +366,14 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
         await expect(memberRow(page, m3.hn)).toContainText('READY', { timeout: 20_000 });
         await markEvidence(expected(memberRow(page, m3.hn), 'READY'), expected(main.getByText(/พร้อมส่ง \d+ ราย/).first()));
       });
+      }
 
       // ─── TC-011: ลบรายที่ 05 (ยังไม่มีใครแตะ) → ER visit ต้องถูกยกเลิก
       const m5 = bySeq(5);
+      if (!/\/mass-casualty/.test(page.url()) || !(await memberRow(page, m5.hn).isVisible().catch(() => false))) {
+        await page.goto(mciUrl(id));
+        await expect(memberRow(page, m5.hn)).toBeVisible({ timeout: 90_000 });
+      }
       await startClip(page, 'TC-011');
       let deleted = false;
       await soft(`${TC['011']} ขั้น 2 ลบ member "${m5.patientName}" ออกจากเหตุการณ์`, async () => {
@@ -376,9 +390,14 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
         const r = await res;
         const body = await r.text();
         note(`${TC['011']} DELETE member`, `${r.status()} ${body.slice(0, 200)}`);
+        // ลบสำเร็จ = แถวรายที่ 05 หายไป → ตีกรอบแถวที่เหลือแทน (ตีกรอบ locator ที่ไม่อยู่บนจอจะค้าง)
+        if (r.ok()) await expect(memberRow(page, m5.hn)).toBeHidden({ timeout: 20_000 }).catch(() => undefined);
         await page.waitForTimeout(1_000);
         const toast = page.locator('.ant-message-notice, .ant-notification-notice').last();
-        const marks = [expected(memberRow(page, m5.hn), 'หลังกดลบ')];
+        const gone = !(await memberRow(page, m5.hn).isVisible().catch(() => false));
+        const marks = gone
+          ? sys().filter((m) => m.id !== m5.id).map((m, i) => expected(memberRow(page, m.hn), i === 0 ? `เหลือ ${sys().length - 1} ราย ไม่มีรายที่ 05` : undefined))
+          : [expected(memberRow(page, m5.hn), 'หลังกดลบ — ยังอยู่')];
         if (await toast.isVisible().catch(() => false)) {
           note(`${TC['011']} แจ้งเตือนหลังกดลบ`, (await toast.innerText()).replace(/\s+/g, ' '));
           marks.push(alerted(toast));
@@ -399,12 +418,26 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
           await markEvidence(expected(card.first(), 'ยังอยู่บนบอร์ด'));
         } else await markEvidence(expected(main.locator('strong').filter({ hasText: /^Triage$/ }).first(), `ไม่มี HN ${m5.hn}`));
         await snapEvidence(page, `${TC['011']} บอร์ด ER หลังลบ`);
+        // Retest 4 พ.ย. 2026: สถานะ Encounter จาก API รายวันของบอร์ด (มี Encounter ที่ยกเลิกแล้วปนมาด้วย)
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+        const dayRes = await page.request.get(`/cortex-api/er/dashboard/encounters?date=${today}`, { headers: { authorization: authorization() } });
+        const day = (await dayRes.json()) as { en: string; latestStatusCode: string; patientStatus: string }[];
+        const enc = day.find((e) => e.en === m5.en);
+        note(`${TC['011']} Encounter ${m5.en} (API รายวัน)`, enc ? `${enc.latestStatusCode} · ${enc.patientStatus}` : 'ไม่พบ');
+        const rows: CompareRow[] = [
+          { label: 'บอร์ด ER (current_queue)', values: ['ไม่อยู่บนบอร์ด', onBoard ? `ยังอยู่ · ${onBoard.latestStatusCode}` : 'ไม่อยู่บนบอร์ด'], same: !onBoard },
+          { label: `Encounter ${m5.en}`, values: ['cancelled', enc ? `${enc.latestStatusCode} · ${enc.patientStatus}` : 'ไม่พบ'], same: enc?.latestStatusCode === 'cancelled' },
+        ];
+        await showCompareTable(page, `${TC['011']} HN ${m5.hn} หลังลบ member (API)`, ['Expected', 'ในระบบ'], rows, { side: 'right', width: '640px' });
         expect(onBoard, 'Visit ของ member ที่ลบต้องไม่อยู่บนบอร์ด ER').toBeUndefined();
         await expect(card).toHaveCount(0);
+        expect(enc?.latestStatusCode, 'Encounter ของ member ที่ลบต้องถูกยกเลิก').toBe('cancelled');
       });
+      await hideCompareTable(page);
       note(`${TC['011']} ลบสำเร็จ`, String(deleted));
 
       // ─── TC-009: คัดกรองรายที่ 01 จาก ER Dashboard → member เป็น "triage แยกแล้ว"
+      if (!SKIP.has('009')) {
       const m1 = bySeq(1);
       await startClip(page, 'TC-009');
       await checkStep(page, `${TC['009']} ขั้น 2-3 ER Dashboard → คัดกรองผู้ป่วย "${m1.patientName}" รายคน (ESI 2) จนบันทึกสำเร็จ`, async () => {
@@ -516,6 +549,7 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
         expect(rows[0].same, 'รายที่ 01 ต้องมีผล triage และตำแหน่งเท่าเดิม').toBe(true);
       });
       await hideCompareTable(page);
+      }
       test.info().annotations.push({ type: 'คำสั่งที่เขียนข้อมูล', description: writes.join(' | ') });
       finish();
     },
@@ -647,7 +681,7 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
 
       // ─── TC-007
       await startClip(page, 'TC-007');
-      const first = page.getByRole('main').getByRole('listitem').filter({ has: page.getByRole('heading', { name: /^1\. / }) }).first();
+      const first = page.getByRole('main').getByRole('listitem').filter({ has: page.getByRole('heading', { name: /^(1\.|01) / }) }).first(); // หัวแถว "1. …" (31 ต.ค.) → "01 …" (SBH-3609 · 4 พ.ย.)
       await soft(`${TC['007']} ขั้น 3-4 ระหว่าง "กำลังลงทะเบียน" เลือก member คนแรกที่สร้างเสร็จ → triage (ESI 3 + ${ZONE}) → พร้อมส่ง ได้ทันที`, async () => {
         await expect(first).toBeVisible({ timeout: 30_000 });
         const hn = ((await first.innerText()).match(/HN (\d+)/) ?? [])[1];

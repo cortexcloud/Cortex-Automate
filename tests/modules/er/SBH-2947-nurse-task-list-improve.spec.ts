@@ -27,7 +27,8 @@ import { authFile } from '../../../utils/env';
 //   เทส 3 MC: เหตุการณ์ Triage หมู่ 2 ราย → ส่งทั้งเหตุการณ์ → สั่ง Imaging
 //   เทส 4 ออกจาก ER: C รับเป็นผู้ป่วยใน (Disposition Admit + Admit Order → AN + เตียง → IPD เพิ่มผู้ป่วยลงเตียง — ผู้ใช้อนุญาตเลือกเตียงรอบนี้ R84) ·
 //     D Disposition ลงนาม (รอจำหน่าย) · E จำหน่าย · F จำหน่าย + ปิด Visit ที่การเงิน · G ยกเลิก Encounter
-//   เทส 5 Bubble หลังรับ Order ครบ: รับ Order ทุกงานที่ค้างทั้ง ER วันนี้ (รวมของผู้ป่วยรายอื่น — ผู้ใช้อนุญาต R84) → ปิด Visit ผู้ป่วยของชุดนี้
+//   เทส 5 Bubble หลังรับ Order ครบ: รับ Order ทุกงานที่ค้างทั้ง ER วันนี้ (รวมของผู้ป่วยรายอื่น — ผู้ใช้อนุญาต R84) → ตรวจเพิ่ม (Retest 3 พ.ย. 2026 ผู้ใช้ขอ):
+//     เปิดผู้ป่วยทุกรายในรายชื่อ ต้องไม่มีงาน "รอรับงาน" / ปุ่ม รับ Order + API งานรอรับรายผู้ป่วย = 0 → รีเฟรชดู Bubble → ปิด Visit ผู้ป่วยของชุดนี้
 // บัญชี: Super_User (user1) ลงทะเบียน / คัดกรอง / สั่ง / Disposition / Admit / การเงิน · Nurse (x-nurse) หน้ารายการงานพยาบาล (หน้าต่างแยก)
 // สิ่งที่รู้ก่อนเขียน (dev-x 31 ต.ค. 2026 · ไฟล์แอป index-DJaj9lPY.js · chunk หน้า index-CVp9tXVO.js · decisions R84):
 //   - ป้ายโซน: "zone: Resuscitation (1-2)" / "zone: Urgency (3-4)" / "zone: Observation (5)" (เลขคือช่วง ESI) · Isolation ไม่มีช่วง → แสดงชื่ออย่างเดียว
@@ -35,6 +36,8 @@ import { authFile } from '../../../utils/env';
 //   - เมนูซ้ายพับไว้ตั้งต้น → กดปุ่ม "ขยายแถบนำทาง" ก่อนดู Bubble
 // รัน (dev-x): npx playwright test --headed --grep @SBH-2947  ·  เทสเดียว: --grep @SBH-2947-ZONE / -SORT / -MC / -EXIT / -BUBBLE
 //   SBH2947_KEEP=1 = ไม่ปิด Visit ท้ายเทส 5
+// Retest 4 พ.ย. 2026 (ตัวแก้ SBH-3843 · index-DABLTrDz.js): Bubble เป็นวงตัวเลข (nurseBadge) นับงานรวม NURSE_ADDED เฉพาะผู้ป่วยโซนจริง (badgeFromApi)
+//   รัน --grep @SBH-2947-RETEST (TC-017 + บั๊กข้อ 1 / 3) แล้ว --grep @SBH-2947-BUBBLE (TC-022 + ปิด Visit) · เทส ZONE ยังตรวจ TC-017 แบบจุด (รุ่นเก่า)
 
 const ISSUE: Record<number, string> = {};
 for (let n = 1; n <= 26; n++) ISSUE[n] = `SBH-${3365 + n}`;
@@ -86,6 +89,50 @@ const mcTag = (btn: Locator) => btn.locator('[class*="mc-tag"]');
 const navToggle = (p: Page) => p.getByRole('button', { name: 'ขยายแถบนำทาง' }).first();
 const nurseMenu = (p: Page) => p.locator('li[data-menu-id$="er/nurse-task-list"]').first();
 const nurseDot = (p: Page) => nurseMenu(p).locator('.ant-badge-dot');
+/** Bubble ของเมนู รายการงานพยาบาล รุ่นแก้ SBH-3843 (dev-x 4 พ.ย. 2026 index-DABLTrDz.js) = วงตัวเลข (.ant-badge-count) · รุ่นก่อนเป็นจุด (.ant-badge-dot) */
+const nurseBadge = (p: Page) => nurseMenu(p).locator('.ant-badge-count, .ant-badge-dot');
+const TASK_TYPES = 'SPECIMEN,MEDICATION,ACTIVITY,IMAGING,NURSE_ADDED';
+const todayBkk = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+interface PendingEnc { hn: string; en: string; currentLocationId: number | null; locationName: string | null; taskTotalCount: number }
+/**
+ * ตัวเลข Bubble ที่ระบบควรแสดง — คำนวณแบบเดียวกับแอปรุ่นแก้ SBH-3843 (โค้ดเมนู: encounters ที่มีงาน PENDING ชนิด SPECIMEN / MEDICATION / ACTIVITY / IMAGING / NURSE_ADDED
+ * รวม taskTotalCount เฉพาะผู้ป่วยที่อยู่โซนจริง — ไม่นับโซน Triage และผู้ป่วยไม่ทราบโซน)
+ */
+async function badgeFromApi(p: Page, auth: () => string) {
+  const headers = { authorization: auth() };
+  const z = (await (await p.request.get('/cortex-api/er/triage/zones', { headers })).json()) as { boardLocations?: { id: number; code: string }[]; zones?: { id: number; code: string }[] };
+  const locs = z.boardLocations ?? z.zones ?? [];
+  const triage = new Set(locs.filter((l) => /TRIAGE/i.test(l.code)).map((l) => l.id));
+  const known = new Set(locs.map((l) => l.id));
+  const enc = ((await (await p.request.get(`/cortex-api/er/nurse-tasks/encounters?date=${todayBkk()}&dateBasis=task&types=${TASK_TYPES}&statuses=PENDING`, { headers })).json()) as { data: PendingEnc[] }).data.filter((e) => e.taskTotalCount > 0);
+  const isCounted = (e: PendingEnc) => e.currentLocationId !== null && known.has(e.currentLocationId) && !triage.has(e.currentLocationId);
+  const counted = enc.filter(isCounted);
+  const notCounted = enc.filter((e) => !isCounted(e));
+  return { total: counted.reduce((s, e) => s + e.taskTotalCount, 0), counted, notCounted };
+}
+/** ข้อความที่ Bubble ควรแสดง (antd overflowCount 99) */
+const badgeText = (total: number) => (total > 99 ? '99+' : String(total));
+/** อ่าน Bubble ที่เมนู รายการงานพยาบาล (null = ไม่มี) */
+async function readBadge(n: Page) {
+  const b = nurseBadge(n).first();
+  if (!(await b.count())) return null;
+  return b.evaluate((e) => {
+    const r = e.getBoundingClientRect();
+    return { dot: e.classList.contains('ant-badge-dot'), title: e.getAttribute('title') ?? '', text: (e.textContent ?? '').trim(), bg: getComputedStyle(e).backgroundColor, w: Math.round(r.width), h: Math.round(r.height) };
+  });
+}
+/** รอจน Bubble แสดงตัวเลขตรงกับที่คำนวณจาก API (แอปดึงใหม่ทุก 30 วิ) — คืนค่าสุดท้ายที่เห็น */
+async function waitBadgeMatchesApi(n: Page, auth: () => string, timeout = 100_000) {
+  let last = { api: await badgeFromApi(n, auth), seen: await readBadge(n) };
+  const until = Date.now() + timeout;
+  for (;;) {
+    const want = last.api.total === 0 ? null : badgeText(last.api.total);
+    const got = last.seen && !last.seen.dot ? last.seen.text : null;
+    if (want === got || Date.now() > until) return last;
+    await n.waitForTimeout(5_000);
+    last = { api: await badgeFromApi(n, auth), seen: await readBadge(n) };
+  }
+}
 const opdMenuTitle = (p: Page) => p.locator('.ant-menu-submenu-title').filter({ hasText: /^\s*ผู้ป่วยนอก/ }).first();
 const isEncounters = (url: string) => /\/er\/nurse-tasks\/encounters\?/.test(url);
 /** "zone: Urgency (3-4)" → "Urgency" */
@@ -408,10 +455,14 @@ async function pickFreeBed(page: Page): Promise<string> {
 }
 
 /** Admit Order → ศูนย์จัดการเตียง สร้าง AN (เลือกเตียงที่ว่าง) → คืน AN + หอผู้ป่วย (แบบ SBH-2593) */
-async function admitWithBed(page: Page, visit: ErVisit, auth: () => string, note: (t: string, d: string) => void): Promise<{ an: string; ward: string; bed: string }> {
+async function admitWithBed(page: Page, visit: ErVisit, auth: () => string, note: (t: string, d: string) => void, requested?: { ward: string }): Promise<{ an: string; ward: string; bed: string }> {
   const main = mainOf(page);
-  await gotoVisit(page, visit);
-  const req = await createAdmitRequest(page, 'ทดสอบ SBH-2947');
+  // requested = ส่ง Admit Order ไปแล้ว (เทสบั๊กรอเตียงตรวจหน้าจอระหว่างขั้น) → ข้ามไปสร้าง AN
+  let req = requested;
+  if (!req) {
+    await gotoVisit(page, visit);
+    req = await createAdmitRequest(page, 'ทดสอบ SBH-2947');
+  }
   await page.goto('/cortex/admission-center/admission-management?tab=admit-request-list');
   const row = main.getByRole('row').filter({ hasText: visit.hn }).first();
   await row.waitFor({ timeout: 90_000 });
@@ -1085,6 +1136,296 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
     },
   );
 
+  // ======================= เทส 8 (Retest 4 พ.ย. 2026 หลังแก้ SBH-3843): TC-017 · บั๊กข้อ 3 (โซน Triage) · บั๊กข้อ 1 (Nurse task) =======================
+  // ผู้ใช้สั่ง "Retest การ์ด SBH-2947 บน Dev-X" → ขอบเขต TC-017 + TC-022 + 3 ข้อของ SBH-3843 (decisions R84 ต่อท้าย)
+  // ผู้ป่วย AUTO A: ESI 2 Resuscitation + Imaging (งานรอรับ — คงไว้ให้เทส 5 / TC-022 กดรับ) · B: ไม่คัดกรอง + Imaging (ยกเลิก Encounter ท้ายเทส)
+  // ตัวเลขที่ Bubble ควรแสดงคำนวณจาก API แบบเดียวกับแอปรุ่นแก้ (badgeFromApi) · รันก่อนเทส 5: --grep @SBH-2947-RETEST แล้ว --grep @SBH-2947-BUBBLE
+  test('Retest หลังแก้ SBH-3843: Bubble ตัวเลข (TC 017) · ไม่นับงานผู้ป่วยโซน Triage · นับ Nurse task ที่พยาบาลเพิ่มเอง', tagsOf('RETEST', [17]), async ({ page, browser }) => {
+    const { note, finish } = makeRunner(page);
+    const A = await preparePatient(page, { label: 'Rt2947A', level: 2, zone: RESUS, evidence: 'คัดกรอง A — ESI 2 โซน Resuscitation' }, note);
+    await orderImaging(page, A);
+    const B = await preparePatient(page, { label: 'Rt2947B', triage: false }, note);
+    await orderImaging(page, B, true);
+    note('ผู้ป่วย B (ยังไม่คัดกรอง)', `HN ${B.hn} · สั่ง ${SETTINGS.imagingCode} แล้ว อยู่โซน Triage`);
+
+    nurse = await openNurseWindow(browser);
+    const n = nurse;
+    const { note: nnote, soft: nsoft, finish: nfinish } = makeRunner(n);
+    const auth = trackAuthorization(n);
+    await refresh(n);
+    expect(await waitPresence(n, A.hn, true, 90_000), `ผู้ป่วย A HN ${A.hn} ต้องอยู่ในรายชื่อ`).toBe(true);
+    const pendingOfEn = async (en: string) =>
+      ((await (await n.request.get(`/cortex-api/er/nurse-tasks?date=${todayBkk()}&dateBasis=task&shift=ALL_DAY&en=${en}&perPage=1000`, { headers: { authorization: auth() } })).json()) as { data: { id: string; type: string; status: string; name: string }[] }).data.filter((t) => t.status === 'PENDING');
+    const tasksOfA = (api: Awaited<ReturnType<typeof badgeFromApi>>) => api.counted.find((e) => e.en === A.en)?.taskTotalCount ?? 0;
+    const show = (s: Awaited<ReturnType<typeof readBadge>>) => (s ? (s.dot ? 'จุด (ไม่มีตัวเลข)' : `"${s.text}"`) : 'ไม่มี');
+
+    // ---------- TC-017 (= บั๊กข้อ 2) ----------
+    await startClip(n, 'TC-017');
+    await nsoft(`${TC(17)} เมนู รายการงานพยาบาล แสดง Bubble แดงแบบเดียวกับ ผู้ป่วยนอก (ผู้ป่วย A มี Order ที่ยังไม่รับ)`, async () => {
+      await openNav(n);
+      await expect(nurseBadge(n).first(), 'เมนู รายการงานพยาบาล ต้องมี Bubble').toBeVisible({ timeout: 60_000 });
+      const { api, seen } = await waitBadgeMatchesApi(n, auth);
+      nnote(`${TC(17)} HTML เมนู`, await nurseMenu(n).evaluate((e) => e.outerHTML.slice(0, 1200)));
+      const opd = opdMenuTitle(n).locator('.ant-badge-count').first();
+      const opdInfo = (await opd.count())
+        ? await opd.evaluate((e) => ({ text: (e.textContent ?? '').trim(), bg: getComputedStyle(e).backgroundColor, h: Math.round(e.getBoundingClientRect().height) }))
+        : null;
+      const aTasks = tasksOfA(api);
+      nnote(`${TC(17)} Bubble`, `เห็น ${show(seen)} ${seen ? `สี ${seen.bg} · ${seen.w}×${seen.h}px · title ${seen.title}` : ''} · ที่ควรเป็น (API ผู้ป่วยโซนจริง) ${api.total} งาน: ${api.counted.map((e) => `HN ${e.hn} ${e.taskTotalCount}`).join(', ')} · ผู้ป่วยนอก ${opdInfo ? `"${opdInfo.text}" สี ${opdInfo.bg} สูง ${opdInfo.h}px` : 'ไม่มี'}`);
+      await showCompareTable(n, 'Bubble ของเมนู รายการงานพยาบาล', ['ที่เห็น', 'ที่ควรเป็น'], [
+        { label: 'รูปแบบ', values: [seen ? (seen.dot ? 'จุด ไม่มีตัวเลข' : `วงมีตัวเลข (สูง ${seen.h}px)`) : 'ไม่มี', opdInfo ? `วงมีตัวเลขแบบ ผู้ป่วยนอก (สูง ${opdInfo.h}px)` : 'วงมีตัวเลข'], same: !!seen && !seen.dot },
+        { label: 'สี', values: [seen ? colorName(seen.bg) : '-', 'แดง'], same: !!seen && colorName(seen.bg) === 'แดง' },
+        { label: 'ตัวเลข', values: [seen?.text ?? '-', `${badgeText(api.total)} (งานรอรับ ${api.counted.length} ราย)`], same: seen?.text === badgeText(api.total) },
+        { label: 'งานรอรับของผู้ป่วย A (API)', values: [`${aTasks} งาน`, 'อย่างน้อย 1'], same: aTasks > 0 },
+      ], { side: 'right', width: '640px' });
+      const marks = [expected(nurseMenu(n), `Bubble แดง ${seen?.text ?? ''}`)];
+      if (opdInfo) marks.push(expected(opdMenuTitle(n), `เทียบ ผู้ป่วยนอก ${opdInfo.text}`));
+      await markEvidence(...marks);
+      await holdForClip(n, 2_500);
+      expect(seen?.dot, 'Bubble ต้องเป็นวงตัวเลข ไม่ใช่จุด').toBe(false);
+      expect(colorName(seen?.bg ?? ''), 'Bubble ต้องเป็นสีแดง').toBe('แดง');
+      expect(seen?.text, 'ตัวเลขต้องเท่างานรอรับของผู้ป่วยโซนจริง').toBe(badgeText(api.total));
+      expect(aTasks, 'Pre-condition: ผู้ป่วย A ต้องมีงานรอรับ').toBeGreaterThan(0);
+    });
+    await hideCompareTable(n).catch(() => undefined);
+    await closeNav(n);
+
+    // ---------- บั๊กข้อ 3: งานของผู้ป่วยโซน Triage ไม่ทำให้ Bubble ค้าง ----------
+    await startClip(n, 'BUG-3');
+    await nsoft('บั๊กข้อ 3 ผู้ป่วย B (ยังไม่คัดกรอง · โซน Triage) มีงานรอรับ แต่ไม่อยู่ในรายชื่อ → Bubble ต้องไม่นับงานของ B', async () => {
+      const bTasks = await pendingOfEn(B.en);
+      const found = await searchHn(n, B.hn);
+      await markEvidence(filled(searchBox(n), `HN B ${B.hn}`), expected(sidebarEmpty(n), 'ไม่พบ B (โซน Triage)'));
+      await holdForClip(n, 1_500);
+      await snapEvidence(n, 'ค้น HN ผู้ป่วย B ไม่พบ');
+      await clearEvidenceMarks(n);
+      await clearSearch(n);
+      await openNav(n);
+      const { api, seen } = await waitBadgeMatchesApi(n, auth);
+      const bRow = [...api.counted, ...api.notCounted].find((e) => e.en === B.en);
+      const bCounted = api.counted.some((e) => e.en === B.en);
+      const ifCounted = api.total + (bRow && !bCounted ? bRow.taskTotalCount : 0);
+      const want = api.total ? badgeText(api.total) : null;
+      nnote('บั๊กข้อ 3', `งานรอรับของ B (API) ${bTasks.map((t) => `${t.type} ${t.name}`).join(', ') || '-'} · B ใน encounters ${bRow ? `${bRow.locationName ?? '-'} (location ${bRow.currentLocationId}) ${bRow.taskTotalCount} งาน` : 'ไม่มี'} · Bubble เห็น ${show(seen)} · นับ ${api.total} (ถ้านับ B = ${ifCounted}) · ไม่นับ: ${api.notCounted.map((e) => `HN ${e.hn} ${e.locationName ?? 'ไม่ทราบโซน'} ${e.taskTotalCount}`).join(', ') || '-'}`);
+      await showCompareTable(n, 'ผู้ป่วย B (โซน Triage) มีงานรอรับ — Bubble ต้องไม่นับ', ['ที่เห็น'], [
+        { label: 'งานรอรับของ B (API)', values: [`${bTasks.length} งาน (${bTasks.map((t) => t.name).join(', ') || '-'})`], same: bTasks.length > 0 },
+        { label: 'ค้น HN B ในรายการงานพยาบาล', values: [found ? 'พบ' : 'ไม่พบ'], same: !found },
+        { label: 'Bubble ที่เมนู', values: [show(seen)], same: (seen && !seen.dot ? seen.text : null) === want },
+        { label: 'งานที่ควรนับ (ไม่รวม B)', values: [`${api.total} งาน · ถ้านับ B = ${ifCounted}`], same: !bCounted },
+      ], { side: 'right', width: '640px' });
+      await markEvidence(expected(nurseMenu(n), `Bubble ${seen?.text ?? 'ไม่มี'} ไม่รวมงานของ B`));
+      await holdForClip(n, 3_000);
+      expect(bTasks.length, 'Pre-condition: ผู้ป่วย B ต้องมีงานรอรับ').toBeGreaterThan(0);
+      expect(found, 'ผู้ป่วย B (โซน Triage) ต้องไม่อยู่ในรายชื่อ').toBe(false);
+      expect(bCounted, 'Bubble ต้องไม่นับงานของผู้ป่วยโซน Triage').toBe(false);
+      expect(seen && !seen.dot ? seen.text : null, 'ตัวเลขที่เมนูต้องไม่รวมงานของ B').toBe(want);
+    });
+    await hideCompareTable(n).catch(() => undefined);
+    await closeNav(n);
+
+    // ---------- บั๊กข้อ 1: Nurse task ที่พยาบาลเพิ่มเองถูกนับใน Bubble ----------
+    await startClip(n, 'BUG-1');
+    const taskName = `SBH2947 retest ${A.hn}`;
+    const openA = async () => {
+      await clearSearch(n);
+      await searchHn(n, A.hn);
+      await patientBtn(n, A.hn).click();
+      await expect(mainOf(n).getByText(`HN ${A.hn}`, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+      await taskRows(n).first().waitFor({ timeout: 20_000 }).catch(() => undefined);
+    };
+    const newRow = () => taskRows(n).filter({ hasText: taskName }).first();
+    const b0 = await waitBadgeMatchesApi(n, auth);
+    await nsoft('บั๊กข้อ 1 ขั้น 1 ก่อนเพิ่ม — Bubble ที่เมนู', async () => {
+      await openNav(n);
+      nnote('บั๊กข้อ 1 ก่อนเพิ่ม', `Bubble ${show(b0.seen)} · API ${b0.api.total} · งานรอรับของ A ${tasksOfA(b0.api)}`);
+      await markEvidence(expected(nurseMenu(n), `ก่อนเพิ่ม: Bubble ${b0.seen?.text ?? 'ไม่มี'}`));
+      await holdForClip(n, 2_000);
+    });
+    await closeNav(n);
+    await nsoft('บั๊กข้อ 1 ขั้น 2 ผู้ป่วย A → + เพิ่ม Nurse task (Routine) → บันทึก', async () => {
+      await openA();
+      await mainOf(n).getByRole('button', { name: /เพิ่ม Nurse task/ }).click();
+      const modal = n.getByRole('dialog').filter({ hasText: 'เพิ่ม Nurse task' }).first();
+      await expect(modal).toBeVisible();
+      await modal.locator('input#name').fill(taskName);
+      await modal.locator('input#priority').click();
+      await n.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Routine' }).first().click();
+      await modal.locator('input#assignee').click();
+      await n.locator('.ant-select-dropdown:visible .ant-select-item-option').first().click();
+      await markEvidence(filled(modal.locator('input#name'), taskName), clicked(modal.getByRole('button', { name: /บันทึก/ }), 'บันทึก'));
+      await snapEvidence(n, 'ก่อนกด — บันทึก Nurse task');
+      await clearEvidenceMarks(n);
+      const created = n.waitForResponse((r) => /\/er\/nurse-tasks/.test(r.url()) && r.request().method() === 'POST', { timeout: 30_000 });
+      await modal.getByRole('button', { name: /บันทึก/ }).click();
+      await expectOk(await created, `เพิ่ม Nurse task "${taskName}"`);
+      await expect(modal).toBeHidden({ timeout: 15_000 });
+    });
+    let b1 = b0;
+    await nsoft('บั๊กข้อ 1 ขั้น 3 งานใหม่ รอรับงาน → Bubble นับเพิ่ม', async () => {
+      await refresh(n);
+      await openA();
+      await expect(newRow().locator('[data-label="สถานะ"]')).toContainText('รอรับงาน', { timeout: 30_000 });
+      await expect(newRow().getByRole('button', { name: 'รับ Order', exact: true })).toBeVisible();
+      b1 = await waitBadgeMatchesApi(n, auth);
+      const nt = (await pendingOfEn(A.en)).filter((t) => t.type === 'NURSE_ADDED');
+      nnote('บั๊กข้อ 1 หลังเพิ่ม', `Bubble ${show(b0.seen)} → ${show(b1.seen)} · API ${b0.api.total} → ${b1.api.total} · งานรอรับของ A ${tasksOfA(b0.api)} → ${tasksOfA(b1.api)} · NURSE_ADDED ของ A: ${nt.map((t) => `${t.name} ${t.status}`).join(', ')}`);
+      await openNav(n);
+      await showCompareTable(n, 'Nurse task ที่เพิ่ม (รอรับงาน) ต้องถูกนับใน Bubble', ['ก่อน', 'หลัง'], [
+        { label: 'งานรอรับของ A (API · รวม NURSE_ADDED)', values: [`${tasksOfA(b0.api)}`, `${tasksOfA(b1.api)}`], same: tasksOfA(b1.api) === tasksOfA(b0.api) + 1 },
+        { label: 'Bubble ที่เมนู', values: [show(b0.seen), show(b1.seen)], same: b1.seen?.text === badgeText(b1.api.total) },
+        { label: 'งานรอรับที่ควรนับทั้ง ER', values: [`${b0.api.total}`, `${b1.api.total}`], same: true },
+      ], { side: 'bottom' });
+      await markEvidence(
+        expected(nurseMenu(n), `Bubble ${b0.seen?.text ?? 'ไม่มี'} → ${b1.seen?.text ?? 'ไม่มี'}`),
+        expected(newRow().locator('[data-label="สถานะ"]'), 'รอรับงาน'),
+      );
+      await holdForClip(n, 3_000);
+      expect(nt.length, 'Nurse task ที่เพิ่มต้องเป็นงานรอรับ').toBeGreaterThan(0);
+      expect(tasksOfA(b1.api), 'งานรอรับของ A ที่ Bubble นับต้องเพิ่ม 1 (นับ NURSE_ADDED)').toBe(tasksOfA(b0.api) + 1);
+      expect(b1.seen?.text, 'ตัวเลขที่เมนูต้องเท่างานที่นับรวม Nurse task').toBe(badgeText(b1.api.total));
+    });
+    await hideCompareTable(n).catch(() => undefined);
+    await closeNav(n);
+    await nsoft('บั๊กข้อ 1 ขั้น 4 กด รับ Order ของ Nurse task → Bubble ลดลง', async () => {
+      await openA();
+      const btn = newRow().getByRole('button', { name: 'รับ Order', exact: true });
+      await markEvidence(clicked(btn, 'รับ Order (Nurse task)'));
+      await snapEvidence(n, 'ก่อนกด — รับ Order Nurse task');
+      await clearEvidenceMarks(n);
+      const accepted = n.waitForResponse((r) => r.request().method() === 'POST' && /\/nurse-tasks\/[^/]+\/accept/.test(r.url()), { timeout: 30_000 });
+      await btn.click();
+      await expectOk(await accepted, 'รับ Order Nurse task');
+      await n.waitForTimeout(1_500);
+      await refresh(n);
+      await openA();
+      const b2 = await waitBadgeMatchesApi(n, auth);
+      const status = (await newRow().locator('[data-label="สถานะ"]').innerText()).trim();
+      nnote('บั๊กข้อ 1 หลังรับ', `สถานะ Nurse task "${status}" · Bubble ${show(b1.seen)} → ${show(b2.seen)} · API ${b1.api.total} → ${b2.api.total} · งานรอรับของ A ${tasksOfA(b1.api)} → ${tasksOfA(b2.api)}`);
+      await openNav(n);
+      await showCompareTable(n, 'รับ Order ของ Nurse task แล้ว Bubble ต้องลดลง', ['ก่อนรับ', 'หลังรับ'], [
+        { label: 'สถานะ Nurse task', values: ['รอรับงาน', status], same: !/รอรับงาน/.test(status) },
+        { label: 'งานรอรับของ A (API)', values: [`${tasksOfA(b1.api)}`, `${tasksOfA(b2.api)}`], same: tasksOfA(b2.api) === tasksOfA(b1.api) - 1 },
+        { label: 'Bubble ที่เมนู', values: [show(b1.seen), show(b2.seen)], same: (b2.seen && !b2.seen.dot ? b2.seen.text : null) === (b2.api.total ? badgeText(b2.api.total) : null) },
+      ], { side: 'bottom' });
+      await markEvidence(
+        expected(nurseMenu(n), `Bubble ${b1.seen?.text ?? 'ไม่มี'} → ${b2.seen?.text ?? 'ไม่มี'}`),
+        expected(newRow().locator('[data-label="สถานะ"]'), status),
+      );
+      await holdForClip(n, 3_000);
+      expect(status, 'Nurse task ต้องไม่เป็น รอรับงาน หลังกดรับ').not.toMatch(/รอรับงาน/);
+      expect(tasksOfA(b2.api), 'งานรอรับของ A ต้องลดลง 1').toBe(tasksOfA(b1.api) - 1);
+      expect(b2.seen && !b2.seen.dot ? b2.seen.text : null, 'ตัวเลขที่เมนูต้องตรงงานรอรับที่เหลือ').toBe(b2.api.total ? badgeText(b2.api.total) : null);
+    });
+    await hideCompareTable(n).catch(() => undefined);
+    await closeNav(n).catch(() => undefined);
+    await startClip(n, 'after');
+
+    // ---------- เก็บกวาด: ยกเลิก Encounter ของ B (A คงไว้ให้เทส 5 / TC-022 รับ Order แล้วปิด Visit) ----------
+    await cancelEncounter(page, B).then(
+      () => note('หลังเทส', `ยกเลิก Encounter B ${B.en} แล้ว`),
+      (error: Error) => note('หลังเทส', `ยกเลิก Encounter B ไม่สำเร็จ — ${error.message.split('\n')[0]}`),
+    );
+    let nurseFailed: unknown;
+    try {
+      nfinish();
+    } catch (error) {
+      nurseFailed = error;
+    }
+    finish();
+    if (nurseFailed) throw nurseFailed;
+  });
+
+  // ======================= เทส 9 (บั๊ก · 4 พ.ย. 2026): ผู้ป่วยรอเตียงต้องยังแสดงในรายการงานพยาบาล =======================
+  // ผู้ใช้แจ้ง "คนไข้รอเตียงต่อแสดงในหน้า การจัดการงานพยาบาลด้วย ถือว่าเป็น 1 Zone ในนั้น" (AC 2.2.1 ซ่อนเมื่อมี Ward + เตียงแล้วเท่านั้น)
+  // ผู้ป่วย AUTO 1 ราย ESI 3 Urgency + Imaging → ตรวจ 3 จังหวะ: ก่อน Admit · หลังส่ง Admit Order (bed_waiting) · หลังสร้าง AN ยังไม่ลงเตียง
+  // ไม่ปิด Visit / ไม่ลงเตียง — เก็บผู้ป่วยไว้ในสถานะรอเตียงให้ dev reproduce
+  test('(บั๊ก) ผู้ป่วยรอเตียงต้องยังแสดงในรายการงานพยาบาล (กลุ่ม zone: รอเตียง)', tagsOf('BUGBED', []), async ({ page, browser }) => {
+    const { note, soft, finish } = makeRunner(page);
+    const authorization = trackAuthorization(page);
+    const v = await preparePatient(page, { label: 'Bed2947', level: 3, zone: URGENCY, evidence: 'คัดกรอง — ESI 3 โซน Urgency' }, note);
+    await orderImaging(page, v);
+    nurse = await openNurseWindow(browser);
+    const n = nurse;
+    const { note: nnote, soft: nsoft, finish: nfinish } = makeRunner(n);
+    const nAuth = trackAuthorization(n);
+    type BoardRow = { en: string; patientStatus?: string; admitRequestStatus?: string | null; an?: string | null; admission?: { hasBed?: boolean } | null };
+    const boardOf = async () => {
+      const b = (await fetchBoard(page, authorization)).find((e) => e.en === v.en) as BoardRow | undefined;
+      return b ? `${b.patientStatus} · Admit Request ${b.admitRequestStatus ?? '-'} · AN ${b.an ?? '-'} · มีเตียง ${b.admission?.hasBed ?? '-'}` : 'ไม่อยู่บนบอร์ด';
+    };
+    const encOf = async () =>
+      ((await (await n.request.get(`/cortex-api/er/nurse-tasks/encounters?date=${todayBkk()}&dateBasis=task&shift=ALL_DAY`, { headers: { authorization: nAuth() } })).json()) as { data: (PendingEnc & { patientStatus: string })[] }).data.find((e) => e.en === v.en);
+    /** ค้น HN แล้วกางกลุ่มที่พับอยู่ (กลุ่ม zone: รอเตียง พับไว้ตั้งต้น — สำรวจ 4 พ.ย.) → คืน พบไหม + ชื่อกลุ่ม + กลุ่มพับอยู่ก่อนกางไหม */
+    const findHn = async () => {
+      await searchBox(n).fill(v.hn);
+      await n.waitForTimeout(1_200);
+      const headers = sidebar(n).locator('.ant-collapse-header');
+      const groups: string[] = [];
+      let collapsed = false;
+      for (let i = 0; i < (await headers.count()); i++) {
+        groups.push((await headers.nth(i).innerText()).replace(/\s+/g, ' ').trim());
+        if ((await headers.nth(i).getAttribute('aria-expanded')) === 'false') {
+          collapsed = true;
+          await headers.nth(i).click();
+          await n.waitForTimeout(500);
+        }
+      }
+      const found = await patientBtn(n, v.hn).isVisible();
+      return { found, groups, collapsed, zone: found ? zoneName(groups.find((g) => g) ?? '') : '' };
+    };
+    const check = async (stage: string, clip: string) => {
+      await startClip(n, clip);
+      await nsoft(`${stage} — ค้น HN ในรายการงานพยาบาล ต้องพบผู้ป่วย`, async () => {
+        await clearSearch(n);
+        await refresh(n);
+        await waitPresence(n, v.hn, true, 60_000);
+        const e = await encOf();
+        const board = await boardOf();
+        const r = await findHn();
+        nnote(stage, `บอร์ด: ${board} · API รายการงานพยาบาล: ${e ? `${e.patientStatus} · ${e.locationName} · งาน ${e.taskTotalCount}` : 'ไม่มีผู้ป่วยนี้'} · ค้น HN: ${r.found ? 'พบ' : 'ไม่พบ'} · กลุ่มที่เห็น ${r.groups.join(', ') || '-'}${r.collapsed ? ' (พับอยู่ กดกาง)' : ''}`);
+        await showCompareTable(n, stage, ['ที่เห็น'], [
+          { label: 'สถานะบนบอร์ด ER (API)', values: [board], same: true },
+          { label: 'API รายการงานพยาบาล', values: [e ? `${e.patientStatus} · ${e.locationName} · งาน ${e.taskTotalCount}` : 'ไม่มีผู้ป่วยนี้'], same: !!e },
+          { label: 'ค้น HN ในรายการงานพยาบาล', values: [r.found ? `พบ · กลุ่ม ${r.groups.join(', ')}` : `ไม่พบผู้ป่วย${r.groups.length ? ` (มีหัวกลุ่ม ${r.groups.join(', ')})` : ''}`], same: r.found },
+        ], { side: 'right', width: '640px' });
+        await markEvidence(
+          filled(searchBox(n), `HN ${v.hn}`),
+          r.found ? expected(patientBtn(n, v.hn), `พบ · ${r.groups.join(', ')}`) : expected(sidebar(n), 'พบผู้ป่วย · จริง: ไม่พบ'),
+        );
+        await holdForClip(n, 3_000);
+        expect(r.found, 'ผู้ป่วยต้องแสดงในรายการงานพยาบาล').toBe(true);
+      });
+      await hideCompareTable(n).catch(() => undefined);
+      await clearSearch(n);
+    };
+
+    await check('ขั้น 1 ก่อน Admit (โซน Urgency)', 'BED-1');
+    let req: { ward: string } | undefined;
+    await soft('ขั้น 2 แพทย์ Disposition เลือก รับไว้รักษาต่อIPD > Save → ส่ง Admit Order', async () => {
+      await saveAdmitDisposition(page, v);
+      await gotoVisit(page, v);
+      req = await createAdmitRequest(page, 'ทดสอบ SBH-2947 รอเตียง');
+      await expect.poll(boardOf, { timeout: 60_000, intervals: [3_000], message: 'ส่ง Admit Order แล้วต้องเป็น bed_waiting' }).toMatch(/^bed_waiting/);
+      note('ขั้น 2', `Admit Order (${req.ward}) · บอร์ด: ${await boardOf()}`);
+    });
+    await check('ขั้น 2 หลังส่ง Admit Order (รอเตียง)', 'BED-2');
+    await soft('ขั้น 3 ศูนย์จัดการเตียง สร้าง AN (ยังไม่ลงเตียงที่ IPD)', async () => {
+      const r = await admitWithBed(page, v, authorization, note, req);
+      note('ขั้น 3', `AN ${r.an} · หอ ${r.ward} · บอร์ด: ${await boardOf()}`);
+    });
+    await check('ขั้น 3 หลังสร้าง AN ยังไม่ลงเตียง (รอเตียง)', 'BED-3');
+    await startClip(n, 'after');
+    note('หลังเทส', `เก็บผู้ป่วย HN ${v.hn} · EN ${v.en} ไว้ในสถานะรอเตียง (ไม่ลงเตียง / ไม่ปิด Visit)`);
+    let nurseFailed: unknown;
+    try {
+      nfinish();
+    } catch (error) {
+      nurseFailed = error;
+    }
+    finish();
+    if (nurseFailed) throw nurseFailed;
+  });
+
   // ======================= เทส 5: Bubble หายเมื่อรับ Order ครบ =======================
   test('รับ Order ทุกงานที่ค้างทั้ง ER → เมนู รายการงานพยาบาล ไม่แสดง Bubble แดง (TC 022) + ปิด Visit ผู้ป่วยของชุดนี้', tagsOf('BUBBLE', [22]), async ({ page, browser }) => {
     const { note, finish } = makeRunner(page);
@@ -1094,6 +1435,13 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
       triageB = await preparePatient(page, { label: 'Bbl2947B', triage: false }, note);
       await orderImaging(page, triageB, true);
       note('ผู้ป่วย B (ยังไม่คัดกรอง)', `HN ${triageB.hn} · สั่ง ${SETTINGS.imagingCode} แล้ว อยู่โซน Triage`);
+    }
+    // SBH2947_BUBBLE_ORDER=1: เตรียมผู้ป่วย AUTO 1 รายที่คัดกรองแล้ว (ESI 3) + สั่ง Imaging — ให้มีงานรอรับ / Bubble ตอนเริ่ม
+    // (Retest 3 พ.ย. 2026: งาน Order ทั้ง ER ถูกรับหมดจากรอบก่อน Bubble ไม่ขึ้นตั้งแต่ขั้น 1)
+    if (process.env.SBH2947_BUBBLE_ORDER) {
+      const a = await preparePatient(page, { label: 'Bbl2947A', level: 3 }, note);
+      await orderImaging(page, a, true);
+      note('ผู้ป่วย A (คัดกรองแล้ว)', `HN ${a.hn} · สั่ง ${SETTINGS.imagingCode} แล้ว`);
     }
     nurse = await openNurseWindow(browser);
     const n = nurse;
@@ -1111,7 +1459,8 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
       await clearSearch(n);
     }
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-    const TYPES = 'SPECIMEN,MEDICATION,ACTIVITY,IMAGING';
+    // Retest 4 พ.ย. 2026 (ตัวแก้ SBH-3843): Bubble นับงาน NURSE_ADDED ด้วย → รวมในงานรอรับ
+    const TYPES = TASK_TYPES;
     const pendingTasks = async () =>
       ((await (await n.request.get(`/cortex-api/er/nurse-tasks?date=${today}&dateBasis=task&statuses=PENDING&types=${TYPES}&perPage=200`, { headers: { authorization: auth() } })).json()) as { data: { id: string; en: string; hn: string; name: string; type: string }[] }).data;
     const summary = async () => ((await (await n.request.get(`/cortex-api/er/nurse-tasks/summary?date=${today}&dateBasis=task&types=${TYPES}`, { headers: { authorization: auth() } })).json()) as { pending: number }).pending;
@@ -1121,67 +1470,147 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
     nnote(`${TC(22)} ขั้น 1 งานรอรับทั้ง ER ก่อนเริ่ม (API)`, `${before.length} งาน · ${[...new Set(before.map((t) => `HN ${t.hn}`))].join(', ')}`);
     await nsoft(`${TC(22)} ขั้น 1 ก่อนรับ — เมนู รายการงานพยาบาล มี Bubble แดง`, async () => {
       await openNav(n);
-      await markEvidence(expected(nurseMenu(n), `Bubble (งานรอรับ ${before.length})`));
+      await expect(nurseBadge(n).first()).toBeVisible({ timeout: 60_000 });
+      const { api, seen } = await waitBadgeMatchesApi(n, auth);
+      nnote(`${TC(22)} ขั้น 1 Bubble`, `เห็น "${seen?.text ?? '-'}" · API (ผู้ป่วยโซนจริง) ${api.total} งาน ${api.counted.map((e) => `HN ${e.hn} ${e.taskTotalCount}`).join(', ')}`);
+      await markEvidence(expected(nurseMenu(n), `Bubble แดง ${seen?.text ?? ''} (มีงานรอรับ)`));
+      await holdForClip(n, 2_000);
       await snapEvidence(n, 'ก่อนรับ Order — Bubble ที่เมนู');
-      await expect(nurseDot(n)).toBeVisible();
     });
     await closeNav(n);
 
     const viaApi: string[] = [];
+    const acceptedOf: Record<string, number> = {};
     await nsoft(`${TC(22)} ขั้น 2 กด รับ Order ทุกงานที่ยังไม่รับ ของผู้ป่วยทุกรายที่มีงานค้าง`, async () => {
-      for (let round = 0; round < 3; round++) {
-        const left = await pendingTasks();
-        if (!left.length) break;
-        for (const en of [...new Set(left.map((t) => t.en))]) {
-          const hn = left.find((t) => t.en === en)!.hn;
-          await clearSearch(n);
-          if (!(await searchHn(n, hn))) continue;
-          await patientBtn(n, hn).click();
-          await expect(mainOf(n).getByText(`HN ${hn}`, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
-          await n.waitForTimeout(1_500);
-          for (let i = 0; i < 20; i++) {
-            const btn = mainOf(n).getByRole('button', { name: 'รับ Order', exact: true }).first();
-            if (!(await btn.isVisible().catch(() => false))) break;
-            if (i === 0 && round === 0 && en === left[0].en) {
-              await markEvidence(clicked(btn, 'รับ Order'));
-              await snapEvidence(n, 'ก่อนกด — รับ Order');
-              await clearEvidenceMarks(n);
-            }
-            const accepted = n.waitForResponse((r) => r.request().method() === 'POST' && /\/nurse-tasks\/[^/]+\/accept/.test(r.url()), { timeout: 30_000 });
-            await btn.click();
-            await expectOk(await accepted, `รับ Order HN ${hn}`);
-            await n.waitForTimeout(1_200);
-          }
-        }
+      // Retest 3 พ.ย. 2026: เปิดผู้ป่วยทุกรายในรายชื่อ (ไม่ใช่เฉพาะรายที่ API ของ Bubble มีงาน) — API นับเฉพาะ SPECIMEN / MEDICATION / ACTIVITY / IMAGING
+      // ส่วนงานที่พยาบาลเพิ่มเอง (NURSE_ADDED) ขึ้น "รอรับงาน" + ปุ่ม รับ Order ในหน้าเหมือนกัน รอบแรกจึงค้าง (HN 6931241 Task A / B)
+      // วนรอบเดียว (รอบ 2 เคยวนซ้ำทั้งรายชื่อ คลิปยาว ~2 นาทีโดยไม่มีกรอบ) — ขั้นตรวจเพิ่มถัดไปเปิดทุกรายซ้ำอยู่แล้ว
+      let shot = false;
+      await clearSearch(n);
+      const listed = (await readSidebar(n)).flatMap((z) => z.patients.map((p) => p.hn));
+      const hns = [...new Set([...listed, ...(await pendingTasks()).map((t) => t.hn)])].filter(Boolean);
+      for (const hn of hns) {
         await clearSearch(n);
-        await refresh(n);
+        if (!(await searchHn(n, hn))) continue;
+        await patientBtn(n, hn).click();
+        await expect(mainOf(n).getByText(`HN ${hn}`, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+        await taskRows(n).first().waitFor({ timeout: 15_000 }).catch(() => undefined);
+        await n.waitForTimeout(800);
+        for (let i = 0; i < 20; i++) {
+          const btn = mainOf(n).getByRole('button', { name: 'รับ Order', exact: true }).first();
+          // รายการงานโหลดใหม่หลังกดรับ ปุ่มหายชั่วคราว → รอปุ่มถัดไป 8 วิ (Retest 4 พ.ย. 2026 ลูปหยุดหลังกดงานแรกของ HN 6932607 — ผู้ใช้อนุมัติ R52)
+          if (!(await btn.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true, () => false))) break;
+          // ทุกปุ่มที่กด ตีกรอบ "กด" ให้เห็นในคลิป (markEvidence ค้างจอ 1.2 วิ) · ภาพเก็บใบแรกใบเดียว
+          await markEvidence(clicked(btn, `รับ Order HN ${hn}`));
+          if (!shot) {
+            shot = true;
+            await snapEvidence(n, 'ก่อนกด — รับ Order');
+          }
+          await clearEvidenceMarks(n);
+          const accepted = n.waitForResponse((r) => r.request().method() === 'POST' && /\/nurse-tasks\/[^/]+\/accept/.test(r.url()), { timeout: 30_000 });
+          await btn.click();
+          await expectOk(await accepted, `รับ Order HN ${hn}`);
+          acceptedOf[hn] = (acceptedOf[hn] ?? 0) + 1;
+          await n.waitForTimeout(1_200);
+        }
       }
-      // งานที่กดจากหน้าจอไม่ได้ (ผู้ป่วยโซน Triage ไม่อยู่ในรายชื่อ / งานยาไม่มีปุ่ม) → รับผ่าน API แบบเดียวกับปุ่ม (POST …/accept?en=)
-      // รอบ 8: ไม่ส่ง en ได้ 422 "nurse task id is not a valid task key"
-      for (const t of await pendingTasks()) {
-        const res = await n.request.post(`/cortex-api/er/nurse-tasks/${encodeURIComponent(t.id)}/accept?en=${t.en}`, { headers: { authorization: auth() } });
-        viaApi.push(`HN ${t.hn} ${t.type} ${t.name} → ${res.status()}${res.ok() ? "" : " " + (await res.text()).slice(0, 120)}`);
+      await clearSearch(n);
+      await refresh(n);
+      nnote(`${TC(22)} ขั้น 2 กด รับ Order จากหน้าจอ`, Object.entries(acceptedOf).map(([hn, c]) => `HN ${hn} ${c} งาน`).join(' · ') || 'ไม่มีงานให้กด');
+      // Retest 4 พ.ย. 2026 (ตัวแก้ SBH-3843): Bubble ไม่นับงานของผู้ป่วยโซน Triage / ไม่ทราบโซนแล้ว → ไม่รับงานผ่าน API (รอบก่อนได้ 422) · จดไว้เป็นข้อมูล
+      // งานที่ Bubble นับแต่ไม่มีปุ่มบนจอ (เช่น งานยา) → รับผ่าน API แบบเดียวกับปุ่ม (POST …/accept?en=)
+      const countedEns = new Set((await badgeFromApi(n, auth)).counted.map((e) => e.en));
+      for (const t of (await pendingTasks()).filter((x) => countedEns.has(x.en))) {
+        // ปุ่มของแอปรุ่นนี้ส่ง POST …/accept ไม่มี en (trace 4 พ.ย.) · ส่ง ?en= ได้ 422 → ลองแบบปุ่มก่อน ไม่ผ่านค่อยลอง ?en=
+        let res = await n.request.post(`/cortex-api/er/nurse-tasks/${encodeURIComponent(t.id)}/accept`, { headers: { authorization: auth() } });
+        if (!res.ok()) res = await n.request.post(`/cortex-api/er/nurse-tasks/${encodeURIComponent(t.id)}/accept?en=${t.en}`, { headers: { authorization: auth() } });
+        viaApi.push(`รับผ่าน API HN ${t.hn} ${t.type} ${t.name} → ${res.status()}`);
       }
-      nnote(`${TC(22)} ขั้น 2 รับผ่าน API (ผู้ป่วยไม่อยู่ในรายชื่อ)`, viaApi.join(' · ') || 'ไม่มี');
-      expect(await pendingTasks(), 'ต้องไม่เหลืองานรอรับ').toEqual([]);
+      const api = await badgeFromApi(n, auth);
+      viaApi.push(...api.notCounted.map((e) => `ไม่นับ HN ${e.hn} ${e.locationName ?? 'ไม่ทราบโซน'} ${e.taskTotalCount} งาน`));
+      nnote(`${TC(22)} ขั้น 2 รับผ่าน API / งานที่ Bubble ไม่นับ (โซน Triage / ไม่ทราบโซน)`, viaApi.join(' · ') || 'ไม่มี');
+      expect(api.counted.map((e) => `HN ${e.hn} ${e.taskTotalCount}`), 'ต้องไม่เหลืองานรอรับที่ Bubble นับ').toEqual([]);
     });
 
+    // ---------- ตรวจเพิ่ม (ผู้ใช้ขอ 3 พ.ย. 2026 "ต้องไม่มีงานที่ยังไม่ได้รับในคนไข้ทุกคน") ----------
+    // เปิดผู้ป่วยทุกรายในรายชื่อทีละราย: ช่องสถานะต้องไม่มี "รอรับงาน" + ไม่มีปุ่ม รับ Order · เทียบกับ API งานรอรับรายผู้ป่วย
+    // ผู้ป่วยที่มีงานรอรับใน API แต่ไม่อยู่ในรายชื่อ (โซน Triage — รอบ 31 ต.ค.) แสดงเป็นแถวแยกในตารางเทียบ
+    await nsoft(`${TC(22)} ขั้น 2 (ตรวจเพิ่ม) ผู้ป่วยทุกรายในรายชื่อไม่มีงาน รอรับงาน`, async () => {
+      await clearSearch(n);
+      await refresh(n);
+      const zones = await readSidebar(n);
+      const patients = zones.flatMap((z) => z.patients.map((p) => ({ ...p, zone: zoneName(z.label) })));
+      nnote(`${TC(22)} ผู้ป่วยในรายชื่อหลังรับ Order (${patients.length} ราย)`, describe(zones));
+      const apiLeft = await pendingTasks();
+      const acceptedHns = new Set(Object.keys(acceptedOf));
+      const rows: CompareRow[] = [];
+      const bad: string[] = [];
+      for (const p of patients) {
+        const btn = patientBtn(n, p.hn);
+        await btn.scrollIntoViewIfNeeded();
+        const loaded = n.waitForResponse((r) => /\/er\/nurse-tasks\?/.test(r.url()), { timeout: 20_000 }).catch(() => undefined);
+        await btn.click();
+        await expect(mainOf(n).getByText(`HN ${p.hn}`, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+        await loaded;
+        await taskRows(n).first().waitFor({ timeout: 15_000 }).catch(() => undefined);
+        await n.waitForTimeout(800);
+        // กรอบล้อมทุกแถวงาน (ทุกกลุ่ม Medication / Imaging / …) — รอบ 2 ใช้แม่ของแถวแรก ได้แค่กลุ่มแรก (ภาพ 08 / 17)
+        const rowCount = await taskRows(n).count();
+        const table = rowCount
+          ? taskRows(n).first().locator(`xpath=ancestor::*[count(.//*[contains(@class,"_data-row_")]) >= ${rowCount}][1]`)
+          : mainOf(n);
+        const statuses = (await taskRows(n).locator('[data-label="สถานะ"]').allInnerTexts()).map((s) => s.trim());
+        const waiting = statuses.filter((s) => /รอรับงาน/.test(s)).length;
+        const acceptBtns = await mainOf(n).getByRole('button', { name: 'รับ Order', exact: true }).count();
+        const api = apiLeft.filter((t) => t.hn === p.hn).length;
+        const ok = waiting === 0 && acceptBtns === 0 && api === 0;
+        if (!ok) bad.push(`HN ${p.hn}`);
+        rows.push({ label: `HN ${p.hn} (${p.zone})`, values: [`${statuses.length} งาน · รอรับงาน ${waiting}`, `${acceptBtns}`, `${api}`], same: ok });
+        nnote(`${TC(22)} ตรวจ HN ${p.hn}`, `${p.zone} · ${p.count} · สถานะ: ${statuses.join(', ')} · ปุ่ม รับ Order ${acceptBtns} · API งานรอรับ ${api}`);
+        await markEvidence(clicked(btn, `HN ${p.hn}`), expected(table, `รอรับงาน ${waiting} · ปุ่ม รับ Order ${acceptBtns}`));
+        // ผู้ป่วยที่เพิ่งกดรับในขั้น 2 = หลักฐานหลัก ค้างจอนานขึ้นให้อ่านทัน
+        if (acceptedHns.has(p.hn)) await holdForClip(n, 2_500);
+        await snapEvidence(n, `ตรวจ HN ${p.hn}`);
+      }
+      // ไม่อยู่ในรายชื่อแต่มีงานรอรับ: ผู้ป่วยโซน Triage / ไม่ทราบโซน = Bubble ไม่นับ (ตัวแก้ SBH-3843) แสดงเป็นข้อมูล · ถ้า Bubble นับ = ผิด
+      const countedHns = new Set((await badgeFromApi(n, auth)).counted.map((e) => e.hn));
+      const hidden = [...new Set(apiLeft.filter((t) => !patients.some((p) => p.hn === t.hn)).map((t) => t.hn))];
+      for (const hn of hidden) {
+        const counted = countedHns.has(hn);
+        if (counted) bad.push(`HN ${hn} (ไม่อยู่ในรายชื่อ)`);
+        rows.push({ label: `HN ${hn} (ไม่อยู่ในรายชื่อ · ${counted ? 'Bubble นับ' : 'Bubble ไม่นับ'})`, values: ['-', '-', `${apiLeft.filter((t) => t.hn === hn).length}`], same: !counted });
+      }
+      await showCompareTable(n, `ผู้ป่วยทุกราย (${patients.length} ราย) หลังรับ Order`, ['บนจอ', 'ปุ่ม รับ Order', 'API รอรับ'], rows, { side: 'right', width: '640px' });
+      await markEvidence(expected(sidebar(n), `ผู้ป่วย ${patients.length} ราย ไม่มีงานรอรับ`));
+      await holdForClip(n, 4_000);
+      expect(patients.length, 'ต้องมีผู้ป่วยในรายชื่อให้ตรวจ').toBeGreaterThan(0);
+      expect(bad, 'ผู้ป่วยทุกรายต้องไม่มีงาน รอรับงาน').toEqual([]);
+    });
+    await hideCompareTable(n).catch(() => undefined);
+
     await nsoft(`${TC(22)} ขั้น 3 รีเฟรช → เมนู รายการงานพยาบาล ไม่แสดง Bubble แดง`, async () => {
+      await markEvidence(clicked(refreshBtn(n), 'รีเฟรช'));
+      await snapEvidence(n, 'ก่อนกด — รีเฟรช');
+      await clearEvidenceMarks(n);
       await refresh(n);
       await openNav(n);
-      await expect.poll(async () => nurseDot(n).count(), { timeout: 90_000, intervals: [5_000], message: 'Bubble ต้องหายเมื่อไม่มีงานรอรับ' }).toBe(0);
-      const pending = await summary();
-      nnote(`${TC(22)} งานรอรับทั้ง ER หลังรับครบ (API summary)`, `${pending} งาน`);
+      await expect.poll(async () => nurseBadge(n).count(), { timeout: 90_000, intervals: [5_000], message: 'Bubble ต้องหายเมื่อไม่มีงานรอรับ' }).toBe(0);
+      const api = await badgeFromApi(n, auth);
+      const pending = api.total;
+      const seen = await readBadge(n);
+      nnote(`${TC(22)} งานรอรับที่ Bubble นับหลังรับครบ (API encounters)`, `${pending} งาน · ไม่นับ (โซน Triage / ไม่ทราบโซน) ${api.notCounted.map((e) => `HN ${e.hn} ${e.taskTotalCount}`).join(', ') || '-'} · summary เดิม ${await summary()}`);
       await showCompareTable(n, 'Bubble หลังรับ Order ครบ', ['ที่เห็น'], [
-        { label: 'Bubble ที่ รายการงานพยาบาล', values: [(await nurseDot(n).count()) ? 'มี' : 'ไม่มี'], same: (await nurseDot(n).count()) === 0 },
-        { label: 'งานรอรับทั้ง ER (API)', values: [`${pending} งาน`], same: pending === 0 },
+        { label: 'Bubble ที่ รายการงานพยาบาล', values: [seen ? `มี "${seen.text}"` : 'ไม่มี'], same: !seen },
+        { label: 'งานรอรับที่ Bubble นับ (API)', values: [`${pending} งาน`], same: pending === 0 },
       ], { side: 'right', width: '520px' });
       await markEvidence(expected(nurseMenu(n), 'ไม่มี Bubble'));
+      await holdForClip(n, 3_000);
       expect(pending).toBe(0);
     });
     await hideCompareTable(n).catch(() => undefined);
     await closeNav(n);
     await holdForClip(n);
+    await startClip(n, 'after'); // จบคลิป TC-022 ก่อนขั้นปิด Visit (กับดัก SBH-2947 TC-022 คลิปยาว / หาย)
 
     // ---------- ปิด Visit ผู้ป่วยของชุดนี้ ----------
     if (!process.env.SBH2947_KEEP) {
@@ -1202,6 +1631,228 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
         note('หลังเทส', `${v.label} HN ${v.hn} · ${v.vn}: ${result}`);
       }
     }
+    let nurseFailed: unknown;
+    try {
+      nfinish();
+    } catch (error) {
+      nurseFailed = error;
+    }
+    finish();
+    if (nurseFailed) throw nurseFailed;
+  });
+
+  // ======================= เทส 6 (บั๊ก): Bubble ไม่นับงานที่พยาบาลเพิ่มเอง (NURSE_ADDED) =======================
+  // เจอใน Retest TC-022 3 พ.ย. 2026 (HN 6931241 Task A / B) — ผู้ใช้สั่งเปิดการ์ดบั๊ก + reproduce ด้วยผู้ป่วย AUTO
+  // ผู้ป่วย AUTO คัดกรองแล้วไม่มี Order → Nurse กด + เพิ่ม Nurse task → งาน "รอรับงาน" + ปุ่ม รับ Order แต่เมนูไม่มี Bubble → ปิด Visit
+  // ต้องไม่มีงาน Order รอรับในทั้ง ER ก่อนเริ่ม (ไม่งั้น Bubble ขึ้นจากงานอื่น พิสูจน์ไม่ได้)
+  test('(บั๊ก) งาน Nurse task ที่พยาบาลเพิ่มเอง รอรับงาน แต่เมนู รายการงานพยาบาล ไม่แสดง Bubble', tagsOf('BUGNT', []), async ({ page, browser }) => {
+    const { note, finish } = makeRunner(page);
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    const v = await preparePatient(page, { label: 'Nt2947', level: 3 }, note);
+    nurse = await openNurseWindow(browser);
+    const n = nurse;
+    const { note: nnote, soft: nsoft, finish: nfinish } = makeRunner(n);
+    const auth = trackAuthorization(n);
+    const summary = async () => ((await (await n.request.get(`/cortex-api/er/nurse-tasks/summary?date=${today}&dateBasis=task&types=SPECIMEN,MEDICATION,ACTIVITY,IMAGING`, { headers: { authorization: auth() } })).json()) as { pending: number }).pending;
+    const tasksOf = async () => ((await (await n.request.get(`/cortex-api/er/nurse-tasks?date=${today}&dateBasis=task&shift=ALL_DAY&en=${v.en}&perPage=1000`, { headers: { authorization: auth() } })).json()) as { data: { id: string; type: string; status: string; name: string }[] }).data;
+    const taskName = `SBH2947 bug ${v.hn}`;
+
+    // ผู้ป่วยยังไม่มี Order → เปิดสวิตช์ แสดงผู้ป่วยที่ยังไม่มี Order
+    if ((await withoutOrders(n).getAttribute('aria-checked')) !== 'true') await withoutOrders(n).click();
+    await refresh(n);
+    expect(await searchHn(n, v.hn), `ผู้ป่วย HN ${v.hn} ต้องอยู่ในรายชื่อ`).toBe(true);
+    await patientBtn(n, v.hn).click();
+    await expect(mainOf(n).getByText(`HN ${v.hn}`, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+    const before = await summary();
+    nnote('ก่อนเพิ่มงาน', `งานรอรับทั้ง ER (API summary) ${before} งาน`);
+    expect(before, 'ต้องไม่มีงาน Order รอรับในทั้ง ER ก่อนเริ่ม (Bubble จะขึ้นจากงานอื่น)').toBe(0);
+
+    await startClip(n, 'BUG-NT');
+    await nsoft('ขั้น 1 ก่อนเพิ่ม — เมนู รายการงานพยาบาล ไม่มี Bubble (ไม่มีงานรอรับ)', async () => {
+      await openNav(n);
+      await markEvidence(expected(nurseMenu(n), 'ไม่มี Bubble (ยังไม่มีงาน)'));
+      await holdForClip(n, 1_500);
+    });
+    await closeNav(n);
+
+    await nsoft('ขั้น 2 กด + เพิ่ม Nurse task (Routine) → บันทึก', async () => {
+      await mainOf(n).getByRole('button', { name: /เพิ่ม Nurse task/ }).click();
+      const modal = n.getByRole('dialog').filter({ hasText: 'เพิ่ม Nurse task' }).first();
+      await expect(modal).toBeVisible();
+      await modal.locator('input#name').fill(taskName);
+      await modal.locator('input#priority').click();
+      await n.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: 'Routine' }).first().click();
+      await modal.locator('input#assignee').click();
+      await n.locator('.ant-select-dropdown:visible .ant-select-item-option').first().click();
+      await markEvidence(filled(modal.locator('input#name'), taskName), clicked(modal.getByRole('button', { name: /บันทึก/ }), 'บันทึก'));
+      await snapEvidence(n, 'ก่อนกด — บันทึก Nurse task');
+      await clearEvidenceMarks(n);
+      const created = n.waitForResponse((r) => /\/er\/nurse-tasks/.test(r.url()) && r.request().method() === 'POST', { timeout: 30_000 });
+      await modal.getByRole('button', { name: /บันทึก/ }).click();
+      await expectOk(await created, `เพิ่ม Nurse task "${taskName}"`);
+      await expect(modal).toBeHidden({ timeout: 15_000 });
+    });
+
+    await nsoft('ขั้น 3 งานใหม่ รอรับงาน + ปุ่ม รับ Order แต่รีเฟรชแล้วเมนูไม่มี Bubble (Actual)', async () => {
+      await refresh(n);
+      await clearSearch(n);
+      await searchHn(n, v.hn);
+      await patientBtn(n, v.hn).click();
+      const row = taskRows(n).filter({ hasText: taskName }).first();
+      await expect(row.locator('[data-label="สถานะ"]')).toContainText('รอรับงาน', { timeout: 30_000 });
+      await expect(row.getByRole('button', { name: 'รับ Order', exact: true })).toBeVisible();
+      const tasks = await tasksOf();
+      const pending = await summary();
+      await expect.poll(async () => nurseDot(n).count(), { timeout: 20_000, intervals: [5_000] }).toBe(0);
+      nnote('หลังเพิ่มงาน', `งานของผู้ป่วย (API): ${tasks.map((t) => `${t.type} ${t.status} ${t.name}`).join(' · ')} · งานรอรับทั้ง ER (API summary) ${pending}`);
+      await openNav(n);
+      await showCompareTable(n, 'Nurse task รอรับงาน กับ Bubble', ['ที่เห็น'], [
+        { label: 'สถานะงาน (หน้าจอ)', values: ['รอรับงาน + ปุ่ม รับ Order'], same: true },
+        { label: 'งานของผู้ป่วย (API)', values: [tasks.map((t) => `${t.type} · ${t.status}`).join(', ')], same: true },
+        { label: 'Bubble ที่ รายการงานพยาบาล', values: [`${(await nurseDot(n).count()) ? 'มี' : 'ไม่มี'} (ควรมี)`], same: false },
+        { label: 'API summary pending', values: [`${pending} งาน (ไม่นับ NURSE_ADDED)`], same: false },
+      ], { side: 'bottom' }); // ด้านขวาบนบังหัวคอลัมน์ สถานะ / Actions (Sub Agent 3 พ.ย.)
+      // แถว (data-row) ไม่ครอบช่องสถานะ / Actions ที่ตรึงขวา → ตีกรอบแยก
+      await markEvidence(
+        expected(nurseMenu(n), 'มี Bubble · จริง: ไม่มี'),
+        expected(row.locator('[data-label="สถานะ"]'), 'รอรับงาน'),
+        expected(row.getByRole('button', { name: 'รับ Order', exact: true }), 'ปุ่ม รับ Order'),
+      );
+      await holdForClip(n, 3_000);
+      expect(pending, 'reproduce: summary ไม่นับงาน NURSE_ADDED').toBe(0);
+    });
+    await hideCompareTable(n).catch(() => undefined);
+    await closeNav(n).catch(() => undefined);
+    await startClip(n, 'after');
+
+    const closed = await closeVisitAtCashier(page, v.hn, v.vn).then(
+      (c) => (c.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+      (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+    );
+    note('หลังเทส', `HN ${v.hn} · ${v.vn}: ${closed}`);
+    let nurseFailed: unknown;
+    try {
+      nfinish();
+    } catch (error) {
+      nurseFailed = error;
+    }
+    finish();
+    if (nurseFailed) throw nurseFailed;
+  });
+
+  // ======================= เทส 7 (บั๊ก · ตรวจซ้ำ 3 พ.ย. 2026): ผู้ป่วยโซน Triage + เหตุผลยกเลิก Encounter เกิน 30 ตัวอักษร =======================
+  // ผู้ใช้สั่ง "ตรวจซ้ำก่อน แล้วใส่ทั้ง 2 ข้อ" (สรุปบั๊กของ SBH-2947 ลง SBH-3843) — ผู้ป่วย AUTO 1 ราย ไม่คัดกรอง + สั่ง Imaging
+  // ก. Bubble นับงานของผู้ป่วยโซน Triage แต่ผู้ป่วยไม่อยู่ในรายชื่อ → พยาบาลกดรับไม่ได้ (รับผ่าน API แบบปุ่ม = 422 รอบ 31 ต.ค.)
+  // ข. ยกเลิก Encounter ด้วยเหตุผล > 30 ตัวอักษร → ERROR value too long for type character varying(30) · แล้วยกเลิกด้วยเหตุผลสั้น (เก็บกวาด)
+  test('(บั๊ก) งานของผู้ป่วยโซน Triage ค้าง Bubble · เหตุผลยกเลิก Encounter เกิน 30 ตัวอักษร', tagsOf('BUGRE', []), async ({ page, browser }) => {
+    const { note, soft, finish } = makeRunner(page);
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    const TYPES = 'SPECIMEN,MEDICATION,ACTIVITY,IMAGING';
+    const pauth = trackAuthorization(page);
+    // SBH2947_BUGRE_ONLY=CANCEL: รันเฉพาะข้อ ข. (ไม่สั่ง Order · ไม่เปิดหน้าต่าง Nurse) — ใช้เมื่อ ER มีงานรอรับของ session อื่นค้าง
+    const onlyCancel = process.env.SBH2947_BUGRE_ONLY === 'CANCEL';
+    const v = await preparePatient(page, { label: 'Re2947', triage: false }, note);
+    let nfinish = () => {};
+    if (!onlyCancel) {
+    await orderImaging(page, v, true);
+    note('ผู้ป่วย (ยังไม่คัดกรอง)', `HN ${v.hn} · EN ${v.en} · สั่ง ${SETTINGS.imagingCode}`);
+    nurse = await openNurseWindow(browser);
+    const n = nurse;
+    const { note: nnote, soft: nsoft, finish: nrunFinish } = makeRunner(n);
+    nfinish = nrunFinish;
+    const auth = trackAuthorization(n);
+    await refresh(n);
+    const pendingOf = async () => ((await (await n.request.get(`/cortex-api/er/nurse-tasks?date=${today}&dateBasis=task&statuses=PENDING&types=${TYPES}&perPage=200`, { headers: { authorization: auth() } })).json()) as { data: { id: string; en: string; hn: string; type: string; name: string }[] }).data;
+    const summary = async () => ((await (await n.request.get(`/cortex-api/er/nurse-tasks/summary?date=${today}&dateBasis=task&types=${TYPES}`, { headers: { authorization: auth() } })).json()) as { pending: number }).pending;
+
+    // ---------- ก. ผู้ป่วยโซน Triage ----------
+    await startClip(n, 'BUG-TRIAGE');
+    await nsoft('ก. งานของผู้ป่วยที่ยังไม่คัดกรอง ทำให้เมนูมี Bubble แต่ผู้ป่วยไม่อยู่ในรายชื่อ กดรับไม่ได้ (Actual)', async () => {
+      const all = await pendingOf();
+      const mine = all.filter((t) => t.hn === v.hn);
+      const others = all.filter((t) => t.hn !== v.hn);
+      nnote('งานรอรับทั้ง ER (API)', `${all.length} งาน · ของผู้ป่วยนี้ ${mine.length} (${mine.map((t) => `${t.type} ${t.name}`).join(', ')}) · ของคนอื่น ${others.length}`);
+      expect(mine.length, 'ผู้ป่วยต้องมีงานรอรับ').toBeGreaterThan(0);
+      expect(others, 'ต้องไม่มีงานรอรับของผู้ป่วยอื่น (Bubble จะขึ้นจากงานอื่น)').toEqual([]);
+      const found = await searchHn(n, v.hn);
+      // ลองรับงานแบบเดียวกับปุ่ม รับ Order (POST …/accept?en=) — หน้าเว็บไม่มีปุ่มให้กดเพราะไม่มีผู้ป่วยในรายชื่อ
+      const tries: string[] = [];
+      for (const t of mine) {
+        const res = await n.request.post(`/cortex-api/er/nurse-tasks/${encodeURIComponent(t.id)}/accept?en=${t.en}`, { headers: { authorization: auth() } });
+        tries.push(`${t.id} → ${res.status()} ${res.ok() ? '' : (await res.text()).slice(0, 100)}`);
+      }
+      nnote('รับงานผ่าน API แบบปุ่ม', tries.join(' · '));
+      const pending = await summary();
+      // ภาพที่ 1 (เมนูปิด): ค้น HN แล้วไม่พบในรายชื่อ — เมนูเปิดจะบังช่องค้นหา / รายชื่อ (รอบแรก 3 พ.ย. กรอบตกบนเมนู)
+      await markEvidence(filled(searchBox(n), `HN ${v.hn}`), expected(sidebarEmpty(n), 'พบผู้ป่วย · จริง: ไม่พบ'));
+      await holdForClip(n, 2_000);
+      await snapEvidence(n, 'ค้น HN ผู้ป่วยโซน Triage ไม่พบ');
+      await clearEvidenceMarks(n);
+      await openNav(n);
+      await showCompareTable(n, 'ผู้ป่วยโซน Triage มีงานรอรับ', ['ที่เห็น'], [
+        { label: 'ผู้ป่วย (ยังไม่คัดกรอง)', values: [`HN ${v.hn} · งาน ${mine.map((t) => t.name).join(', ')}`], same: true },
+        { label: 'ค้น HN ในรายการงานพยาบาล', values: [found ? 'พบ' : 'ไม่พบผู้ป่วย'], same: found },
+        { label: 'Bubble ที่ รายการงานพยาบาล', values: [`${(await nurseDot(n).count()) ? 'มี' : 'ไม่มี'} · API summary pending ${pending}`], same: true },
+        { label: 'รับงาน (POST accept แบบปุ่ม)', values: [tries.map((x) => x.split(' → ')[1]).join(', ')], same: false },
+      ], { side: 'bottom' });
+      await markEvidence(expected(nurseMenu(n), 'Bubble ขึ้นจากงานที่พยาบาลมองไม่เห็น'));
+      await holdForClip(n, 3_000);
+      expect(found, 'reproduce: ผู้ป่วยโซน Triage ไม่อยู่ในรายชื่อ').toBe(false);
+      expect(pending, 'reproduce: Bubble ยังนับงานนี้').toBeGreaterThan(0);
+    });
+    await hideCompareTable(n).catch(() => undefined);
+    await closeNav(n).catch(() => undefined);
+    await startClip(n, 'after');
+    }
+
+    // ---------- ข. เหตุผลยกเลิก Encounter เกิน 30 ตัวอักษร ----------
+    const longReason = 'ทดสอบเหตุผลการยกเลิกที่ยาวเกินสามสิบตัวอักษร SBH-2947';
+    await gotoVisit(page, v);
+    await startClip(page, 'BUG-CANCEL');
+    await soft(`ข. ยกเลิก Encounter ด้วยเหตุผลยาว ${longReason.length} ตัวอักษร → แจ้ง value too long (Actual)`, async () => {
+      const status = mainOf(page).locator('.ant-select[class*="status-select"]').filter({ visible: true }).first();
+      await expect(status).toBeVisible({ timeout: 60_000 });
+      await status.click();
+      await options(page).filter({ hasText: /^ยกเลิก$/ }).click();
+      const dialog = page.getByRole('dialog', { name: /ต้องการยกเลิก/ });
+      await expect(dialog).toContainText(v.en);
+      const reason = dialog.getByRole('textbox', { name: 'ระบุเหตุผลการยกเลิก' });
+      await reason.fill(longReason);
+      const typed = await reason.inputValue();
+      const maxLen = await reason.getAttribute('maxlength');
+      note('ช่องเหตุผล', `พิมพ์ได้ ${typed.length} ตัวอักษร · maxlength ${maxLen ?? '-'}`);
+      const confirm = dialog.getByRole('button', { name: 'ยืนยัน' });
+      await markEvidence(filled(reason, `${typed.length} ตัวอักษร`), clicked(confirm, 'ยืนยัน'));
+      await snapEvidence(page, 'ก่อนกด — ยืนยัน (เหตุผลยาว)');
+      await clearEvidenceMarks(page);
+      const res = page.waitForResponse((r) => r.request().method() === 'POST' && /\/cortex-api\/graphql/.test(r.url()) && /cancel/i.test(r.request().postData() ?? ''), { timeout: 40_000 });
+      await confirm.click();
+      const body = await (await res).text();
+      note('ผลคำสั่งยกเลิก', body.slice(0, 300));
+      const alert = page.getByText(/value too long/).first();
+      await expect(alert).toBeVisible({ timeout: 20_000 });
+      // แจ้งเตือนอยู่หลังฉากเบลอของหน้าต่างยืนยัน (รอบแรก 3 พ.ย. อ่านไม่ออก) → กด ย้อนกลับ ให้หน้าต่างปิดก่อนถ่าย
+      if (await dialog.isVisible().catch(() => false)) await dialog.getByRole('button', { name: 'ย้อนกลับ' }).click();
+      await expect(dialog).toBeHidden({ timeout: 10_000 });
+      await alert.hover({ trial: true }).catch(() => undefined);
+      // กรอบทั้งกล่องแจ้งเตือน (กรอบที่ข้อความ error ป้ายทับหัว "ไม่สามารถยกเลิก Encounter นี้ได้")
+      const notice = page.locator('.ant-notification-notice').filter({ hasText: /value too long/ }).first();
+      const box = (await notice.count()) ? notice : alert;
+      await markEvidence(alerted(box, 'ยกเลิกได้ · จริง: value too long (30)'));
+      await holdForClip(page, 2_500);
+      await snapEvidence(page, 'หลังกด — แจ้ง value too long');
+      await clearEvidenceMarks(page);
+    });
+    // หน้าต่างยกเลิกปิดไปแล้ว / ขั้น ข. พัง → ยกเลิกใหม่ด้วยเหตุผลสั้น (helper เดิม)
+    const left = await (await page.request.get(`/cortex-api/er/encounters/${v.en}`, { headers: { authorization: pauth() } })).json().catch(() => ({})) as { latestStatusCode?: string };
+    note('สถานะ Encounter หลังขั้น ข.', left.latestStatusCode ?? '-');
+    if (left.latestStatusCode && !/cancel/i.test(left.latestStatusCode)) {
+      await cancelEncounter(page, v).then(
+        () => note('เก็บกวาด', `ยกเลิก Encounter ${v.en} (helper) สำเร็จ`),
+        (error: Error) => note('เก็บกวาด', `ยกเลิกไม่สำเร็จ — ${error.message.split('\n')[0]}`),
+      );
+    }
+    await startClip(page, 'after');
     let nurseFailed: unknown;
     try {
       nfinish();

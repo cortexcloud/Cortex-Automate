@@ -1,12 +1,12 @@
 import { type Browser, type Locator, type Page } from '@playwright/test';
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
-import { dismissToast, expectOk, fetchBoard, fetchZones, gotoErDashboard, openCarePanel, trackOpenedErVisits, waitForApi, type ErVisit } from '../../../helpers/functions/er';
+import { dismissToast, expectOk, fetchBoard, fetchZones, gotoErDashboard, openCarePanel, openErMenu, trackOpenedErVisits, waitForApi, type ErVisit } from '../../../helpers/functions/er';
 import { chooseDispositionDiagnosis, dispositionTextBoxes, graphqlMutation, signDisposition, startDisposition } from '../../../helpers/functions/er-disposition';
-import { erDischargeButton, erDischargeConfirm, erListRow, filterErListByHn, gotoErPatientList, openErListTab } from '../../../helpers/functions/er-list';
+import { erDischargeButton, erDischargeConfirm, erListCell, erListRow, erViewSwitch, filterErListByHn, gotoErPatientList, openErListTab, openErPatientListFromMenu } from '../../../helpers/functions/er-list';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { erTriagePanel, erTriageSaveButton, fillErTriageForm, saveErTriageForm } from '../../../helpers/functions/er-triage';
 import { alerted, clearEvidenceMarks, clicked, expected, filled, hideCompareTable, holdForClip, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
-import { finishVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
+import { finishVideo, restartVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
 import { fetchNurseTasks, registerAndOpenErVisit, SETTINGS, submitOrders } from '../../../mock-data/uat-er';
@@ -30,6 +30,7 @@ import { authFile } from '../../../utils/env';
 
 const ISSUE: Record<number, string> = {};
 for (let n = 1; n <= 9; n++) ISSUE[n] = `SBH-${3099 + n}`;
+ISSUE[10] = 'SBH-3453'; // TC-010 สร้างทีหลัง (31 ต.ค.) เลข Issue ไม่ต่อกัน
 const pad = (n: number) => String(n).padStart(3, '0');
 const TC = (n: number) => (ISSUE[n] ? `TC-${pad(n)} (${ISSUE[n]})` : `TC-${pad(n)} (ร่าง)`);
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
@@ -200,6 +201,7 @@ async function dischargeFromEr(page: Page, visit: ErVisit, who: string) {
   const main = mainOf(page);
   await gotoVisit(page, visit);
   await openCarePanel(page, 'Disposition', main.getByText('สรุปการจำหน่าย', { exact: true }));
+  await restartVideo(page); // ตัดจอขาวตอนหน้าผู้ป่วยโหลดออกจากคลิป -staff (Retest 3 พ.ย.)
   await startDisposition(page);
   await main.getByRole('radio', { name: 'Improved', exact: true }).check();
   await main.getByRole('radio', { name: 'With Approval', exact: true }).check();
@@ -212,7 +214,11 @@ async function dischargeFromEr(page: Page, visit: ErVisit, who: string) {
   await signDisposition(page);
   await markEvidence(alerted(page.getByText('ลงนามการจำหน่ายผู้ป่วย ER แล้ว')));
 
-  await gotoErPatientList(page);
+  // เปลี่ยนหน้าในแอปผ่านเมนู (ไม่โหลดแอปใหม่ → คลิปไม่มีจอขาว ~8 วิ) · ไม่ได้ค่อยโหลดด้วย URL
+  // ล้างกรอบ toast ลงนามก่อน — เปลี่ยนหน้าในแอปแล้วกรอบไม่หายเอง ไปค้างในภาพ "ก่อนกด — จำหน่าย" (Retest 3 พ.ย. ภาพ 13 / 31)
+  await holdForClip(page);
+  await clearEvidenceMarks(page);
+  await openErPatientListFromMenu(page).catch(() => gotoErPatientList(page));
   await filterErListByHn(page, visit.hn);
   await openErListTab(page, 'waiting-for-discharge');
   const row = erListRow(page, visit.en);
@@ -241,6 +247,7 @@ async function moveZone(page: Page, visit: ErVisit, level: 2 | 3, zone: string) 
   await gotoVisit(page, visit);
   const redo = mainOf(page).getByRole('button', { name: 'redo คัดกรองซ้ำ' }).first();
   await expect(redo).toBeVisible({ timeout: 60_000 });
+  await restartVideo(page); // ตัดจอขาวตอนหน้าผู้ป่วยโหลดออกจากคลิป -staff
   await redo.scrollIntoViewIfNeeded();
   await markEvidence(clicked(redo));
   await snapEvidence(page, 'ก่อนกด — คัดกรองซ้ำ');
@@ -294,7 +301,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
   });
 
   test(
-    'รายชื่อผู้ป่วยแสดงเฉพาะผู้ป่วยใน ER ที่มี order แยกตามโซน + ตารางงานไม่มีคอลัมน์ที่ตัดออก + เปลี่ยนตามสถานะผู้ป่วย (TC 001–009)',
+    'รายชื่อผู้ป่วยแสดงเฉพาะผู้ป่วยใน ER ที่มี order แยกตามโซน + ตารางงานไม่มีคอลัมน์ที่ตัดออก + เปลี่ยนตามสถานะผู้ป่วย (TC 001–010)',
     { tag: ['@SBH-2618', ...Object.values(ISSUE).map((id) => `@${id}`)], annotation: [linear('SBH-2618'), ...Object.values(ISSUE).map(linear)] },
     async ({ page, browser }) => {
       const { note, soft, finish } = makeRunner(page);
@@ -394,20 +401,40 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
       await hideCompareTable(n).catch(() => undefined);
 
       // ---------- TC-006 แยกตามโซน (A Resuscitation · C Urgency) เทียบบอร์ด ----------
-      await startClip(n, 'TC-006');
-      await startClip(page, 'TC-006-staff');
+      await startClip(n, '_wait-006'); // ช่วงที่ user1 ดูแดชบอร์ด ไม่ให้ต่อท้ายคลิป TC-005
       await nsoft(`${TC(6)} ผู้ป่วยอยู่ใต้โซนที่ตรงกับบอร์ด ER (A ${RESUS} · C ${URGENCY})`, async () => {
-        await gotoErDashboard(page);
-        for (const hn of [A.hn, C.hn]) await expect(boardCard(page, hn)).toBeVisible({ timeout: 60_000 });
-        // คอลัมน์ Urgency ยาว การ์ด C อยู่ล่าง → แยก 2 ภาพ (รอบ 4: ภาพเดียวแล้วการ์ด A / หัวคอลัมน์หลุดจอ)
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await markEvidence(expected(boardColumn(page, RESUS)), expected(boardCard(page, A.hn), 'ผู้ป่วย A'));
-        await snapEvidence(page, 'บอร์ด ER — A ในคอลัมน์ Resuscitation');
-        await clearEvidenceMarks(page);
-        await boardCard(page, C.hn).evaluate((el) => el.scrollIntoView({ block: 'center' }));
-        await markEvidence(expected(boardCard(page, C.hn), 'ผู้ป่วย C (คอลัมน์ Urgency)'));
-        await snapEvidence(page, 'บอร์ด ER — C ในคอลัมน์ Urgency');
+        // โซนบนแดชบอร์ด ER: ใช้มุมมอง "รายการ" ของหน้าเดียวกัน (มีคอลัมน์ โซน) ค้น HN ทีละราย
+        // — มุมมองบอร์ดเลื่อนในกล่องภายใน คอลัมน์ Urgency ยาว วงการ์ดแล้วหัวคอลัมน์หลุดจอ (Retest 3 พ.ย. ภาพ 05 / 06)
+        await gotoErPatientList(page);
+        await openErListTab(page, 'current');
+        await startClip(page, 'TC-006-staff');
+        for (const [who, v, zone] of [['A', A, RESUS], ['C', C, URGENCY]] as const) {
+          await filterErListByHn(page, v.hn);
+          const row = erListRow(page, v.en);
+          await expect(row, `ผู้ป่วย ${who} ต้องอยู่แท็บ ผู้ป่วยปัจจุบันใน ER`).toBeVisible({ timeout: 30_000 });
+          const zoneCell = await erListCell(page, row, 'โซน');
+          const nameCell = await erListCell(page, row, 'ชื่อ-สกุล');
+          await expect(zoneCell, `โซนของ ${who} บนแดชบอร์ด`).toContainText(zone);
+          await markEvidence(expected(nameCell, `ผู้ป่วย ${who} HN ${v.hn}`), expected(zoneCell, `โซน ${zone}`));
+          await snapEvidence(page, `แดชบอร์ด ER (รายการ) — ${who} โซน ${zone}`);
+          await clearEvidenceMarks(page);
+        }
+        // ข้อสังเกต (Retest 3 พ.ย.): ผู้ป่วยใน location "Isolation 1" (269) บอร์ดแสดงใต้คอลัมน์ "Zone Isolate" — เก็บภาพไว้เทียบ ไม่ใช่ Expected
+        await (async () => {
+          const others = (await fetchBoard(page, authorization)).filter((e) => e.patientStatus === 'current_in_er' && /isolat/i.test(zones.get(e.currentLocationId ?? -1) ?? ''));
+          if (!others.length) return;
+          await erViewSwitch(page, 'บอร์ด').click();
+          const card = boardCard(page, others[0].hn);
+          await expect(card).toBeVisible({ timeout: 30_000 });
+          const header = mainOf(page).locator('strong').filter({ hasText: /isolat/i }).first();
+          await header.evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+          await markEvidence(expected(header, 'หัวคอลัมน์บนบอร์ด'), expected(card, `HN ${others[0].hn} (${zones.get(others[0].currentLocationId ?? -1)})`));
+          await snapEvidence(page, 'ข้อสังเกต — บอร์ด ER คอลัมน์ Isolation');
+          await clearEvidenceMarks(page);
+        })().catch((error: Error) => note('ข้อสังเกต บอร์ด Isolation', `ถ่ายภาพไม่ได้ — ${error.message.split('\n')[0]}`));
+        await startClip(page, '_idle-006');
 
+        await startClip(n, 'TC-006');
         await refresh(n);
         const sidebarZones = await waitZone(n, C.hn, URGENCY, 30_000);
         note(`${TC(6)} รายชื่อฝั่งซ้าย`, describe(sidebarZones));
@@ -418,18 +445,29 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
             const e = board.find((x) => x.hn === p.hn);
             const want = !e ? 'ไม่อยู่บนบอร์ด' : e.patientStatus === 'bed_waiting' ? 'รอเตียง' : zones.get(e.currentLocationId ?? -1) ?? '?';
             const mark = p.hn === A.hn ? ' (A)' : p.hn === C.hn ? ' (C)' : '';
-            rows.push({ label: `HN ${p.hn}${mark}`, values: [z.label, want], same: z.label.startsWith(`zone: ${want}`) });
+            // โซนที่ไม่มีช่วง ESI (เช่น Isolation 1) ป้ายไม่มีคำนำหน้า "zone:" (dev-x 3 พ.ย. 2026) → เทียบชื่อตรงตัวด้วย
+            rows.push({ label: `HN ${p.hn}${mark}`, values: [z.label, want], same: z.label.startsWith(`zone: ${want}`) || z.label === want });
           }
         }
         const counts = sidebarZones.map((z) => `${z.label} → ${z.patients.length} ราย`).join(' · ');
         note(`${TC(6)} ป้ายโซน / จำนวนชื่อใต้โซน`, counts);
-        await showCompareTable(n, 'โซนในรายชื่อ เทียบบอร์ด ER (API)', ['โซนในรายการงานพยาบาล', 'โซนบนบอร์ด'], rows, { side: 'bottom' });
+        // ตารางไว้ด้านขวา (TC นี้ดูรายชื่อฝั่งซ้าย) — ไว้ด้านล่างแล้วบังแถวของ C เมื่อโซน Urgency ยาว (Retest 3 พ.ย. รอบ 4)
+        await showCompareTable(n, 'โซนในรายชื่อ เทียบบอร์ด ER (API · ชื่อ location)', ['โซนในรายการงานพยาบาล', 'โซนบนบอร์ด'], rows, { side: 'right' });
         await markEvidence(expected(zoneHeaderOf(n, A.hn), 'A'), expected(patientBtn(n, A.hn)), expected(zoneHeaderOf(n, C.hn), 'C'), expected(patientBtn(n, C.hn)));
         expect(zoneOf(sidebarZones, A.hn), 'A ต้องอยู่ใต้โซน Resuscitation').toMatch(new RegExp(`^zone: ${RESUS}`));
         expect(zoneOf(sidebarZones, C.hn), 'C ต้องอยู่ใต้โซน Urgency').toMatch(new RegExp(`^zone: ${URGENCY}`));
         expect(rows.every((r) => r.same), 'ผู้ป่วยทุกรายต้องอยู่ใต้โซนเดียวกับบอร์ด').toBe(true);
       });
       await hideCompareTable(n).catch(() => undefined);
+      // ข้อสังเกต: หัวกลุ่มที่ไม่มีคำนำหน้า "zone:" (เช่น Isolation 1) — ภาพแยกจาก Expected
+      await (async () => {
+        const plain = sidebar(n).locator('.ant-collapse-header').filter({ hasNotText: /zone:/ }).first();
+        if (!(await plain.isVisible())) return;
+        const item = zoneItems(n).filter({ has: n.locator('.ant-collapse-header').filter({ hasNotText: /zone:/ }) }).first();
+        await markEvidence(expected(plain, 'หัวกลุ่มไม่มี zone: / ช่วง ESI'), expected(item.locator('[class*="_patient-meta_"]').first(), 'ผู้ป่วยใต้กลุ่ม'));
+        await snapEvidence(n, 'ข้อสังเกต — หัวกลุ่ม Isolation ในรายการงานพยาบาล');
+        await clearEvidenceMarks(n);
+      })().catch((error: Error) => note('ข้อสังเกต หัวกลุ่ม Isolation', `ถ่ายภาพไม่ได้ — ${error.message.split('\n')[0]}`));
 
       // ---------- TC-003 ผู้ป่วย B (ยังไม่มี order) ไม่แสดง ----------
       await startClip(n, 'TC-003');
@@ -439,7 +477,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         note(`${TC(3)} รายชื่อทุกโซน`, describe(all));
         note(`${TC(3)} โซนของ B บนบอร์ด`, await boardZone(B.hn));
         expect(zoneOf(all, B.hn), 'ผู้ป่วย B ต้องไม่อยู่ในโซนใด').toBe('');
-        await markEvidence(expected(sidebar(n), 'ไม่มีผู้ป่วย B'));
+        await markEvidence(expected(sidebar(n), `ไม่มี B (HN ${B.hn})`));
         await snapEvidence(n, 'รายชื่อทุกโซน — ไม่มีผู้ป่วย B');
         const found = await searchHn(n, B.hn);
         await markEvidence(filled(searchBox(n), `HN B ${B.hn}`), expected(sidebarEmpty(n), 'ไม่พบผู้ป่วย B'));
@@ -447,6 +485,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await expect(sidebarEmpty(n)).toBeVisible();
       });
       await clearSearch(n);
+      await startClip(n, '_wait-001'); // ช่วงรอจำหน่าย C ไม่ให้ต่อท้ายคลิป TC-003
 
       // ---------- จำหน่าย C แล้ว TC-001 ----------
       await startClip(page, 'TC-001-staff');
@@ -455,6 +494,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await dischargeFromEr(page, C, 'C');
         cDischarged = true;
       });
+      await startClip(page, '_idle-001');
       await startClip(n, 'TC-001');
       if (cDischarged) {
         await nsoft(`${TC(1)} ไม่มีกลุ่ม "ออกจาก ER" · ไม่พบผู้ป่วย C ที่จำหน่ายแล้ว`, async () => {
@@ -473,7 +513,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await clearSearch(n);
       } else note(`${TC(1)} ตรวจไม่ได้`, 'จำหน่ายผู้ป่วย C ไม่สำเร็จ (Pre-condition ไม่ครบ)');
 
-      // ---------- ร่าง TC-010 สวิตช์ "แสดงผู้ป่วยที่ยังไม่มี Order" (ยังไม่อยู่ใน Linear — รอผู้ใช้อนุมัติ) ----------
+      // ---------- TC-010 (SBH-3453) สวิตช์ "แสดงผู้ป่วยที่ยังไม่มี Order" ----------
       if (tc010) {
         await startClip(n, 'TC-010');
         await nsoft(`${TC(10)} สวิตช์ แสดงผู้ป่วยที่ยังไม่มี Order: เปิดเห็น B · C ยังไม่แสดง · ปิด B หาย`, async () => {
@@ -503,7 +543,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
           await sw.click();
           await expect(sw).toHaveAttribute('aria-checked', 'false');
           await expect(patientBtn(n, B.hn), 'ปิดสวิตช์แล้ว B ต้องหาย').toBeHidden({ timeout: 30_000 });
-          await markEvidence(expected(sw, 'ปิด'), expected(sidebar(n), 'ไม่มี B'));
+          await markEvidence(expected(sw, 'ปิด'), expected(sidebar(n), `ไม่มี B (HN ${B.hn})`));
         });
         await clearSearch(n);
       }
@@ -523,6 +563,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
       let labSent = false;
       await soft(`${TC(7)} ขั้น 2 แพทย์สั่ง Lab ${SETTINGS.labCode} ให้ผู้ป่วย B > ส่ง order`, async () => {
         await gotoVisit(page, B);
+        await restartVideo(page); // ตัดจอขาวตอนหน้าผู้ป่วยโหลด
         await openOneDayOrder(page);
         await submitOrders(page, [SETTINGS.labCode]);
         const sent = mainOf(page).getByRole('row', { name: new RegExp(`^(ส่งแล้ว|กำลังดำเนินการ) \\[${SETTINGS.labCode}\\]`) }).first();
@@ -531,6 +572,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await snapEvidence(page, 'หลังกด — ส่ง Lab ให้ผู้ป่วย B');
         labSent = true;
       });
+      await startClip(page, '_idle-007');
       if (labSent) {
         await nsoft(`${TC(7)} ขั้น 3 รีเฟรช — ผู้ป่วย B แสดงใต้โซน ${URGENCY} + เห็นงาน Lab`, async () => {
           const present = await waitPresence(n, B.hn, true, 60_000);
@@ -563,6 +605,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         note(`${TC(9)} ก่อนย้าย`, describe(all));
         await patientBtn(n, A.hn).scrollIntoViewIfNeeded();
         await markEvidence(expected(zoneHeaderOf(n, A.hn), 'ก่อนย้าย'), expected(patientBtn(n, A.hn), 'ผู้ป่วย A'));
+        await holdForClip(n); // คลิป Nurse ถัดจากนี้เป็นช่วงรอ user1 ย้ายโซน — ให้กรอบขั้น 1 อยู่นานพอ
         expect(zoneOf(all, A.hn)).toMatch(new RegExp(`^zone: ${RESUS}`));
       });
       await startClip(page, 'TC-009-staff');
@@ -570,12 +613,17 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
       await soft(`${TC(9)} ขั้น 2 ย้ายผู้ป่วย A ไปโซน ${URGENCY} (คัดกรองซ้ำ เลือกโซน)`, async () => {
         await moveZone(page, A, 2, URGENCY);
         await expect.poll(() => boardZone(A.hn), { timeout: 60_000, message: 'บอร์ดต้องย้าย A ไป Urgency' }).toBe(URGENCY);
-        await gotoErDashboard(page);
+        // ไปแดชบอร์ดผ่านเมนู (ไม่โหลดแอปใหม่ → คลิปไม่มีจอขาว) · มุมมองบอร์ด
+        await openErMenu(page, 'แดชบอร์ด / คิว').catch(() => gotoErDashboard(page));
+        const boardView = erViewSwitch(page, 'บอร์ด');
+        if (await boardView.isVisible() && !((await boardView.getAttribute('class')) ?? '').includes('selected')) await boardView.click();
         await expect(boardCard(page, A.hn)).toBeVisible({ timeout: 60_000 });
+        await boardColumn(page, URGENCY).evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
         await markEvidence(expected(boardColumn(page, URGENCY)), expected(boardCard(page, A.hn), 'A อยู่ Urgency'));
         await snapEvidence(page, 'บอร์ด ER — A ย้ายไป Urgency');
         moved = true;
       });
+      await startClip(page, '_idle-009');
       if (moved) {
         await nsoft(`${TC(9)} ขั้น 3 รีเฟรช — A อยู่ใต้ ${URGENCY} ไม่อยู่ใต้ ${RESUS}`, async () => {
           const all = await waitZone(n, A.hn, URGENCY, 60_000);
@@ -586,7 +634,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
           const inResus = all.filter((z) => z.label.startsWith(`zone: ${RESUS}`)).some((z) => z.patients.some((p) => p.hn === A.hn));
           await patientBtn(n, A.hn).scrollIntoViewIfNeeded();
           const marks = [expected(zoneHeaderOf(n, A.hn), 'หลังย้าย'), expected(patientBtn(n, A.hn), 'ผู้ป่วย A')];
-          if (await zoneHeader(n, RESUS).isVisible()) marks.push(expected(zoneHeader(n, RESUS), 'ไม่มี A'));
+          if (await zoneHeader(n, RESUS).isVisible()) marks.push(expected(zoneHeader(n, RESUS), `ไม่มี A (HN ${A.hn})`));
           await markEvidence(...marks);
           expect(zoneOf(all, A.hn), 'A ต้องอยู่ใต้โซน Urgency').toMatch(new RegExp(`^zone: ${URGENCY}`));
           expect(inResus, 'A ต้องไม่อยู่ใต้โซน Resuscitation แล้ว').toBe(false);
@@ -600,6 +648,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await expect(patientBtn(n, A.hn)).toBeVisible({ timeout: 30_000 });
         await patientBtn(n, A.hn).scrollIntoViewIfNeeded();
         await markEvidence(expected(patientBtn(n, A.hn), 'ผู้ป่วย A'));
+        await holdForClip(n); // คลิป Nurse ถัดจากนี้เป็นช่วงรอ user1 จำหน่าย A
         await snapEvidence(n, 'ก่อนจำหน่าย — พบผู้ป่วย A');
       });
       await startClip(page, 'TC-008-staff');
@@ -608,12 +657,13 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await dischargeFromEr(page, A, 'A');
         aDischarged = true;
       });
+      await startClip(page, '_cleanup'); // ขั้นปิด Visit ที่การเงินของ afterEach ไม่ให้ติดคลิป TC-008-staff
       if (aDischarged) {
         await nsoft(`${TC(8)} ขั้น 3 รีเฟรช — ไม่พบ A ทุกโซน · ไม่มีกลุ่ม ออกจาก ER`, async () => {
           const still = await waitPresence(n, A.hn, false);
           const all = await readSidebar(n);
           note(`${TC(8)} หลังจำหน่าย`, describe(all));
-          await markEvidence(expected(sidebar(n), 'ไม่มี A · ไม่มีกลุ่ม ออกจาก ER'));
+          await markEvidence(expected(sidebar(n), `ไม่มี A (HN ${A.hn}) · ไม่มีกลุ่ม ออกจาก ER`));
           await snapEvidence(n, 'หลังจำหน่าย — รายชื่อทุกกลุ่ม');
           expect(all.filter((z) => z.label.includes('ออกจาก ER')), 'ต้องไม่มีกลุ่ม ออกจาก ER').toEqual([]);
           expect(still, 'A ต้องไม่อยู่ในรายชื่อแล้ว').toBe(false);

@@ -19,7 +19,8 @@ import { authFile } from '../../../utils/env';
 // ข้อมูลบน dev-x (สำรวจ 29 ต.ค. 2026 · ไฟล์แอป index-DoL2cL_M.js · locale er-order-summary):
 //   หัตถการ: ใช้ได้แค่ ECG 89.52 (SBHACT… อยู่หมวด 11 ที่ปิดใช้งาน ส่งคำสั่งไม่ผ่าน) → ผู้ใช้ให้ "ใช้ ECG ซ้ำ" เป็นรายการที่ 1 / 2 / 3
 //   เวชภัณฑ์: ต้องกรอก "จำนวนที่จ่าย" ก่อนเพิ่มลงตะกร้า · ที่มีราคา: NUH-OS-MDS-125 / 116 / 104 / 123 (ตัวอื่นขึ้น "ไม่พบราคาต่อหน่วย")
-//   Lab: สั่งได้แต่ไม่เกิดงานพยาบาล (SPECIMEN) → แถว Lab ไม่มีปุ่ม · Checkbox กดไม่ได้ — ผู้ใช้ให้ "เล่นเก็บหลักฐาน + Fail + Failed"
+//   Lab: 29 ต.ค. สั่งได้แต่ไม่เกิดงานพยาบาล → แถว Lab ไม่มีปุ่ม (ผู้ใช้ให้ "เล่นเก็บหลักฐาน + Fail + Failed") ·
+//        แก้แล้ว (SBH-3454 · PR cortex-api "add request ids to er nurse task source ref") — 4 พ.ย. API มีงาน source LAB · Retest รอบ 4 พ.ย.
 //   ER Nurse Task List: รับงานแล้วสถานะ "กำลังทำ" — ผู้ใช้ให้ถือว่าตรงกับ Expected "สถานะรับ Order แล้ว" (เขียนในผลว่าเห็นอะไร)
 // ไม่ได้บันทึก ER Physician Note (ไม่จำเป็นต่อการส่งคำสั่ง One Day Order — เขียนในผล)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-3158   ·  เฉพาะผู้ป่วย: --grep "@SBH-3158-A" / B / C
@@ -42,6 +43,9 @@ const KIND: Record<Kind, { label: string; title: RegExp }> = {
   supply: { label: 'เวชภัณฑ์', title: /^เวชภัณฑ์$/ },
 };
 const ECG = '89.52';
+/** SBH3158_KINDS=lab (คั่นด้วย ,) = เล่นเฉพาะ TC ของประเภทนั้น (Retest 4 พ.ย.: ถ่ายภาพ Lab ใหม่หลังแก้ป้าย) — ว่าง = ทุกประเภท */
+const ONLY = (process.env.SBH3158_KINDS ?? '').split(',').filter(Boolean);
+const wanted = (kind: Kind) => !ONLY.length || ONLY.includes(kind);
 
 // ---------- Order Summary (หน้าต่าง Nurse) ----------
 
@@ -79,7 +83,8 @@ async function actionCell(p: Page, kind: Kind, row: Locator) {
 async function expectButton(p: Page, kind: Kind, row: Locator, name: 'รับ Order' | 'เสร็จสิ้น' | 'ยกเลิก Order', message: string) {
   if (await btn(row, name).isVisible({ timeout: 5_000 }).catch(() => false)) return;
   await showCard(p, kind);
-  await markEvidence(expected(await actionCell(p, kind, row), `ไม่มีปุ่ม ${name}`));
+  // TC ไม่ผ่าน: ป้าย "Expected: <ที่ต้องการ> · จริง: <ที่เห็น>" (กับดัก SBH-3117 — ป้ายเดิม "Expected: ไม่มีปุ่ม …" อ่านเหมือน Expected คือไม่มีปุ่ม)
+  await markEvidence(expected(await actionCell(p, kind, row), `มีปุ่ม ${name} · จริง: ไม่มีปุ่ม`));
   await snapEvidence(p, `ไม่มีปุ่ม ${name} — ${KIND[kind].label}`);
   await expect(btn(row, name), message).toBeVisible({ timeout: 1_000 });
 }
@@ -290,6 +295,7 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
 
       const plan: [Kind, number][] = [['activity', 1], ['imaging', 5], ['lab', 9], ['supply', 13]];
       for (const [kind, first] of plan) {
+        if (!wanted(kind)) continue;
         const label = KIND[kind].label;
         const rows = rowsOf(n, kind);
 
@@ -298,14 +304,19 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
         const shown = await run.soft(`${TC(first)} ตาราง${label}มีคอลัมน์ Action + แถวที่ยังไม่รับ Order มีปุ่ม รับ Order / เสร็จสิ้น / ยกเลิก Order`, async () => {
           await showCard(n, kind);
           await expect(rows, `ตาราง${label}ต้องมีอย่างน้อย 2 แถว`).toHaveCount(2, { timeout: 30_000 });
-          const marks = [expected(actionHeader(n, kind), 'คอลัมน์ Action')];
+          const cells: { cell: Locator; ok: boolean }[] = [];
           for (let i = 0; i < 2; i++) {
             const row = rows.nth(i);
             const has = await Promise.all((['รับ Order', 'เสร็จสิ้น', 'ยกเลิก Order'] as const).map((b) => btn(row, b).isVisible()));
             note(`${TC(first)} แถว ${i + 1}`, `${(await rowItem(row)).text.slice(0, 80)} → ปุ่ม: ${has.every(Boolean) ? 'ครบ 3 ปุ่ม' : `รับ Order ${has[0] ? '✓' : '✗'} · เสร็จสิ้น ${has[1] ? '✓' : '✗'} · ยกเลิก Order ${has[2] ? '✓' : '✗'}`}`);
-            marks.push(expected(await actionCell(n, kind, row), has.every(Boolean) ? `แถว ${i + 1}: 3 ปุ่ม` : `แถว ${i + 1}: ไม่มีปุ่ม`));
+            cells.push({ cell: await actionCell(n, kind, row), ok: has.every(Boolean) });
           }
-          await markEvidence(...marks);
+          if (cells.every((c) => c.ok)) {
+            await markEvidence(expected(actionHeader(n, kind), 'คอลัมน์ Action'), ...cells.map((c, i) => expected(c.cell, `แถว ${i + 1}: 3 ปุ่ม`)));
+          } else {
+            // ไม่ผ่าน: ป้ายยาว "Expected … · จริง …" ไว้ที่หัวคอลัมน์ป้ายเดียว · ช่องของแต่ละแถวตีกรอบไม่มีป้าย (ป้ายบนช่องไปทับคอลัมน์ จ่าย — Retest 4 พ.ย.)
+            await markEvidence(expected(actionHeader(n, kind), 'แถว 1–2 ต้องมี 3 ปุ่ม · จริง: ไม่มีปุ่ม'), ...cells.map((c) => c.cell));
+          }
           await holdForClip(n);
           if (kind === 'lab') {
             const tasks = await fetchNurseTasks(page, authorization(), visit.en).catch(() => []);
@@ -411,6 +422,7 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
 
       // --- Checkbox หัวตาราง ---
       for (const [i, kind] of kinds.entries()) {
+        if (!wanted(kind)) continue;
         const no = 17 + i;
         const label = KIND[kind].label;
         await startClip(n, `TC-${pad(no)}`);
@@ -422,7 +434,7 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
           const header = headerCheckbox(n, kind);
           const enabled = await header.isEnabled();
           note(`${TC(no)} ตาราง${label}`, `${total} แถว · Checkbox หัวตาราง ${enabled ? 'กดได้' : 'กดไม่ได้ (disabled)'}`);
-          await markEvidence(enabled ? clicked(header.locator('xpath=ancestor::th[1]'), 'Checkbox หัวตาราง') : expected(header.locator('xpath=ancestor::th[1]'), 'Checkbox กดไม่ได้'));
+          await markEvidence(enabled ? clicked(header.locator('xpath=ancestor::th[1]'), 'Checkbox หัวตาราง') : expected(header.locator('xpath=ancestor::th[1]'), 'Checkbox กดได้ · จริง: กดไม่ได้'));
           await snapEvidence(n, `ก่อนกด — Checkbox หัวตาราง${label}`);
           expect(enabled, `Checkbox หัวตาราง${label}ต้องกดได้`).toBe(true);
           await header.click({ force: true });
@@ -452,6 +464,7 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
 
       // --- เลือกหลายรายการแล้วกด เสร็จสิ้น จากแถบ ---
       for (const [i, kind] of kinds.entries()) {
+        if (!wanted(kind)) continue;
         const no = 21 + i;
         const label = KIND[kind].label;
         await startClip(n, `TC-${pad(no)}`);
@@ -519,6 +532,7 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
       const taskName = (kind: Kind, item: { code: string; name: string }) => (kind === 'supply' ? item.code : item.name);
       const plan: [Kind, number][] = [['activity', 25], ['imaging', 27], ['lab', 29], ['supply', 31]];
       for (const [kind, first] of plan) {
+        if (!wanted(kind)) continue;
         const label = KIND[kind].label;
         const rows = rowsOf(n, kind);
         let item1 = { code: '', name: '', text: '' };
@@ -564,10 +578,11 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
           const pending = taskRows(n, name).filter({ has: n.getByText('รอรับงาน', { exact: true }) }).first();
           const has = await pending.isVisible({ timeout: 15_000 }).catch(() => false);
           note(`${TC(first + 1)} ER Nurse Task List`, has ? `งาน "${name}" รอรับงาน` : `ไม่พบงาน "${name}" ที่รอรับงาน`);
-          const accept = pending.getByRole('button', { name: 'รับงาน', exact: true });
+          // ปุ่มในแถว: 29 ต.ค. "รับงาน" → 4 พ.ย. (index-Cw3rNuUC.js) "รับ Order" (ตรงกับ Test Step ของ TC)
+          const accept = pending.getByRole('button', { name: /^(รับงาน|รับ Order)$/ });
           // ไม่มีงาน → ตีกรอบบรรทัดสรุป "รายการงาน N active …" ของผู้ป่วย (ไม่มีกลุ่มของประเภทนี้ในตาราง)
-          await markEvidence(has ? clicked(accept) : expected(mainOf(n).getByText(/^รายการงาน \d+ active/).first(), `ไม่มีงาน ${label} ในรายการ`));
-          await snapEvidence(n, `ก่อนกด — รับงาน ${label} 2 (Task List)`);
+          await markEvidence(has ? clicked(accept) : expected(mainOf(n).getByText(/^รายการงาน \d+ active/).first(), `มีงาน${label}รอรับ · จริง: ไม่มีงาน${label}`));
+          await snapEvidence(n, `ก่อนกด — รับ Order ${label} 2 (Task List)`);
           expect(has, `ER Nurse Task List ต้องมีงาน${label} "${name}" ที่รอรับงาน`).toBe(true);
           const acceptRes = n.waitForResponse((r) => /\/er\/nurse-tasks\/[^/]+\/accept/.test(r.url()) && r.request().method() === 'POST', { timeout: 30_000 });
           acceptRes.catch(() => undefined);
@@ -585,7 +600,8 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
           expect((await rowItem(row2)).code, 'แถวที่ 2 ต้องเป็นรายการเดียวกับงานที่รับ').toBe(item2.code);
           await expect(btn(row2, 'รับ Order'), `Order Summary แถว${label}รายการที่ 2 ต้องไม่มีปุ่ม รับ Order`).toBeHidden({ timeout: 20_000 });
           await expect(btn(row2, 'เสร็จสิ้น')).toBeVisible();
-          await markEvidence(expected(btn(row2, 'เสร็จสิ้น').locator('xpath=ancestor::td[1]'), `แถว 2 [${item2.code}]: ไม่มี รับ Order แล้ว`));
+          // กรอบทั้งแถว (ป้ายลงใต้แถว) — ป้ายบนช่อง Action ไปทับปุ่มแถว 1 (รอบ 29 ต.ค.)
+          await markEvidence(expected(row2, `แถว 2: ไม่มีปุ่ม รับ Order`));
           await holdForClip(n);
         });
       }

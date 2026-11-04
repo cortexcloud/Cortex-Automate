@@ -309,6 +309,38 @@ export async function confirmOrderAlert(page: Page) {
   await expect(alert).toBeHidden();
 }
 
+/**
+ * กด บันทึก ในหน้าต่างแบบฟอร์ม Imaging แล้วรอ `PUT imaging-order-form-compositions`
+ * dev-x 3–4 พ.ย. 2026 (แบบฟอร์ม GENERAL X-RAY รุ่นใหม่ `imaging-order-general-xray-form-v1`): บางครั้ง `POST …/flat-to-json` ตอบ 503 แล้วแบบฟอร์มไม่ส่ง PUT ไม่แจ้งเตือน หน้าต่างค้าง (บั๊ก — Reproduce 4 พ.ย.) →
+ * กดซ้ำอีก 1 ครั้ง · ยังค้าง = คืน false ให้ผู้เรียกปิดหน้าต่างแล้วกดส่งคำสั่งใหม่ (SBH-3158 Retest — ผู้ใช้เลือก "เพิ่มการลองใหม่ใน helper")
+ */
+async function saveImagingForm(page: Page, form: Locator): Promise<boolean> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const formSaved = waitForApi(page, 'PUT', '/cortex-api/imaging-order-form-compositions', 20_000);
+    await form.getByRole('button', { name: 'save บันทึก' }).click({ timeout: 10_000 }).catch(() => undefined);
+    const res = await formSaved.catch(() => undefined);
+    if (res) {
+      await expectOk(res, 'บันทึกแบบฟอร์ม Imaging');
+      await expect(form).toBeHidden();
+      return true;
+    }
+    console.log(`    แบบฟอร์ม Imaging: กดบันทึกครั้งที่ ${attempt} แล้วไม่ส่งคำสั่งบันทึกใน 20 วิ`);
+    if (!(await form.isVisible())) return false;
+  }
+  return false;
+}
+
+/** ปิดหน้าต่างแบบฟอร์ม Imaging ที่ค้าง (ยกเลิก → ปุ่ม X → Escape) */
+async function closeImagingForm(page: Page, form: Locator) {
+  await expect(async () => {
+    if (!(await form.isVisible())) return;
+    const cancel = form.getByRole('button', { name: 'ยกเลิก', exact: true });
+    if (await cancel.isEnabled().catch(() => false)) await cancel.click({ timeout: 3_000 }).catch(() => undefined);
+    else await form.getByRole('button', { name: 'Close' }).click({ timeout: 3_000 }).catch(() => page.keyboard.press('Escape'));
+    await expect(form).toBeHidden({ timeout: 5_000 });
+  }, 'ปิดหน้าต่างแบบฟอร์ม Imaging ที่ค้าง').toPass({ timeout: 30_000 });
+}
+
 export async function submitOrders(page: Page, codes: string[], options: { resume?: boolean } = {}) {
   const main = page.getByRole('main');
   const search = page.getByRole('combobox', { name: /ค้นหา ยา/ });
@@ -350,9 +382,19 @@ export async function submitOrders(page: Page, codes: string[], options: { resum
   }
 
   const submit = main.getByRole('button', { name: 'save ส่งคำสั่ง' });
+  // ปุ่ม ส่งคำสั่ง อยู่มุมขวาบน ใต้แจ้งเตือน antd ("บันทึกแบบฟอร์ม Imaging สำเร็จ" ซ้อนหลายอัน) → คลิกโดนแจ้งเตือนบัง และเมาส์ที่ค้างบนแจ้งเตือนทำให้ไม่ปิดเอง
+  // (dev-x 4 พ.ย. 2026 SBH-3158: กดส่ง 6 ครั้งหมดเวลาทุกครั้ง — ไม่ใช่บัคของระบบ) → ปิดแจ้งเตือน + ย้ายเมาส์ออกก่อนกดทุกครั้ง
+  const pressSubmit = async (timeout: number) => {
+    const close = page.locator('.ant-notification-notice-close');
+    for (let i = 0; i < 6 && (await close.first().isVisible().catch(() => false)); i++) await close.first().click({ timeout: 2_000 }).catch(() => undefined);
+    await page.mouse.move(600, 600);
+    await submit.click({ timeout }).catch(() => undefined);
+  };
   const imagingForm = page.getByRole('dialog', { name: /แบบฟอร์ม Imaging/ });
-  let signed = graphqlMutation(page, 'SignOPDOrders', 120_000);
+  // 300 วิ: รอบที่ต้องลองแบบฟอร์มรังสีใหม่ / โหลดหน้าใหม่ (ด้านล่าง) กินเวลาเกิน 2 นาทีได้
+  let signed = graphqlMutation(page, 'SignOPDOrders', 300_000);
   signed.catch(() => undefined); // พังก่อนถึงบรรทัดที่รอ จะได้ไม่มี unhandled rejection
+  let idle = 0; // จำนวนรอบติดกันที่กดส่งแล้วไม่เกิดอะไร
   // รายการรังสีที่มีแบบฟอร์ม: กดส่งครั้งแรกเด้งแบบฟอร์ม (ไม่บังคับกรอกช่องใด) → บันทึก → กดส่งอีกครั้ง
   // กดส่งทันทีหลังเพิ่มรายการ บางครั้งค้างที่ "กำลังตรวจสอบแบบฟอร์ม Imaging" ไม่เด้งอะไร (dev-x 3 ต.ค. 2026) → กดซ้ำ
   // กดส่งแล้วอาจเด้งหน้าต่างเตือน ("Drug Alert" / "Lab Alert" เช่นรายการซ้ำ) ที่ต้องระบุเหตุผลทุกแถวก่อนกด "ยืนยันการสั่งออเดอร์"
@@ -361,15 +403,34 @@ export async function submitOrders(page: Page, codes: string[], options: { resum
   const shown = (dialog: Locator, name: string) => dialog.waitFor({ state: 'visible', timeout: 10_000 }).then(() => name, () => 'nothing');
   let outcome = 'nothing';
   await submit.click();
-  for (let round = 0; round < 8 && outcome !== 'signed'; round++) {
+  for (let round = 0; round < 14 && outcome !== 'signed'; round++) {
     outcome = await Promise.race([shown(imagingForm, 'form'), shown(drugAlert, 'alert'), shown(remaining, 'remaining'), signed.then(() => 'signed', () => 'nothing')]);
+    idle = outcome === 'nothing' ? idle + 1 : 0;
     if (outcome === 'form') {
-      const formSaved = waitForApi(page, 'PUT', '/cortex-api/imaging-order-form-compositions');
-      await imagingForm.getByRole('button', { name: 'save บันทึก' }).click();
-      await expectOk(await formSaved, 'บันทึกแบบฟอร์ม Imaging');
-      await expect(imagingForm).toBeHidden();
+      if (!(await saveImagingForm(page, imagingForm))) {
+        // ค้าง: ปิดหน้าต่าง แล้วกดส่งคำสั่งใหม่ → ระบบเด้งแบบฟอร์มของรายการที่ยังไม่บันทึกให้อีกครั้ง
+        await closeImagingForm(page, imagingForm);
+      }
       // หน้าต่างถัดไป (แบบฟอร์มของรายการอื่น / Drug Alert) อาจเด้งมาบังปุ่มก่อนกดทัน → กดไม่ได้ก็วนไปดูหน้าต่างต่อ
-      await submit.click({ timeout: 5_000 }).catch(() => undefined);
+      await pressSubmit(5_000);
+    } else if (outcome === 'nothing' && idle >= 3) {
+      // dev-x 4 พ.ย. 2026: บันทึกแบบฟอร์มรังสีครบแล้ว แต่กดส่งคำสั่งซ้ำหลายรอบก็ไม่ส่ง SignOPDOrders → โหลดหน้าใหม่ (แบบฟอร์มที่บันทึกแล้วอยู่ที่ server) แล้วกดส่งใหม่
+      console.log('    กดส่งคำสั่งแล้วเงียบ 3 รอบ → โหลดหน้าใหม่แล้วกดส่งคำสั่งอีกครั้ง');
+      idle = 0;
+      await page.reload();
+      // หน้าเพิ่งโหลดเปิดแผงตั้งต้น (Overview) ตามหลังแล้วทับแท็บ One Day Order → กดเมนูซ้ำจนช่องค้นหาอยู่ต่อ 3 วิ
+      await expect(async () => {
+        if (!(await search.isVisible())) {
+          await page.getByRole('navigation', { name: 'การดำเนินการดูแลผู้ป่วย' }).getByRole('menuitem', { name: 'One Day Order' }).click({ force: true, timeout: 10_000 });
+        }
+        await expect(search).toBeVisible({ timeout: 15_000 });
+        await page.waitForTimeout(3_000);
+        await expect(search).toBeVisible({ timeout: 1_000 });
+      }, 'เปิด One Day Order หลังโหลดหน้าใหม่').toPass({ timeout: 150_000 });
+      await page.mouse.move(600, 600);
+      await expect(submit).toBeVisible({ timeout: 45_000 });
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => undefined);
+      await pressSubmit(10_000);
     } else if (outcome === 'alert') {
       await confirmOrderAlert(page);
     } else if (outcome === 'remaining' && (await remaining.isVisible())) {
@@ -382,7 +443,7 @@ export async function submitOrders(page: Page, codes: string[], options: { resum
       await remaining.getByRole('button', { name: 'ยืนยันสั่งต่อ' }).click();
       await expect(remaining).toBeHidden();
     } else if (outcome === 'nothing') {
-      await submit.click({ timeout: 5_000 }).catch(() => undefined);
+      await pressSubmit(5_000);
     } else if (outcome === 'signed') {
       // ยาที่ผู้ป่วยยังใช้ไม่หมด: คำสั่งแรกตอบ error "medication remaining sign review is required" แล้วหน้าเว็บเด้งหน้าต่างให้ยืนยัน → กด "ยืนยันสั่งต่อ" = ส่งคำสั่งใหม่
       const first = (await (await signed).text()).includes('medication remaining sign review is required');
@@ -450,8 +511,12 @@ export async function recordDrugAllergy(page: Page, drugSearch = 'paracetamol'):
   await panel.getByRole('combobox', { name: '* ประเภทของการแพ้ยา' }).click();
   await pickOption(page, /^อาการคัน$/);
   await panel.getByRole('textbox', { name: '* สรุปอาการแพ้' }).fill('ผื่นคันหลังกินยา (Mock Data UAT)');
-  await panel.locator('.ant-select').filter({ hasText: 'เลือกผลการประเมิน' }).getByRole('combobox').click();
-  await pickOption(page, /^Confirmed$/);
+  // SBH Prod (3 พ.ย. 2026 · v2.8.1): ผลการประเมินคำนวณจาก Naranjo — ช่องแสดง "Unconfirmed" และ disabled (ไม่มีข้อความ "เลือกผลการประเมิน") → ข้าม
+  const assessment = panel.locator('.ant-select').filter({ hasText: 'เลือกผลการประเมิน' }).getByRole('combobox');
+  if (await assessment.isVisible().catch(() => false)) {
+    await assessment.click();
+    await pickOption(page, /^Confirmed$/);
+  }
   await panel.getByRole('combobox', { name: '* Severity' }).click();
   await pickOption(page, /^Mild$/);
   await panel.getByRole('combobox', { name: '* การแจ้งข้อมูลการแพ้ยาคนไข้' }).click();

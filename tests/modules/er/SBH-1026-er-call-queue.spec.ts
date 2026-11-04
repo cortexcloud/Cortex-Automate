@@ -1,10 +1,10 @@
 import type { Locator, Page } from '@playwright/test';
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { dismissToast, expectOk, fetchBoard, gotoErDashboard, trackOpenedErVisits, waitForApi, type ErBoardEncounter, type ErVisit } from '../../../helpers/functions/er';
-import { erListCell, erListRow, erListTab, filterErListByHn, hnSearchBox, openErPatientListFromMenu } from '../../../helpers/functions/er-list';
+import { bangkokToday, erListCell, erListRow, erListTab, filterErListByHn, hnSearchBox, openErPatientListFromMenu } from '../../../helpers/functions/er-list';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { erTriagePanel, erTriageSaveButton, fillErTriageForm, saveErTriageForm } from '../../../helpers/functions/er-triage';
-import { fetchTvBoard, openTvWindow, tvActiveArea, tvActiveNumber, tvHistoryCards, tvLatestTag } from '../../../helpers/functions/er-tv-queue';
+import { fetchTvBoard, openTvWindow, readTvActiveCard, tvActiveArea, tvActiveNumber, tvHistory, tvHistoryCards, tvLatestTag } from '../../../helpers/functions/er-tv-queue';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { finishVideo, startClip } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
@@ -26,7 +26,7 @@ const linear = (id: string) => ({ type: 'issue', description: `https://linear.ap
 const ISSUE = { 1: 'SBH-3026', 2: 'SBH-3027', 3: 'SBH-3028' } as const;
 const TC = (n: 1 | 2 | 3) => `TC-00${n} (${ISSUE[n]})`;
 
-type Patient = { key: 'A' | 'B'; level: 3 | 4; visit?: ErVisit; fullName?: string; queue?: string };
+type Patient = { key: 'A' | 'B'; level: 3 | 4; visit?: ErVisit; fullName?: string; queue?: string; boardLevel?: number | null };
 type BoardRow = ErBoardEncounter & { queueExam?: { qDisplay?: string } | null };
 
 test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด ER เรียกคิวขึ้นจอ ER TV (dev-x)', () => {
@@ -82,7 +82,11 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
           await fillErTriageForm(page, { level: p.level, vitals: VITALS_NORMAL });
           await markEvidence(filled(erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' }), `ESI ${p.level}`), clicked(erTriageSaveButton(page)));
           await snapEvidence(page, `ก่อนกด — คัดกรอง ${p.key}`);
+          // บันทึกฟอร์มแล้วหน้าเว็บส่ง "ส่งเข้าโซน" (PATCH triage-result) ตามหลัง ~20 วิ — ไปหน้าอื่นก่อน = ผู้ป่วยค้างโซน Triage (triagedAt null)
+          // แล้วจอ TV แสดง ESI ผิด (กับดักที่ Retest SBH-1719 2 พ.ย. 2026 เจอ — อาจเป็นที่มาของบั๊ก SBH-3192 ข้อ 1 รอบ 29 ต.ค.) · Retest 3 พ.ย. ผู้ใช้อนุมัติ
+          const zoned = waitForApi(page, 'PATCH', `/cortex-api/er/encounters/${p.visit.en}/triage-result`, 90_000);
           await saveErTriageForm(page, `บันทึกคัดกรอง ${p.key} (${p.visit.en})`);
+          await expectOk(await zoned, `ส่งเข้าโซน ${p.key} (${p.visit.en})`);
         });
       }
       // ชื่อเต็ม + เลขคิวจากบัตรคิว (queueExam ของ Encounter บนบอร์ด — อ่านอย่างเดียว)
@@ -92,13 +96,16 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
         if (!enc) throw new Error(`ไม่เจอผู้ป่วย ${p.key} (${p.visit!.en}) บนบอร์ด ER`);
         p.fullName = [enc.patient?.firstName, enc.patient?.familyName].filter(Boolean).join(' ');
         p.queue = enc.queueExam?.qDisplay;
+        p.boardLevel = enc.triageLevel ?? null;
         if (!p.queue) throw new Error(`ผู้ป่วย ${p.key} (${p.visit!.en}) ยังไม่มีเลขคิว (queueExam ว่าง) — ไม่ตรง Pre-condition "มีบัตรคิวแล้ว"`);
         note(`ผู้ป่วย ${p.key}`, `${p.fullName} · ESI ${p.level} · HN ${p.visit!.hn} · ${p.visit!.vn} · ${p.visit!.en} · คิว ${p.queue} · บอร์ด ER: triageLevel ${enc.triageLevel} · triagedAt ${enc.triagedAt}`);
       }
       note('ใช้ผู้ป่วยเดิมรอบถัดไป', `SBH1026_VISITS=${patients.map((p) => `${p.visit!.hn},${p.visit!.vn},${p.visit!.en}`).join(';')} SBH1026_KEEP=1`);
 
       /** ปุ่มเรียกคิวในคอลัมน์ "คิว" ของแถวผู้ป่วย */
-      const callButton = async (row: Locator): Promise<Locator> => (await erListCell(page, row, 'คิว')).getByRole('button');
+      // ช่องคิวรุ่น 3 พ.ย. 2026 มีปุ่ม ✓ "จบคิว" (SBH-3117) อยู่ด้วย → หาปุ่มเรียกคิวตามชื่อ (ผู้ใช้อนุมัติ 3 พ.ย.)
+      const CALL = { name: /^เรียกคิว / };
+      const callButton = async (row: Locator): Promise<Locator> => (await erListCell(page, row, 'คิว')).getByRole('button', CALL);
 
       /** กรองรายการด้วย HN ของผู้ป่วย (แท็บผู้ป่วยปัจจุบันใน ER) แล้วคืนแถว */
       const rowOf = async (p: Patient) => {
@@ -168,7 +175,9 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
 
         const row = await rowOf(A);
         const cell = await erListCell(page, row, 'คิว');
-        const button = cell.getByRole('button');
+        const button = cell.getByRole('button', CALL);
+        const others = (await cell.getByRole('button').evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? (el as HTMLElement).innerText.trim()))).filter((label) => !/^เรียกคิว /.test(label));
+        note(`${TC(1)} ปุ่มอื่นในช่องคิว`, others.length ? others.join(' · ') : '-');
         const rows: CompareRow[] = [
           { label: 'หัวคอลัมน์', values: ['คิว', (await header.innerText()).trim()], same: (await header.innerText()).trim() === 'คิว' },
           { label: 'ในช่องคิว', values: ['ปุ่ม Call QUEUE', (await button.count()) ? 'ปุ่ม (button)' : 'ข้อความ (ไม่ใช่ปุ่ม)'], same: (await button.count()) === 1 },
@@ -186,6 +195,88 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
       // ---------- TC-002 / 003 จอ ER TV ----------
       const tv = await openTvWindow(browser);
       const screen = makeRunner(tv);
+
+      // ---------- ตรวจบั๊ก SBH-3192 (นอก TC — Retest 3 พ.ย. 2026 ผู้ใช้อนุมัติ) ----------
+      // ข้อ 1: คัดกรอง ESI 3 แต่จอ TV แสดง ESI 5 / แดชบอร์ดแสดงระดับคัดกรอง "-" · ข้อ 2: "เรียกแล้ว" มีคิววันก่อนปน + เลขคิวซ้ำ
+      const BUG = 'SBH-3192';
+      const URGENCY: Record<Patient['level'], string> = { 3: 'เร่งด่วน', 4: 'กึ่งเร่งด่วน' };
+      /** ข้อ 1 (จอ TV): การ์ด "กำลังเรียก" ของผู้ป่วยแสดง ESI ตามที่คัดกรอง — ตรวจทั้งหน้าจอและ API สาธารณะของจอ */
+      const bugTvLevel = async (p: Patient) => {
+        await startClip(tv, `BUG-1-${p.key}`);
+        await screen.soft(`ตรวจบั๊ก ${BUG} ข้อ 1 จอ TV แสดงระดับคัดกรองของผู้ป่วย ${p.key} = ESI ${p.level}`, async () => {
+          await tv.bringToFront();
+          await waitActive(tv, p.queue!);
+          const card = await readTvActiveCard(tv);
+          const api = await fetchTvBoard(tv);
+          const rows: CompareRow[] = [
+            { label: 'คิวที่กำลังเรียก', values: [p.queue!, card?.number || '(ไม่มี)'], same: card?.number === p.queue },
+            { label: 'ระดับคัดกรอง (จอ)', values: [`ESI ${p.level}`, card?.triage || '(ไม่มี)'], same: card?.triage === `ESI ${p.level}` },
+            { label: 'ความเร่งด่วน (จอ)', values: [URGENCY[p.level], card?.urgency || '(ไม่มี)'], same: card?.urgency === URGENCY[p.level] },
+            { label: 'triageLevel (API จอ TV)', values: [String(p.level), `${api.activeCall?.triageLevel ?? '-'} (คิว ${api.activeCall?.queueNumber ?? '-'})`], same: api.activeCall?.queueNumber === p.queue && api.activeCall?.triageLevel === p.level },
+          ];
+          note(`${BUG} ข้อ 1 จอ TV ผู้ป่วย ${p.key}`, rows.map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`).join(' · '));
+          await showCompareTable(tv, `${BUG} ข้อ 1 ผู้ป่วย ${p.key}`, ['Expected', 'จอ TV / API'], rows, { side: 'right' });
+          await markEvidence(expected(tvActiveNumber(tv), `คิว ${p.key}`), expected(tvActiveArea(tv).locator('dl'), `ESI ${p.level} · ${URGENCY[p.level]}`));
+          await snapEvidence(tv, `บั๊ก 1 — ESI ${p.key} บนจอ TV`);
+          await hideCompareTable(tv);
+          expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`), `Expected (${BUG} ข้อ 1): จอ ER TV แสดงระดับคัดกรองตามที่บันทึก (ESI ${p.level})`).toEqual([]);
+        });
+      };
+      /** ข้อ 2 (จอ TV): ส่วน "เรียกแล้ว" มีเฉพาะคิวที่เรียกวันนี้ และไม่มีเลขคิวซ้ำ */
+      const bugTvHistory = async () => {
+        await startClip(tv, 'BUG-2');
+        await screen.soft(`ตรวจบั๊ก ${BUG} ข้อ 2 ส่วน "เรียกแล้ว" ของจอ TV มีเฉพาะคิวของวันนี้`, async () => {
+          await tv.bringToFront();
+          const today = bangkokToday();
+          const api = await fetchTvBoard(tv);
+          const dayOf = (iso: string) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Bangkok' }).format(new Date(iso));
+          const days = [...new Set(api.calledCalls.map((c) => dayOf(c.calledAt)))].sort();
+          const old = api.calledCalls.filter((c) => dayOf(c.calledAt) !== today);
+          const seen = new Map<string, number>();
+          for (const c of api.calledCalls) seen.set(c.queueNumber, (seen.get(c.queueNumber) ?? 0) + 1);
+          const dup = [...seen].filter(([, n]) => n > 1).map(([q, n]) => `${q} ×${n}`);
+          const cards = (await tvHistoryCards(tv).allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
+          const rows: CompareRow[] = [
+            { label: 'คิวที่เรียกแล้ว (API)', values: ['-', `${api.calledCalls.length} คิว`], same: true },
+            { label: 'วันที่เรียก (API)', values: [`วันนี้ ${today}`, days.join(', ') || '(ไม่มี)'], same: old.length === 0 },
+            { label: 'คิวของวันก่อน', values: ['0', old.length ? `${old.length} (${old.slice(0, 3).map((c) => `${c.queueNumber} ${dayOf(c.calledAt)}`).join(' · ')})` : '0'], same: old.length === 0 },
+            { label: 'เลขคิวซ้ำ', values: ['ไม่มี', dup.join(' · ') || 'ไม่มี'], same: dup.length === 0 },
+            { label: `คิว A ${A.queue} อยู่ใน "เรียกแล้ว"`, values: ['มี', api.calledCalls.some((c) => c.queueNumber === A.queue) ? 'มี' : 'ไม่มี'], same: api.calledCalls.some((c) => c.queueNumber === A.queue) },
+          ];
+          note(`${BUG} ข้อ 2 เรียกแล้ว`, `${api.calledCalls.length} คิว · วันที่ ${days.join(', ') || '-'} · วันก่อน ${old.length} · ซ้ำ ${dup.join(', ') || '-'} · การ์ดบนจอหน้าที่แสดง: ${cards.join(' | ') || '-'}`);
+          await showCompareTable(tv, `${BUG} ข้อ 2 "เรียกแล้ว"`, ['Expected', 'จอ TV / API'], rows, { side: 'right' });
+          await markEvidence(expected(tvHistory(tv), `เรียกแล้ว: คิววันนี้เท่านั้น (${api.calledCalls.length} คิว)`));
+          await snapEvidence(tv, 'บั๊ก 2 — เรียกแล้ว บนจอ TV');
+          await hideCompareTable(tv);
+          expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`), `Expected (${BUG} ข้อ 2): "เรียกแล้ว" แสดงเฉพาะคิวที่เรียกวันนี้`).toEqual([]);
+        });
+      };
+      /** ข้อ 1 (แดชบอร์ด / คิว): แถวผู้ป่วยแสดงระดับคัดกรองตามที่คัดกรอง (ไม่ใช่ "-") — คอลัมน์ "ESI" (รุ่น SBH-3181) หรือ "ระดับคัดกรอง" */
+      const bugListLevel = async () => {
+        await startClip(page, 'BUG-1-staff');
+        for (const p of patients) {
+          await staff.soft(`ตรวจบั๊ก ${BUG} ข้อ 1 แดชบอร์ด / คิว แสดงระดับคัดกรองของผู้ป่วย ${p.key} = ESI ${p.level}`, async () => {
+            await page.bringToFront();
+            const row = await rowOf(p);
+            const cell = await erListCell(page, row, 'ESI').catch(() => erListCell(page, row, 'ระดับคัดกรอง'));
+            const shown = (await cell.innerText()).replace(/\s+/g, ' ').trim();
+            const board = (await fetchBoard(page, authorization)) as BoardRow[];
+            const enc = board.find((e) => e.en === p.visit!.en);
+            const rows: CompareRow[] = [
+              { label: 'ช่องระดับคัดกรอง (รายการ)', values: [`${p.level}`, shown || '(ว่าง)'], same: new RegExp(`(^|\\D)${p.level}(\\D|$)`).test(shown) },
+              { label: 'triageLevel (API บอร์ด)', values: [String(p.level), String(enc?.triageLevel ?? null)], same: enc?.triageLevel === p.level },
+              { label: 'triagedAt (API บอร์ด)', values: ['มีเวลา', enc?.triagedAt ? String(enc.triagedAt) : '(ว่าง)'], same: !!enc?.triagedAt },
+            ];
+            note(`${BUG} ข้อ 1 แดชบอร์ด ผู้ป่วย ${p.key}`, rows.map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`).join(' · ') + ` · หลังคัดกรอง (ก่อน TC): triageLevel ${p.boardLevel}`);
+            await showCompareTable(page, `${BUG} ข้อ 1 แดชบอร์ด ผู้ป่วย ${p.key}`, ['Expected', 'หน้าจอ / API'], rows, { side: 'bottom' });
+            await markEvidence(expected(cell, `ESI ${p.level}`));
+            await snapEvidence(page, `บั๊ก 1 — ESI ${p.key} ในรายการ`);
+            await hideCompareTable(page);
+            expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`), `Expected (${BUG} ข้อ 1): แดชบอร์ด / คิว แสดงระดับคัดกรองของผู้ป่วย ${p.key}`).toEqual([]);
+          });
+        }
+      };
+
       let staffError: unknown;
       try {
         try {
@@ -213,6 +304,7 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
             await snapEvidence(tv, 'ผล — คิว A ขึ้นจอ TV');
             await hideCompareTable(tv);
           });
+          await bugTvLevel(A);
 
           // ---------- TC-003 กดเรียกคิวผู้ป่วย B ต่อ ----------
           await startClip(tv, 'TC-003');
@@ -241,13 +333,25 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
             note(`${TC(3)} ข้อสังเกต`, `คิวผู้ป่วย A ${A.queue} ${inHistory ? 'อยู่ในส่วน "เรียกแล้ว" (หน้าที่แสดงอยู่)' : 'ไม่เห็นในส่วน "เรียกแล้ว" หน้าที่แสดงอยู่ (อาจอยู่หน้าอื่น)'}`);
             expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`), 'Expected: จอ ER TV เปลี่ยนจากคิวของผู้ป่วย A เป็นคิวของผู้ป่วย B').toEqual([]);
           });
+          await bugTvLevel(B);
+          await bugTvHistory();
+          await bugListLevel();
           // ช่วงปิด Visit ที่การเงิน (afterEach) แยกเป็นคลิปของตัวเอง — ไม่ให้หน้าการเงินโหลดช้า (จอว่าง ~20 วินาที) ไปต่อท้ายคลิป TC-003-staff
           await startClip(page, 'after-test');
         } catch (error) {
           staffError = error;
         }
-        screen.finish();
         if (staffError) throw staffError;
+        // รวมขั้นที่ไม่ผ่านของทั้ง 2 หน้าต่าง (จอ TV + เจ้าหน้าที่ — ขั้นตรวจบั๊ก SBH-3192 ใช้ soft)
+        let finishError: unknown;
+        for (const runner of [screen, staff]) {
+          try {
+            runner.finish();
+          } catch (error) {
+            finishError ??= error;
+          }
+        }
+        if (finishError) throw finishError;
       } finally {
         await hideCompareTable(tv).catch(() => undefined);
         await finishVideo(tv);

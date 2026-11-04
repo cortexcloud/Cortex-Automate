@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { dismissToast, fetchBoard, gotoErDashboard, trackOpenedErVisits, type ErBoardEncounter, type ErVisit } from '../../../helpers/functions/er';
@@ -115,6 +116,15 @@ test.describe('SBH-3606 ปุ่มเรียกคิว / จบคิว �
         const tab = erListTab(page, 'current');
         await tab.click();
         await expect(tab).toHaveAttribute('aria-selected', 'true');
+        // Retest 3 พ.ย.: แท็บมี 26 ราย (หน้าละ 20) ผู้ป่วยใหม่ที่ยังไม่คัดกรองเรียงท้าย → อยู่หน้า 2 · เปลี่ยนขนาดหน้าเป็น 50 (ตัวเลือกบนจอ ไม่เขียนข้อมูล)
+        if (!(await row(A).waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false))) {
+          const size = main.getByRole('combobox', { name: 'ขนาดหน้า' });
+          if (await size.isVisible().catch(() => false)) {
+            // input ถูก div ค่า "20 / หน้า" บัง → กดที่กล่อง select ที่ครอบ
+            await main.getByTitle(/^\d+ \/ หน้า$/).first().click();
+            await page.locator('.ant-select-dropdown:visible').getByText('50 / หน้า', { exact: true }).click();
+          }
+        }
         for (const p of patients) await expect(row(p), `ต้องเห็นแถวผู้ป่วย ${p.key} ในหน้าแรกของรายการ`).toBeVisible({ timeout: 60_000 });
       };
 
@@ -143,7 +153,8 @@ test.describe('SBH-3606 ปุ่มเรียกคิว / จบคิว �
           const before = await readButtons(page, prefix);
           note(`ก่อนกด ${prefix}`, `ปุ่ม ${before.length} ปุ่ม · หมุน ${before.filter((b) => b.loading).length}`);
           expect(before.filter((b) => b.loading), 'ก่อนกดต้องไม่มีปุ่มหมุน').toEqual([]);
-          await markEvidence(clicked(own, `${prefix} A`), ...otherBtns.map((b, i) => expected(b, `${prefix} ${others[i].key}`)));
+          // แถวสูง ~39 px ป้ายของ B วางเหนือกรอบไปทับแถว A (Sub Agent ทัก 3 พ.ย.) → B / C กรอบอย่างเดียว ไม่มีป้าย
+          await markEvidence(clicked(own, `${prefix} A`), ...otherBtns);
         });
 
         let ok = false;
@@ -166,12 +177,25 @@ test.describe('SBH-3606 ปุ่มเรียกคิว / จบคิว �
             ...(name === 'call' ? [{ label: 'แถวอื่นที่กดไม่ได้ (disabled)', values: ['0', `${disabledOthers.length} ปุ่ม`], same: disabledOthers.length === 0 }] : []),
           ];
           const othersState = await Promise.all(otherBtns.map(async (b) => (await b.getAttribute('class'))?.includes('ant-btn-loading') ?? false));
-          await markEvidence(
-            clicked(own, `${prefix} A`),
-            ...otherBtns.map((b, i) => expected(b, othersState[i] ? `ไม่หมุน · จริง: หมุน (${others[i].key} ไม่ได้กด)` : `ไม่หมุน (${others[i].key})`)),
-          );
-          await snapEvidence(page, `ระหว่างรอ — ${prefix} A ไอคอนหมุน`);
+          const ownSpin = spinning.some((b) => b.label === ownLabel);
+          // ตารางเทียบก่อน แล้วถ่ายภาพ — ให้ตารางอยู่ในภาพด้วย (คอลัมน์คิวอยู่ซ้ายสุด ตารางอยู่ขวา ไม่บัง)
           await showCompareTable(page, `SBH-3606 กด ${prefix} ผู้ป่วย A (คิว ${A.queue}) รายเดียว`, ['Expected', 'จริง'], rowsTable, { side: 'right' });
+          // ป้ายเฉพาะปุ่ม A (Expected: หมุน) · B / C กรอบอย่างเดียว (แถวชิดกัน ป้ายทับกันเอง) — B / C ไม่หมุนดูจากตาราง + ภาพขยาย
+          await markEvidence(expected(own, ownSpin ? `หมุน (A ที่กด)` : `หมุน (A) · จริง: ไม่หมุน`), ...otherBtns);
+          // ภาพขยายคอลัมน์ "คิว" ของแถว A / B / C (spinner antd ในภาพเต็มจอเล็ก ~8 px)
+          const boxes = (await Promise.all([A, B, C].map(async (p) => (await cellOf(p)).boundingBox()))).filter((b): b is NonNullable<typeof b> => !!b);
+          if (boxes.length) {
+            const x = Math.max(0, Math.min(...boxes.map((b) => b.x)) - 8);
+            const y = Math.max(0, Math.min(...boxes.map((b) => b.y)) - 30);
+            const right = Math.max(...boxes.map((b) => b.x + b.width)) + 260;
+            const bottom = Math.max(...boxes.map((b) => b.y + b.height)) + 8;
+            const zoom = await page.screenshot({ clip: { x, y, width: Math.min(1920, right) - x, height: Math.min(1080, bottom) - y } });
+            await test.info().attach(`ขยาย — ${prefix} A คอลัมน์คิว`, { body: zoom, contentType: 'image/png' });
+            fs.mkdirSync(test.info().outputPath('evidence'), { recursive: true });
+            fs.writeFileSync(test.info().outputPath('evidence', `zz ขยาย ${name}.png`), zoom);
+          }
+          await snapEvidence(page, `ระหว่างรอ — ${prefix} A ไอคอนหมุน`);
+          void othersState;
           const stillWaiting = Date.now() - started < DELAY_MS - 500;
           note(`ภาพตารางเทียบ ${prefix}`, stillWaiting ? 'ถ่ายระหว่างคำขอยังไม่ตอบ' : 'คำขออาจตอบแล้วตอนถ่าย');
           ok = true;
@@ -197,7 +221,8 @@ test.describe('SBH-3606 ปุ่มเรียกคิว / จบคิว �
 
       await startClip(page, 'call');
       await pressAndCount('call');
-      await page.locator('.ant-message-notice, .ant-notification-notice').first().waitFor({ state: 'detached', timeout: 15_000 }).catch(() => undefined);
+      // toast "ส่งคิว …" ค้างไปถึงภาพก่อนกดจบคิว (Sub Agent ทัก 3 พ.ย.) → รอนานขึ้น
+      await page.locator('.ant-message-notice, .ant-notification-notice').first().waitFor({ state: 'detached', timeout: 30_000 }).catch(() => undefined);
       await startClip(page, 'complete');
       await pressAndCount('complete');
       await startClip(page, 'after');

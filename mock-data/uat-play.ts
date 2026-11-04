@@ -502,9 +502,21 @@ export interface ConsultTarget {
  * ฟอร์ม Consult (เมนูขวา): ขอปรึกษาไปยังคลินิก และ/หรือ แพทย์ → บันทึก → คืนชื่อปลายทางที่เลือก
  * `source` = sourceType ที่คำขอต้องได้ (ตั้งต้น 'er' · Visit OPD ส่ง `null` = ไม่ตรวจ แค่จด — SBH-1117)
  */
-export async function requestConsult(page: Page, problem: string, to: ConsultTarget = { clinic: 'อายุรกรรม' }, source: string | null = 'er'): Promise<string> {
+export async function requestConsult(
+  page: Page,
+  problem: string,
+  to: ConsultTarget = { clinic: 'อายุรกรรม' },
+  source: string | null = 'er',
+  /** ความเร่งด่วน (radio ของฟอร์ม — ตั้งต้น Elective) · SBH-3181 ใช้ Emergency ทำชิป Consult สีแดง */
+  priority?: 'Elective' | 'Urgency' | 'Emergency',
+): Promise<string> {
   const main = page.getByRole('main');
   await careMenu(page, 'Consult', main.getByRole('heading', { name: 'Consult', exact: true }));
+  if (priority) {
+    const radio = main.getByRole('radio', { name: priority, exact: true });
+    await radio.check({ force: true });
+    await expect(radio, `ความเร่งด่วนต้องเป็น ${priority}`).toBeChecked();
+  }
   const targets: string[] = [];
   if (to.clinic) {
     await main.getByRole('combobox', { name: 'ขอปรึกษาไปยังคลินิก' }).click();

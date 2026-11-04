@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import type { Browser, Locator, Page } from '@playwright/test';
 import { closeCoverageWithEndpoint, closeVisitAtCashier, gotoCashierAccount, payAllInCash } from '../helpers/functions/cashier';
 import { expectOk, waitForApi } from '../helpers/functions/er';
@@ -17,7 +18,9 @@ import { addMedicineToCart } from './uat-play';
 // ต้องมีบัญชี Nurse ใน .env ของระบบ (บัญชีแพทย์กดจำหน่ายไม่ได้ — "ผู้ใช้งานบทบาทแพทย์ไม่สามารถจำหน่ายผู้ป่วยได้")
 // ปิดสิทธิ UC ด้วย End Point เลขสุ่ม (บัตร 60) ก่อนชำระเงินสด · MOCK_ENDPOINT=<เลข> ใช้เลขนี้แทน
 
-const LABEL = 'REFER';
+// MOCK_LABEL = นามสกุลขึ้นต้นอื่น (การ์ด SBH-1016 ใช้ SBH1016B) · MOCK_STOP_AFTER_DISCHARGE=1 = หยุดหลังจำหน่าย (ไม่สร้างใบยา / ไม่ชำระเงิน / ไม่ปิด Visit) + จด HN / VN / EN ลง .cache/opd-refer-last.json
+const LABEL = process.env.MOCK_LABEL || 'REFER';
+const STOP_AFTER_DISCHARGE = !!process.env.MOCK_STOP_AFTER_DISCHARGE;
 const COVERAGE = process.env.MOCK_COVERAGE || 'H03 - สิทธิ UC';
 const MED_CODE = SYSTEM === 'dev-x' ? 'med0000005' : 'MED0000260';
 /** ช่องสถานพยาบาลปลายทางค้นไม่ได้ (GET /generated-emr-api/hospitals ตอบ 422 — 19 ต.ค. 2026) → พิมพ์ชื่อเอง (ผู้ใช้อนุญาต) */
@@ -163,17 +166,29 @@ test(`Mock Data ผู้ป่วย OPD สิทธิ UC → สั่งย
 
   await page.goto('/cortex/apps');
   await expect(page.getByLabel('เวชระเบียน')).toBeVisible({ timeout: 180_000 });
-  const patient = await nextPrefixedPatient(page, authorization(), `${LABEL}-`);
-  let hn = '';
-  await checkStep(page, `ลงทะเบียน ${patient.firstName} ${patient.familyName} ที่เวชระเบียน`, async () => {
-    await gotoReception(page);
-    await fillNewPatientForm(page, patient);
-    hn = await saveNewPatient(page);
-  });
+  // MOCK_RESUME_VISIT=HN,VN,EN[,ชื่อ] = ทำต่อรายเดิมที่ลงทะเบียน + เปิด Visit แล้ว (เริ่มที่เช็คอิน) — SBH-1016 ผู้ป่วย B 3 พ.ย. 2026 เช็คอินไม่ตอบ
+  const resume = process.env.MOCK_RESUME_VISIT?.split(',');
+  const patient = resume
+    ? ({ citizenId: '-', firstName: 'UAT', familyName: resume[3] ?? `${LABEL}-?`, gender: 'ชาย', birthDate: '-' } as unknown as Awaited<ReturnType<typeof nextPrefixedPatient>>)
+    : await nextPrefixedPatient(page, authorization(), `${LABEL}-`);
+  let hn = resume?.[0] ?? '';
+  if (!resume)
+    await checkStep(page, `ลงทะเบียน ${patient.firstName} ${patient.familyName} ที่เวชระเบียน`, async () => {
+      await gotoReception(page);
+      await fillNewPatientForm(page, patient);
+      hn = await saveNewPatient(page);
+    });
   progress(`✓ ลงทะเบียน HN ${hn}`);
-  const visit = { hn, vn: '', en: '' };
+  const visit = { hn, vn: resume?.[1] ?? '', en: resume?.[2] ?? '' };
   try {
-    await checkStep(page, `เปิด Visit OPD อายุรกรรม สิทธิ ${COVERAGE} + ลงตารางแพทย์ (เช็คอิน)`, async () => {
+    if (resume)
+      await checkStep(page, `เช็คอิน Visit OPD ${visit.vn} (ทำต่อรายเดิม)`, async () => {
+        await expect(async () => {
+          await checkInOpdVisit(page, visit);
+        }, 'เช็คอิน Visit OPD').toPass({ timeout: 300_000 });
+        done.push(`เช็คอิน ${visit.vn}`);
+      });
+    else await checkStep(page, `เปิด Visit OPD อายุรกรรม สิทธิ ${COVERAGE} + ลงตารางแพทย์ (เช็คอิน)`, async () => {
       if (await expectPatientInfo(page)) await openNewVisitPanel(page);
       await addCoverageFirst(page, COVERAGE);
       const opd = await openOpdVisit(page);
@@ -215,6 +230,11 @@ test(`Mock Data ผู้ป่วย OPD สิทธิ UC → สั่งย
     });
     progress(`✓ Discharge COMPLETE (dischargeTypeCode ${dischargeType})`);
     await nurse.context().close();
+    if (STOP_AFTER_DISCHARGE) {
+      fs.mkdirSync('.cache', { recursive: true });
+      fs.writeFileSync('.cache/opd-refer-last.json', JSON.stringify({ ...visit, name: `${patient.firstName} ${patient.familyName}`, citizenId: patient.citizenId, dischargeType }));
+      return;
+    }
 
     let prescription = '';
     await checkStep(page, `ห้องยา: สร้างใบยา (${PHARMACY.name})`, async () => {
