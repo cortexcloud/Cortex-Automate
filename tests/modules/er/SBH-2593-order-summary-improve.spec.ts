@@ -4,11 +4,12 @@ import { createAdmitRequest } from '../../../helpers/functions/er-admit';
 import { fillNurseNote, saveNurseNote } from '../../../helpers/functions/er-nursing-records';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { erTriagePanel, fillErTriageForm, saveErTriageForm } from '../../../helpers/functions/er-triage';
-import { alerted, clicked, expected, filled, hideCompareTable, holdForClip, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { alerted, clearEvidenceMarks, clicked, expected, filled, hideCompareTable, holdForClip, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
 import { finishVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
-import { confirmOrderAlert, fetchNurseTasks, orderAlert, registerAndOpenErVisit, submitOrders } from '../../../mock-data/uat-er';
+import { SYSTEM, confirmOrderAlert, fetchNurseTasks, openErVisitForHn, orderAlert, registerAndOpenErVisit, submitOrders } from '../../../mock-data/uat-er';
+import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { VITALS_NORMAL, addMedicineToCart, careMenu, gotoVisit } from '../../../mock-data/uat-play';
 import { authFile } from '../../../utils/env';
 
@@ -22,6 +23,7 @@ import { authFile } from '../../../utils/env';
 //   มุมมอง ER IPD ขึ้นเมื่อ Encounter ER มี `an` = AN ที่สร้างจาก Admit Request ที่ศูนย์จัดการเตียง + จองเตียง (ผู้ใช้อนุญาตให้เลือกเตียง — decisions R80)
 //   ห้ามลงนาม Disposition ระหว่างเทส (ระบบลงนามยาที่ค้างให้ทั้งหมด)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-2593   ·  เฉพาะผู้ป่วย: --grep "@SBH-2593-A" / B / C / D / E / F
+// รัน (SBH Prod · R124): npm run card:prod -- --headed --grep "@SBH-2593-A( |$)" (ทีละราย) · ทำต่อรายเดิม SBH2593_<A–E>_VISIT="HN,VN,EN" · ท้ายงาน --grep @SBH-2593-CLOSE + SBH2593_CLOSE
 
 const ISSUE: Record<number, string> = {};
 for (let n = 1; n <= 35; n++) ISSUE[n] = `SBH-${3206 + n}`;
@@ -32,16 +34,34 @@ const linear = (id: string) => ({ type: 'issue', description: `https://linear.ap
 const tagsOf = (list: number[]) => list.map((n) => `@${ISSUE[n]}`);
 const notesOf = (list: number[]) => [linear('SBH-2593'), ...list.map((n) => linear(ISSUE[n]))];
 
-const MED = {
-  m6: { code: 'med0000006', name: 'UTO LINCOMYCIN (lincomycin 3 g/10 mL) solution for injection' },
-  m7: { code: 'med0000007', name: 'GPO-L-ONE (deferiprone 500 mg) film-coated tablet' },
-  m8: { code: 'med0000008', name: 'CLINDAVID-300 (clindamycin 300 mg) capsule, hard' },
-};
-type Med = (typeof MED)[keyof typeof MED];
+// SBH Prod (5 พ.ย. 2026 · decisions R124): ยา MED0000260 / 318 / 756 (สั่งได้บน Prod — SBH-1016) · หัตถการ ACT0000062 แทน ECG (Prod ค้น 89.52 ไม่เจอ) ·
+//   ยา ER ไปห้องยาชั้น 1 · ผู้ป่วย OPD อ่านอย่างเดียว = UAT BIZSIM-APM006-03 · ชื่อยาเต็ม (ใช้จับงานยาใน API) อ่านจากรอบเตรียมผู้ป่วย A
+//   ชื่อยาของ Prod ตั้งทับได้ด้วย SBH2593_MED_NAMES="ชื่อ 260|ชื่อ 318|ชื่อ 756"
+const PROD = SYSTEM !== 'dev-x';
+type Med = { code: string; name: string };
+const PROD_NAMES = (process.env.SBH2593_MED_NAMES ?? '').split('|');
+const MED: Record<'m6' | 'm7' | 'm8', Med> = PROD
+  ? {
+      m6: { code: 'MED0000260', name: PROD_NAMES[0] || '' },
+      m7: { code: 'MED0000318', name: PROD_NAMES[1] || '' },
+      m8: { code: 'MED0000756', name: PROD_NAMES[2] || '' },
+    }
+  : {
+      m6: { code: 'med0000006', name: 'UTO LINCOMYCIN (lincomycin 3 g/10 mL) solution for injection' },
+      m7: { code: 'med0000007', name: 'GPO-L-ONE (deferiprone 500 mg) film-coated tablet' },
+      m8: { code: 'med0000008', name: 'CLINDAVID-300 (clindamycin 300 mg) capsule, hard' },
+    };
 const ALL_MEDS = [MED.m6, MED.m7, MED.m8];
-const ECG = '89.52';
+/** หัตถการที่ส่งคำสั่ง (ลงนามแล้ว) ให้ผู้ป่วย A */
+const PROC = PROD ? { code: 'ACT0000062', label: 'หัตถการ ACT0000062' } : { code: '89.52', label: 'ECG 89.52' };
+const ECG = PROC.code;
+/** ห้องยาที่รับยา ER ที่ลงนามแล้ว */
+const PHARMACY = PROD ? 'ห้องยาชั้น 1' : 'ห้องยา A';
 const TASK_STATUS: Record<string, string> = { PENDING: 'รอรับ Order', RUNNING: 'กำลังให้ยา', DONE: 'ให้ยาแล้ว', CANCELLED: 'ยกเลิก' };
-const OPD_PATIENT = { hn: '6932050', vn: 'V69102227565', en: 'E69102232339' }; // AUTO MockOrder1022140821 (UAT-OPD-orders 22 ต.ค.) — อ่านอย่างเดียว
+const OPD_PATIENT = PROD
+  ? { hn: '6904479', vn: 'V6910223956', en: 'E6910224459', label: 'UAT BIZSIM-APM006-03 (BizSim 22 ต.ค.)' }
+  : { hn: '6932050', vn: 'V69102227565', en: 'E69102232339', label: 'AUTO MockOrder1022140821 (UAT-OPD-orders 22 ต.ค.)' }; // อ่านอย่างเดียว
+const MED_CODE = /\[med\d{7}\]/i;
 
 // ---------- locator ของ Order Summary (ER) ----------
 
@@ -50,7 +70,7 @@ const toast = (p: Page, text: string | RegExp) => p.locator('.ant-notification-n
 const cardByTitle = (p: Page, title: RegExp) =>
   mainOf(p).locator('.ant-card-head-title').filter({ hasText: title }).first().locator('xpath=ancestor::div[contains(concat(" ", @class, " "), " ant-card ")][1]');
 const medCard = (p: Page) => cardByTitle(p, /^ยา$/);
-const medRows = (p: Page) => medCard(p).locator('tbody tr.ant-table-row').filter({ hasText: /\[med\d+\]/ });
+const medRows = (p: Page) => medCard(p).locator('tbody tr.ant-table-row').filter({ hasText: /\[med\d+\]/i });
 const rowOf = (p: Page, med: Med, nth = 0) => medRows(p).filter({ hasText: `[${med.code}]` }).nth(nth);
 type RowButton = 'Sign' | 'รับ Order' | 'ให้ยาแล้ว' | 'ยกเลิก Order';
 const btn = (row: Locator, name: RowButton) => row.getByRole('button', { name, exact: true });
@@ -151,6 +171,23 @@ async function medTasks(page: Page, auth: () => string, en: string) {
   const tasks = (await fetchNurseTasks(page, auth(), en).catch(() => [])).filter((t) => t.source === 'MEDICATION');
   return tasks;
 }
+/**
+ * ชื่อยาเต็ม (ชื่องานยาใน API) ของยาที่ยังไม่รู้ชื่อ — จับคู่ชื่องานยากับข้อความแถว `[รหัส]` ใน Order Summary ที่เปิดอยู่ (SBH Prod)
+ * งานยาเกิดตั้งแต่เพิ่มลงตะกร้า (dev-x 31 ต.ค.) · ไม่เจอ = จดข้อความแถว + ชื่องานยาลง annotation ไว้ตั้ง SBH2593_MED_NAMES
+ */
+async function resolveMedNames(page: Page, auth: () => string, en: string, note: (t: string, d: string) => void) {
+  if (ALL_MEDS.every((m) => m.name)) return;
+  const names = [...new Set((await medTasks(page, auth, en)).map((t) => t.name))];
+  for (const med of ALL_MEDS) {
+    const row = rowOf(page, med);
+    const text = (await row.innerText({ timeout: 10_000 }).catch(() => '')).replace(/\s+/g, ' ');
+    const hit = names.filter((n) => text.includes(n)).sort((a, b) => b.length - a.length)[0];
+    if (hit && !med.name) med.name = hit;
+    if (!hit) note(`ชื่อยา ${med.code} (หาไม่เจอ)`, `แถว: ${text.slice(0, 160)} · งานยา: ${names.join(' | ')}`);
+  }
+  note('ชื่อยา (งานยาใน API)', ALL_MEDS.map((m) => `${m.code} = ${m.name || '?'}`).join(' · '));
+}
+
 async function taskStatusOf(page: Page, auth: () => string, en: string, med: Med): Promise<string[]> {
   return (await medTasks(page, auth, en)).filter((t) => t.name === med.name).map((t) => TASK_STATUS[t.status] ?? t.status);
 }
@@ -230,6 +267,7 @@ async function openOneDayOrder(page: Page) {
 
 /** Route ต้องเป็น OralRoute — addMedicineToCart บางรอบเลือก OticRoute แล้ว "เกิดข้อผิดพลาดในระบบ" (dev-x 31 ต.ค.) */
 async function forceOralRoute(page: Page) {
+  if (PROD) return; // SBH Prod: ยากำหนด Route มาเอง (MED0000260 มีแค่ IntravenousRoute — 5 พ.ย. 2026)
   const route = mainOf(page).getByText('Route / Mode', { exact: true }).locator('xpath=following::div[contains(concat(" ", @class, " "), " ant-select ")][1]');
   if (/OralRoute/.test(await route.innerText())) return;
   await route.click();
@@ -243,12 +281,42 @@ async function preparePatient(page: Page, label: string, opts: { ecg?: boolean; 
   if (reuse.length === 3) {
     const visit = { hn: reuse[0], vn: reuse[1], en: reuse[2] };
     note('ผู้ป่วย (ทำต่อกับรายเดิม)', `HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
-    return visit;
+    // SBH2593_PREP=meds: เตรียมค้างที่ขั้นสั่งยา (คัดกรอง + หัตถการเสร็จแล้ว) → เพิ่มยาที่ยังไม่อยู่ในตะกร้าต่อ
+    await gotoVisit(page, visit); // ให้ trackAuthorization เห็น token ก่อนอ่าน API (ทำต่อจากขั้นออกใบยา — 5 พ.ย.)
+    if (process.env.SBH2593_PREP === 'meds' && opts.meds.length) {
+      for (const med of opts.meds) {
+        await openOneDayOrder(page);
+        await addMedicineToCart(page, med.code, () => forceOralRoute(page));
+      }
+      if (opts.signAll) await submitOrders(page, []);
+      note('One Day Order (ทำต่อ)', `ยา ${opts.meds.map((m) => m.code).join(' / ')} ${opts.signAll ? '(ส่งคำสั่ง = ลงนามแล้ว)' : '(อยู่ในตะกร้า = ยังไม่ลงนาม)'}`);
+    }
+    if (process.env.SBH2593_PREP !== 'triage') return visit;
   }
-  await gotoErDashboard(page);
-  const patient = newTestPatient(label);
-  const visit = await registerAndOpenErVisit(page, patient);
-  note('ผู้ป่วย', `${patient.firstName} ${patient.familyName} · HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
+  // SBH2593_PREP=triage: Visit เปิดแล้วแต่คัดกรองไม่สำเร็จ (Prod "เก็บร่างไม่สำเร็จ" 5 พ.ย. 17:05) → คัดกรอง + สั่ง Order ต่อกับรายเดิม
+  const resumeTriage = reuse.length === 3 && process.env.SBH2593_PREP === 'triage';
+  // SBH Prod หลัง deploy 16:00 (5 พ.ย.): ER Dashboard ขึ้นช้ากว่า 20 วิ → ลองใหม่ได้ 3 ครั้ง (ยังไม่สร้างข้อมูล)
+  let visit: ErVisit;
+  if (resumeTriage) {
+    visit = { hn: reuse[0], vn: reuse[1], en: reuse[2] };
+    const heading = mainOf(page).getByRole('heading', { name: 'คัดกรอง ER', exact: true });
+    if (!(await heading.waitFor({ timeout: 30_000 }).then(() => true, () => false))) await careMenu(page, 'คัดกรอง ER', heading);
+  } else {
+    for (let i = 1; ; i++) {
+      const ok = await gotoErDashboard(page).then(() => true, (e: Error) => (i >= 3 ? Promise.reject(e) : false));
+      if (ok) break;
+    }
+    // SBH2593_<X>_HN: ลงทะเบียนแล้วแต่เปิด Visit ไม่สำเร็จ (Prod 500 "Failed to open ER visit" 5 พ.ย. 17:16) → เปิด Visit ให้ HN เดิม
+    const hnOnly = process.env[`SBH2593_${label.slice(-1)}_HN`];
+    if (hnOnly) {
+      visit = await openErVisitForHn(page, hnOnly);
+      note('ผู้ป่วย (HN เดิม · เปิด Visit ใหม่)', `HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
+    } else {
+      const patient = newTestPatient(label);
+      visit = await registerAndOpenErVisit(page, patient);
+      note('ผู้ป่วย', `${patient.firstName} ${patient.familyName} · HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
+    }
+  }
   await expect(mainOf(page).getByRole('heading', { name: 'คัดกรอง ER', exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(erTriagePanel(page).getByRole('spinbutton', { name: 'Systolic' }).first()).toBeVisible({ timeout: 90_000 });
   await dismissToast(page, 'สร้าง Visit สำเร็จ');
@@ -263,7 +331,7 @@ async function preparePatient(page: Page, label: string, opts: { ecg?: boolean; 
     await addMedicineToCart(page, med.code, () => forceOralRoute(page));
   }
   if (opts.signAll) await submitOrders(page, []);
-  note('One Day Order', `${opts.ecg ? 'ECG 89.52 (ส่งคำสั่งแล้ว) · ' : ''}ยา ${opts.meds.map((m) => m.code).join(' / ')} ${opts.signAll ? '(ส่งคำสั่ง = ลงนามแล้ว)' : '(อยู่ในตะกร้า = ยังไม่ลงนาม)'}`);
+  note('One Day Order', `${opts.ecg ? `${PROC.label} (ส่งคำสั่งแล้ว) · ` : ''}ยา ${opts.meds.map((m) => m.code).join(' / ')} ${opts.signAll ? '(ส่งคำสั่ง = ลงนามแล้ว)' : '(อยู่ในตะกร้า = ยังไม่ลงนาม)'}`);
   return visit;
 }
 
@@ -331,9 +399,12 @@ const visitUrl = (v: ErVisit) => `/cortex/next/patients/${v.hn}?en=${v.en}&vn=${
 async function openPharmacyA(page: Page) {
   const main = mainOf(page);
   const opt = () => page.locator('.ant-select-dropdown:visible .ant-select-item-option');
-  await page.goto('/cortex/pharmacy/select-location');
-  await main.getByRole('combobox').first().click({ timeout: 60_000 });
-  await opt().filter({ hasText: /^ห้องยา A$/ }).first().click();
+  // SBH Prod 5 พ.ย. 16:20: แอปค้างที่วงโหลดเต็มจอเกิน 60 วิเป็นพักๆ → โหลดหน้าใหม่ได้ 3 ครั้ง (ยังไม่เขียนข้อมูล)
+  await expect(async () => {
+    await page.goto('/cortex/pharmacy/select-location');
+    await main.getByRole('combobox').first().click({ timeout: 60_000 });
+  }, 'เปิดหน้าเลือกห้องยา').toPass({ timeout: 240_000 });
+  await opt().filter({ hasText: new RegExp(`^${PHARMACY}$`) }).first().click();
   await page.waitForTimeout(800);
   await main.getByRole('combobox').nth(1).click();
   await page.waitForTimeout(800);
@@ -346,7 +417,7 @@ async function openPharmacyA(page: Page) {
 async function openPharmacyOrder(page: Page, hn: string): Promise<Locator> {
   await openPharmacyA(page);
   const row = mainOf(page).getByRole('row').filter({ hasText: `HN ${hn}` }).first();
-  await expect(row, `ผู้ป่วย HN ${hn} ต้องอยู่แท็บ Order รอยืนยัน ของห้องยา A`).toBeVisible({ timeout: 60_000 });
+  await expect(row, `ผู้ป่วย HN ${hn} ต้องอยู่แท็บ Order รอยืนยัน ของ${PHARMACY}`).toBeVisible({ timeout: 60_000 });
   await row.locator('td').nth(4).click();
   const create = page.getByRole('button', { name: 'สร้างใบยา', exact: true });
   await expect(create).toBeVisible({ timeout: 60_000 });
@@ -356,6 +427,18 @@ async function openPharmacyOrder(page: Page, hn: string): Promise<Locator> {
 
 async function createPrescriptionA(page: Page, hn: string): Promise<string> {
   const create = await openPharmacyOrder(page, hn);
+  if (PROD) {
+    // SBH Prod 5 พ.ย.: ยาที่ "ไม่พบข้อมูลคลัง" (MED0000756 ในคลังยา A) ทำให้สร้างใบยาได้ 400 "คำขอไม่ถูกต้อง" → เอาติ๊กออก ออกใบยาเฉพาะยาที่มีในคลัง
+    const noStock = mainOf(page).getByRole('row').filter({ hasText: 'ไม่พบข้อมูลคลัง' });
+    for (const row of await noStock.all()) {
+      const box = row.locator('.ant-checkbox-input').first();
+      if (await box.isChecked().catch(() => false)) await box.uncheck();
+      test.info().annotations.push({ type: 'ออกใบยา', description: `ไม่รวม (ไม่พบข้อมูลคลัง): ${(await row.innerText()).replace(/\s+/g, ' ').slice(0, 80)}` });
+    }
+    await page.waitForTimeout(1_000);
+    await markEvidence(clicked(create, 'สร้างใบยา (ยาที่มีในคลัง)'));
+    await snapEvidence(page, 'ก่อนกด — สร้างใบยา');
+  }
   const created = page.waitForResponse((r) => r.url().includes('/cortex-api/opd/prescriptions') && r.request().method() === 'POST', { timeout: 60_000 });
   await create.click();
   const body = (await (await created).json()) as { prescriptionId?: string };
@@ -371,9 +454,17 @@ async function cashierSnapshot(page: Page, visit: ErVisit) {
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => undefined);
   const statusRow = main.getByRole('row').filter({ hasText: visit.en }).filter({ hasText: /order|ใบยา|\d{6}-\d{5}/i }).first();
   await expect(statusRow).toBeVisible({ timeout: 30_000 });
-  const items = main.getByRole('row').filter({ hasText: /med\d{7} - / });
+  const items = main.getByRole('row').filter({ hasText: /med\d{7} - /i });
   await expect(items.first()).toBeVisible({ timeout: 30_000 });
   const clean = (t: string) => t.replace(/\s+/g, ' ').trim();
+  // SBH Prod 5 พ.ย. (TC-030): อ่านขณะช่องในแถวยังโหลดไม่ครบ → ค่าก่อน / หลังไม่ตรงทั้งที่หน้าจอเหมือนกัน → อ่านซ้ำจนนิ่ง 2 วิ
+  let last = '';
+  await expect(async () => {
+    const now = JSON.stringify([await statusRow.innerText(), ...(await items.allInnerTexts())].map(clean));
+    const same = now === last;
+    last = now;
+    expect(same, 'ข้อความหน้าการเงินยังไม่นิ่ง').toBe(true);
+  }).toPass({ timeout: 30_000, intervals: [2_000] });
   return {
     statusRow,
     items,
@@ -390,8 +481,9 @@ async function prescriptionState(page: Page, auth: () => string, id: string) {
 
 /** TC-027: สั่ง med0000006 ซ้ำ (ยังไม่ลงนาม) แล้วกด Sign ในแถวจาก Order Summary — ใช้ทั้งในเทสผู้ป่วย B และตรวจซ้ำกับรายเดิม */
 async function runTc027(page: Page, visit: ErVisit, note: (t: string, d: string) => void) {
-    // สั่ง med0000006 ซ้ำ (ยังไม่ลงนาม) — ตอนเพิ่มลงตะกร้ามี Drug Alert "Drug Duplication" ให้ใส่เหตุผล (ไม่ใช่ขั้นของ TC)
-    await addDuplicateMed6(page, visit, note);
+    // สั่ง med0000006 ซ้ำ (ยังไม่ลงนาม) — ตอนเพิ่มลงตะกร้ามี Drug Alert "Drug Duplication" ให้ใส่เหตุผล
+    // Expected แก้ 31 ต.ค. 2026 (R80): การยืนยันยาซ้ำอยู่ตอนเพิ่มลงตะกร้า · Sign จาก Order Summary ลงนามได้เหมือน OPD Order Form
+    const alertAtAdd = await addDuplicateMed6(page, visit, note);
     // Order Summary → Sign แถวยาซ้ำ (แถว med0000006 ตัวสุดท้าย = ตัวที่เพิ่งเพิ่ม)
     await openOrderSummary(page, visit);
     await showMedCard(page);
@@ -406,33 +498,39 @@ async function runTc027(page: Page, visit: ErVisit, note: (t: string, d: string)
     const dialog = page.getByRole('dialog').filter({ visible: true }).last();
     const outcome = await Promise.race([dialog.waitFor({ state: 'visible', timeout: 15_000 }).then(() => 'dialog', () => 'none'), signed]);
     note(`${TC(27)} หลังกด Sign`, outcome === 'dialog' ? `หน้าต่าง: ${(await dialog.innerText()).replace(/\s+/g, ' ').slice(0, 250)}` : outcome === 'signed' ? 'ลงนามทันที ไม่มีหน้าต่างยืนยันยาซ้ำ' : 'ไม่มีอะไรเกิดขึ้น');
-    if (outcome !== 'dialog') {
-      await toast(page, 'ส่งคำสั่งสำเร็จ').waitFor({ timeout: 15_000 }).catch(() => undefined);
-      await showMedCard(page);
-      await markEvidence(alerted(toast(page, 'ส่งคำสั่งสำเร็จ')), expected(await cellOf(medCard(page), rowOf(page, MED.m6, idx), /^ลงนาม$/), 'ลงนามทันที ไม่มีหน้าต่างยืนยันยาซ้ำ'));
-      await snapEvidence(page, 'หลังกด — ลงนามทันที');
-      // เทียบปุ่ม Sign ของ OPD Order Form (= ส่งคำสั่ง ใน One Day Order) กับยาซ้ำแบบเดียวกัน
-      const form = await orderFormSendCheck(page, visit, note);
-      note(`${TC(27)} เทียบ ส่งคำสั่ง (Order Form)`, form);
+    if (outcome === 'dialog') {
+      // ต่างจาก dev-x (ลงนามทันที) — เก็บภาพหน้าต่างไว้ แล้วปิดโดยไม่ลงนาม
+      await markEvidence(alerted(dialog, 'หน้าต่างตอน Sign ยาซ้ำ'));
+      await snapEvidence(page, 'หน้าต่างตอน Sign ยาซ้ำ');
+      await dialog.getByRole('button', { name: /ยกเลิก|ปิด|กลับไปแก้ไข|Cancel/ }).first().click().catch(() => undefined);
     }
-    expect(outcome, 'กด Sign ยาซ้ำต้องมีหน้าต่างยืนยันยาซ้ำก่อนลงนาม').toBe('dialog');
-    await markEvidence(alerted(dialog, 'ยืนยันยาซ้ำ'));
-    await snapEvidence(page, 'หน้าต่างยืนยันยาซ้ำ');
-    const cancel = dialog.getByRole('button', { name: /ยกเลิก|ปิด|Cancel/ }).first();
-    await markEvidence(clicked(cancel));
-    await cancel.click();
-    await expect(dialog).toBeHidden({ timeout: 15_000 });
-    await expect(btn(dup, 'Sign'), 'กดยกเลิกในหน้าต่างยืนยัน ยาซ้ำต้องยังค้างลงนาม').toBeVisible({ timeout: 15_000 });
-    await markEvidence(expected(btn(dup, 'Sign'), 'ยกเลิกแล้ว: ยังค้างลงนาม'));
+    expect(outcome, 'Sign ยาซ้ำจาก Order Summary ต้องลงนามได้เหมือน OPD Order Form (ยืนยันยาซ้ำแล้วตอนเพิ่มลงตะกร้า)').toBe('signed');
+    await toast(page, 'ส่งคำสั่งสำเร็จ').waitFor({ timeout: 15_000 }).catch(() => undefined);
+    await showMedCard(page);
+    await markEvidence(alerted(toast(page, 'ส่งคำสั่งสำเร็จ')), expected(await cellOf(medCard(page), rowOf(page, MED.m6, idx), /^ลงนาม$/), 'ลงนามแล้ว (ยืนยันยาซ้ำตอนเพิ่มลงตะกร้า)'));
+    await snapEvidence(page, 'หลังกด — ลงนามแล้ว');
+    // เทียบปุ่ม Sign ของ OPD Order Form (= ส่งคำสั่ง ใน One Day Order) กับยาซ้ำแบบเดียวกัน
+    const form = await orderFormSendCheck(page, visit, note);
+    note(`${TC(27)} เทียบ ส่งคำสั่ง (Order Form)`, form);
+    expect(alertAtAdd, 'ตอนเพิ่มยาซ้ำลงตะกร้าต้องมี Drug Alert ยืนยันยาซ้ำ').not.toBe('');
+    expect(form, 'ส่งคำสั่ง (OPD Order Form) ยาซ้ำต้องลงนามแบบเดียวกับ Sign ใน Order Summary').toMatch(/ลงนามทันที/);
 }
 
-/** One Day Order: เพิ่ม med0000006 ซ้ำลงตะกร้า (Drug Alert ตอนเพิ่ม → ยืนยัน) */
-async function addDuplicateMed6(page: Page, visit: ErVisit, note: (t: string, d: string) => void) {
+/** One Day Order: เพิ่ม med0000006 ซ้ำลงตะกร้า (Drug Alert ตอนเพิ่ม → ยืนยัน) · คืนข้อความ Drug Alert ที่เห็น ('' = ไม่มี) */
+async function addDuplicateMed6(page: Page, visit: ErVisit, note: (t: string, d: string) => void): Promise<string> {
+    let alertText = '';
     await gotoVisit(page, visit);
     await openOneDayOrder(page);
     const main = mainOf(page);
-    await page.getByRole('combobox', { name: /ค้นหา ยา/ }).fill(MED.m6.code);
-    await page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: `[${MED.m6.code}]` }).first().click();
+    // SBH Prod 5 พ.ย.: เมนูตัวเลือกบางรอบไม่ขึ้น / ขึ้นแล้วหาย → พิมพ์ใหม่ทีละตัวแล้วรอตัวเลือกวนซ้ำ
+    const search = page.getByRole('combobox', { name: /ค้นหา ยา/ });
+    const option = page.locator('.ant-select-item-option').filter({ hasText: MED.m6.code }).first();
+    await expect(async () => {
+      await search.fill('');
+      await search.pressSequentially(MED.m6.code, { delay: 60 });
+      await expect(option).toBeVisible({ timeout: 10_000 });
+      await option.click({ timeout: 5_000 });
+    }, `ค้นหา ${MED.m6.code} แล้วเลือกจากรายการ`).toPass({ timeout: 90_000 });
     await page.waitForTimeout(2_000);
     await forceOralRoute(page);
     if (!(await main.getByRole('textbox', { name: /^\* วิธีใช้/ }).inputValue())) await main.getByRole('spinbutton', { name: 'ขนาดยา' }).fill('1');
@@ -448,11 +546,15 @@ async function addDuplicateMed6(page: Page, visit: ErVisit, note: (t: string, d:
       if ((await rows6.count()) >= target) return;
       await page.getByRole('button', { name: 'plus เพิ่มลงตะกร้า' }).click();
       if (await orderAlert(page).waitFor({ state: 'visible', timeout: 8_000 }).then(() => true, () => false)) {
-        note(`${TC(27)} ตอนเพิ่มลงตะกร้า`, (await orderAlert(page).innerText()).replace(/\s+/g, ' ').slice(0, 200));
+        alertText = (await orderAlert(page).innerText()).replace(/\s+/g, ' ').slice(0, 200);
+        note(`${TC(27)} ตอนเพิ่มลงตะกร้า`, alertText);
+        await markEvidence(alerted(orderAlert(page), 'Drug Alert ยาซ้ำ (ตอนเพิ่มลงตะกร้า)'));
+        await snapEvidence(page, 'Drug Alert ตอนเพิ่มยาซ้ำ');
         await confirmOrderAlert(page);
       }
       await expect(rows6).toHaveCount(target, { timeout: 10_000 });
-    }, 'เพิ่ม med0000006 ซ้ำลงตะกร้า').toPass({ timeout: 120_000 });
+    }, `เพิ่ม ${MED.m6.code} ซ้ำลงตะกร้า`).toPass({ timeout: 120_000 });
+    return alertText;
 }
 
 /** เทียบ: ปุ่ม Sign ของ OPD Order Form (= ส่งคำสั่ง ใน One Day Order) กับยาซ้ำ — มีหน้าต่างยืนยันตอนส่งไหม · ส่งจริงให้จบ (ยืนยัน) */
@@ -463,7 +565,9 @@ async function orderFormSendCheck(page: Page, visit: ErVisit, note: (t: string, 
   const remaining = page.getByRole('dialog', { name: 'พบยาที่ผู้ป่วยยังใช้ไม่หมด' });
   await markEvidence(clicked(submit, 'ส่งคำสั่ง (Order Form) ยาซ้ำ'));
   await snapEvidence(page, 'เทียบ Order Form — ก่อนส่งคำสั่ง');
-  const signed = page.waitForResponse((r) => /SignOPDOrders/.test(r.request().postData() ?? ''), { timeout: 30_000 }).then(() => 'signed', () => 'none');
+  // SBH Prod 5 พ.ย.: SignOPDOrders ตอบก่อนหน้าต่าง Drug Alert ขึ้น (accepted=false รอยืนยัน) → นับว่าลงนามเฉพาะ accepted=true
+  const signedOk = async (r: { json(): Promise<unknown> }) => !!((await r.json().catch(() => ({}))) as { data?: { signOPDOrders?: { accepted?: boolean } } }).data?.signOPDOrders?.accepted;
+  const signed = page.waitForResponse((r) => /SignOPDOrders/.test(r.request().postData() ?? ''), { timeout: 30_000 }).then(async (r) => ((await signedOk(r)) ? 'signed' : new Promise<string>(() => undefined)), () => 'none');
   await submit.click();
   const shown = (d: Locator, name: string) => d.waitFor({ state: 'visible', timeout: 20_000 }).then(() => name, () => 'none');
   const outcome = await Promise.race([shown(orderAlert(page), 'alert'), shown(remaining, 'remaining'), signed]);
@@ -484,9 +588,59 @@ async function orderFormSendCheck(page: Page, visit: ErVisit, note: (t: string, 
   return result;
 }
 
+/**
+ * TC-024 บน SBH Prod: หัตถการ ACT0000062 ลงรหัส ICD9-CM 06.13 ให้เอง (dev-x ECG ไม่ลง) → ผู้ป่วย A มีรายการ ICD9-CM จริง
+ * ตรวจตาม AC "ซ่อนหมวดที่ไม่มีคำสั่ง": ทุกการ์ดที่แสดงในส่วนก่อน admit ต้องมีรายการ · Instrument (ไม่มีคำสั่ง) ต้องไม่แสดง · ICD9-CM แสดงเพราะมีรายการ
+ */
+async function checkTc024Prod(page: Page, note: (t: string, d: string) => void) {
+  const header = preAdmitHeader(page);
+  if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+  await expect(header).toHaveAttribute('aria-expanded', 'true');
+  await page.waitForTimeout(1_500);
+  const section = preAdmitSection(page);
+  const heads = section.locator('.ant-card-head-title');
+  const titles = (await heads.allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+  const rows: CompareRow[] = [];
+  const empty: string[] = [];
+  for (const title of titles) {
+    if (/รวมค่าใช้จ่าย/.test(title)) continue;
+    const card = heads.filter({ hasText: title }).first().locator('xpath=ancestor::div[contains(concat(" ", @class, " "), " ant-card ")][1]');
+    const items = (await card.locator('tbody tr.ant-table-row').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    if (!items.length) empty.push(title);
+    rows.push({ label: title.replace(/ - .*/, ''), values: [`${items.length} รายการ${items.length ? `: ${items.map((t) => t.slice(0, 40)).join(' / ')}` : ''}`, 'มีรายการ'], same: items.length > 0 });
+  }
+  const hasInstrument = titles.some((t) => /Instrument/i.test(t));
+  rows.push({ label: 'Instrument (ไม่มีคำสั่ง)', values: [hasInstrument ? 'แสดง' : 'ไม่แสดง', 'ไม่แสดง'], same: !hasInstrument });
+  note(`${TC(24)} หมวดที่แสดง`, titles.join(' | '));
+  const icdHead = heads.filter({ hasText: /^ICD9-CM$/ }).first();
+  if (await icdHead.count()) {
+    const icdCard = icdHead.locator('xpath=ancestor::div[contains(concat(" ", @class, " "), " ant-card ")][1]');
+    note(`${TC(24)} การ์ด ICD9-CM`, `${(await icdCard.locator('tbody tr.ant-table-row').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ')).join(' / ')} — รหัสที่ระบบลงให้จากหัตถการ ${PROC.code}`);
+    // เลื่อนในกล่องของส่วนก่อน admit ให้หัวหัตถการ + การ์ด ICD9-CM อยู่ในจอพร้อมกัน
+    await icdCard.evaluate((el) => el.scrollIntoView({ block: 'end' }));
+    await page.mouse.move(960, 1050);
+    await page.waitForTimeout(800);
+    await markEvidence(
+      expected(heads.filter({ hasText: /^หัตถการ/ }).first(), 'หมวดหัตถการ (มีคำสั่ง)'),
+      expected(icdCard.locator('tbody tr.ant-table-row').first(), 'ICD9-CM มีรายการ (ลงจากหัตถการ)'),
+    );
+    await snapEvidence(page, 'ICD9-CM มีรายการจากหัตถการ');
+  }
+  const medHead = heads.filter({ hasText: /^ยา$/ }).first();
+  await clearEvidenceMarks(page);
+  await medHead.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  await page.mouse.move(960, 1050);
+  await page.waitForTimeout(800);
+  await markEvidence(expected(medHead, 'หมวดยา (มีคำสั่ง)'), expected(header, 'ขยายแล้ว'));
+  await showCompareTable(page, 'TC-024 หมวดในส่วนก่อน admit (หน้าจอ)', ['หน้าจอ', 'Expected'], rows, { side: 'bottom' });
+  for (const x of rows) expect(x.same, x.label).toBe(true);
+  expect(empty, 'ต้องไม่แสดงหมวดที่ไม่มีคำสั่ง').toEqual([]);
+  await hideCompareTable(page);
+}
+
 // =====================================================================================================
 
-test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
+test.describe(`SBH-2593 Improve Order Summary ER (${SYSTEM})`, () => {
   test.describe.configure({ timeout: 2_700_000 });
 
   let nurse: Page | undefined;
@@ -511,6 +665,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     const n = nurse;
     const nr = makeRunner(n);
     await openOrderSummary(page, visit);
+    await resolveMedNames(page, () => auth(), visit.en, note);
     const progressText = `S: TC-002 SBH-2593 ปวดท้อง ${Date.now() % 100000}`;
     let progressEntry = '';
     const focusName = `TC-003 SBH-2593 ปวดท้อง ${Date.now() % 100000}`;
@@ -698,7 +853,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
       const allText = (await all.innerText()).trim();
       note(`${TC(26)} ปุ่มหัวตาราง`, `${allText}${(await all.isDisabled()) ? ' (กดไม่ได้)' : ''}`);
       if (await all.isEnabled()) {
-        await markEvidence(clicked(all, 'นับเฉพาะรายการที่ลงนามแล้ว (ECG)'));
+        await markEvidence(clicked(all, `นับเฉพาะรายการที่ลงนามแล้ว (${PROC.label})`));
         await snapEvidence(n, 'ก่อนกด — รับ Order ทั้งหมด');
         const res = waitNurse(n, 'accept');
         await all.click();
@@ -754,8 +909,8 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
         { label: `${MED.m7.code} (ยังไม่ลงนาม)`, values: [(await has(MED.m7)) ? 'อยู่ในคิว' : 'ไม่อยู่', 'ไม่อยู่'], same: !(await has(MED.m7)) },
         { label: `${MED.m8.code} (ยังไม่ลงนาม)`, values: [(await has(MED.m8)) ? 'อยู่ในคิว' : 'ไม่อยู่', 'ไม่อยู่'], same: !(await has(MED.m8)) },
       ];
-      await markEvidence(expected(main.getByText(`[${MED.m6.code}]`).first(), 'ยาที่ Sign แล้ว'), expected(main.getByText(/Order รอยืนยัน/).first(), 'ห้องยา A'));
-      await showCompareTable(page, 'TC-011 คิวห้องยา A (หน้ารับออเดอร์)', ['หน้าจอ', 'Expected'], rows, { side: 'bottom' });
+      await markEvidence(expected(main.getByText(`[${MED.m6.code}]`).first(), 'ยาที่ Sign แล้ว'), expected(main.getByText(/Order รอยืนยัน/).first(), PHARMACY));
+      await showCompareTable(page, `TC-011 คิว${PHARMACY} (หน้ารับออเดอร์)`, ['หน้าจอ', 'Expected'], rows, { side: 'bottom' });
       for (const x of rows) expect(x.same, x.label).toBe(true);
       await hideCompareTable(page);
     });
@@ -976,7 +1131,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
       const count = text.match(/(\d+) รายการ/)?.[1] ?? '';
       const num = (label: string) => text.match(new RegExp(`${label}\\s*([\\d,.]+)`))?.[1]?.replace(/,/g, '') ?? '';
       const rows: CompareRow[] = [
-        { label: 'จำนวนรายการ', values: [count, '4 (ยา 3 + ECG 1)'], same: count === '4' },
+        { label: 'จำนวนรายการ', values: [count, `4 (ยา 3 + ${PROC.label} 1)`], same: count === '4' },
         { label: 'ราคารวม', values: [num('ราคารวม'), before.totals.total], same: Number(num('ราคารวม')) === Number(before.totals.total) },
         { label: 'เครดิต', values: [num('เครดิต'), before.totals.credit], same: Number(num('เครดิต')) === Number(before.totals.credit) },
         { label: 'จ่าย', values: [num('จ่าย'), before.totals.paid], same: Number(num('จ่าย')) === Number(before.totals.paid) },
@@ -1009,6 +1164,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     // ---------- TC-024 ----------
     await startClip(page, 'TC-024');
     await su.soft(`${TC(24)} ขยาย ORDER FOR ONE DAY (ก่อน admit) → แสดงเฉพาะหมวดที่มีคำสั่ง (ยา · หัตถการ) ไม่แสดง ICD9-CM`, async () => {
+      if (PROD) return checkTc024Prod(page, note);
       const header = preAdmitHeader(page);
       if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
       await expect(header).toHaveAttribute('aria-expanded', 'true');
@@ -1081,6 +1237,19 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     finish();
   });
 
+  // ================= ผู้ป่วย A ตรวจซ้ำ TC-024 (อ่านอย่างเดียว · รายเดิมที่ admit แล้ว — SBH Prod 5 พ.ย. 2026) =================
+  test('ผู้ป่วย A: ตรวจซ้ำ TC-024 หมวดในส่วนก่อน admit (อ่านอย่างเดียว)', { tag: ['@SBH-2593-A24', `@${ISSUE[24]}`], annotation: notesOf([24]) }, async ({ page }) => {
+    const env = (process.env.SBH2593_A_VISIT ?? '').split(',').filter(Boolean);
+    test.skip(env.length < 3, 'ต้องตั้ง SBH2593_A_VISIT=HN,VN,EN');
+    const visit = { hn: env[0], vn: env[1], en: env[2] };
+    const { note, soft, finish } = makeRunner(page);
+    note('ผู้ป่วย (อ่านอย่างเดียว)', `HN ${visit.hn} · ${visit.vn} · ${visit.en} (ผู้ป่วย A หลัง admit)`);
+    await openOrderSummary(page, visit);
+    await startClip(page, 'TC-024');
+    await soft(`${TC(24)} ขยายส่วนก่อน admit → แสดงเฉพาะหมวดที่มีคำสั่ง`, async () => checkTc024Prod(page, note));
+    finish();
+  });
+
   // ================= ผู้ป่วย B: Sign หลายรายการ · Sign ยาซ้ำ · ยกเลิก Order หลายแถว =================
   const B_TC = [9, 27, 38];
   test('ผู้ป่วย B: Sign หลายรายการ / ยาซ้ำ / ยกเลิก Order หลายแถว (TC 009 · 027 · 038)', { tag: ['@SBH-2593', '@SBH-2593-B', ...tagsOf(B_TC)], annotation: notesOf(B_TC) }, async ({ page, browser }) => {
@@ -1089,6 +1258,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     const su = makeRunner(page);
     const visit = await preparePatient(page, 'Os2593B', { meds: ALL_MEDS }, note);
     await openOrderSummary(page, visit);
+    await resolveMedNames(page, () => auth(), visit.en, note);
 
     await startClip(page, 'TC-009');
     await su.soft(`${TC(9)} เลือกยา 2 รายการแล้ว Sign จากแถบสั่ง → 2 รายการลงนาม · รายการที่ไม่ได้เลือกยังค้าง`, async () => {
@@ -1119,7 +1289,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     });
 
     await startClip(page, 'TC-027');
-    await su.soft(`${TC(27)} Sign ยาซ้ำจาก Order Summary ต้องยืนยันยาซ้ำเหมือนปุ่ม Sign ใน OPD Order Form · กดยกเลิกแล้วยังค้างลงนาม`, async () => {
+    await su.soft(`${TC(27)} Sign ยาซ้ำ ลงนามได้เหมือน OPD Order Form (ยืนยันยาซ้ำตอนเพิ่มลงตะกร้า)`, async () => {
       await runTc027(page, visit, note);
     });
 
@@ -1177,10 +1347,10 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     test.skip(env.length < 3, 'ต้องตั้ง SBH2593_B_TC027=HN,VN,EN');
     const visit = { hn: env[0], vn: env[1], en: env[2] };
     const { note, soft, finish } = makeRunner(page);
-    note('ผู้ป่วย (รายเดิมของเทส B)', `HN ${visit.hn} · ${visit.vn} · ${visit.en} · med0000006 ลงนามแล้ว (TC-009)`);
+    note(`ผู้ป่วย (รายเดิม${process.env.SBH2593_TC027_LABEL ? ` — ${process.env.SBH2593_TC027_LABEL}` : 'ของเทส B'})`, `HN ${visit.hn} · ${visit.vn} · ${visit.en} · ${MED.m6.code} ลงนามแล้ว`);
     await gotoVisit(page, visit);
     await startClip(page, 'TC-027');
-    await soft(`${TC(27)} Sign ยาซ้ำจาก Order Summary ต้องยืนยันยาซ้ำเหมือนปุ่ม Sign ใน OPD Order Form · กดยกเลิกแล้วยังค้างลงนาม`, () => runTc027(page, visit, note));
+    await soft(`${TC(27)} Sign ยาซ้ำ ลงนามได้เหมือน OPD Order Form (ยืนยันยาซ้ำตอนเพิ่มลงตะกร้า)`, () => runTc027(page, visit, note));
     finish();
   });
 
@@ -1195,7 +1365,10 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     const n = nurse;
     const nr = makeRunner(n);
     await openOrderSummary(n, visit, false);
+    await resolveMedNames(n, () => auth(), visit.en, note);
 
+    // SBH2593_C_FROM=rx: TC-017 ผ่านแล้วกับรายเดิม (SBH2593_C_VISIT) → ข้ามไปขั้นออกใบยา
+    if (process.env.SBH2593_C_FROM !== 'rx') {
     await startClip(n, 'TC-017');
     await nr.soft(`${TC(17)} เลือกยา 2 แถวแล้วรับ Order พร้อมกัน → 2 รายการเป็น กำลังให้ยา · ที่ไม่ได้เลือกยังรอรับ Order`, async () => {
       await showMedCard(n);
@@ -1220,12 +1393,13 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
       for (const x of rows) expect(x.same, x.label).toBe(true);
       await hideCompareTable(n);
     });
+    }
 
     // ห้องยาออกใบยา (เตรียม TC-028–030) — จดสถานะงานยาก่อน / หลังออกใบยา
     const beforeRx = await medTasks(page, () => auth(), visit.en);
     const rx = await createPrescriptionA(page, visit.hn);
     const afterRx = await medTasks(page, () => auth(), visit.en);
-    note('ห้องยา A ออกใบยา', `${rx} · งานยาก่อน: ${beforeRx.map((t) => `${t.name.slice(0, 12)}=${t.status}`).join(' ')} · หลัง: ${afterRx.map((t) => `${t.name.slice(0, 12)}=${t.status}`).join(' ')}`);
+    note(`${PHARMACY} ออกใบยา`, `${rx} · งานยาก่อน: ${beforeRx.map((t) => `${t.name.slice(0, 12)}=${t.status}`).join(' ')} · หลัง: ${afterRx.map((t) => `${t.name.slice(0, 12)}=${t.status}`).join(' ')}`);
 
     /** เทียบหน้าการเงิน + ใบยา (API) ก่อน / หลังกดปุ่มพยาบาล */
     const compareAround = async (tc: number, label: string, act: () => Promise<void>) => {
@@ -1248,9 +1422,10 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
       await hideCompareTable(page);
     };
 
-    await startClip(n, 'TC-028');
-    await startClip(page, 'TC-028-su');
-    await su.soft(`${TC(28)} ห้องยาออกใบยาแล้ว: กด รับ Order → สถานะใบยาและรายการค่าใช้จ่ายของ visit ไม่เปลี่ยน`, async () => {
+    // TC-028 ถูก Canceled (4 พ.ย. 2026 หลังบั๊ก SBH-3455 = Won't do) → ไม่รันบน SBH Prod
+    if (!PROD) await startClip(n, 'TC-028');
+    if (!PROD) await startClip(page, 'TC-028-su');
+    if (!PROD) await su.soft(`${TC(28)} ห้องยาออกใบยาแล้ว: กด รับ Order → สถานะใบยาและรายการค่าใช้จ่ายของ visit ไม่เปลี่ยน`, async () => {
       await compareAround(28, 'รับ Order', async () => {
         await openOrderSummary(n, visit);
         await showMedCard(n);
@@ -1299,6 +1474,38 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     finish();
   });
 
+  // ================= ผู้ป่วย C ตรวจซ้ำ TC-030 หลังกดยกเลิก Order (อ่านอย่างเดียว — SBH Prod 5 พ.ย. 2026) =================
+  // รอบรันจริงอ่านหน้าการเงินขณะโหลดไม่ครบ → ถ่ายสถานะหลังกดใหม่ · SBH2593_C_VISIT="HN,VN,EN" · SBH2593_C_RX=<เลขใบยา>
+  test('ผู้ป่วย C: ตรวจซ้ำ TC-030 ใบยา / ค่าใช้จ่ายหลังยกเลิก Order (อ่านอย่างเดียว)', { tag: ['@SBH-2593-C30', `@${ISSUE[30]}`], annotation: notesOf([30]) }, async ({ page }) => {
+    const env = (process.env.SBH2593_C_VISIT ?? '').split(',').filter(Boolean);
+    const rx = process.env.SBH2593_C_RX ?? '';
+    test.skip(env.length < 3 || !rx, 'ต้องตั้ง SBH2593_C_VISIT=HN,VN,EN และ SBH2593_C_RX');
+    const visit = { hn: env[0], vn: env[1], en: env[2] };
+    const { note, soft, finish } = makeRunner(page);
+    const auth = trackAuthorization(page);
+    note('ผู้ป่วย (อ่านอย่างเดียว)', `HN ${visit.hn} · ${visit.vn} · ${visit.en} · ใบยา ${rx} · กด ยกเลิก Order ของ ${MED.m7.code} ไปแล้วในรอบรัน`);
+    await startClip(page, 'TC-030');
+    await soft(`${TC(30)} หลังกด ยกเลิก Order: ใบยาไม่ถูกยกเลิก ค่าใช้จ่ายของยายังอยู่ครบ`, async () => {
+      const snap = await cashierSnapshot(page, visit);
+      const tasks = await medTasks(page, () => auth(), visit.en);
+      const rxNow = await prescriptionState(page, () => auth(), rx);
+      const task7 = tasks.filter((t) => t.name === MED.m7.name).map((t) => TASK_STATUS[t.status] ?? t.status).join(' ');
+      const has = (m: Med) => snap.itemTexts.find((t) => t.includes(m.code)) ?? '(ไม่มี)';
+      const rows: CompareRow[] = [
+        { label: `งานพยาบาล ${MED.m7.code} (API)`, values: [task7, 'ยกเลิก (กดแล้ว)'], same: task7 === 'ยกเลิก' },
+        { label: `ใบยา ${rx} (API)`, values: [rxNow.slice(0, 90), 'Prescription issued (active) ทุกรายการ'], same: !!rxNow && !/cancel/i.test(rxNow) },
+        { label: `ค่าใช้จ่าย ${MED.m7.code}`, values: [has(MED.m7).slice(0, 70), 'ยังอยู่'], same: has(MED.m7) !== '(ไม่มี)' },
+        { label: `ค่าใช้จ่าย ${MED.m6.code}`, values: [has(MED.m6).slice(0, 70), 'ยังอยู่'], same: has(MED.m6) !== '(ไม่มี)' },
+        { label: 'แถวใบยาหน้าการเงิน', values: [snap.status.slice(0, 70), `มี ${rx}`], same: (await page.getByRole('main').getByText(rx).count()) > 0 },
+      ];
+      await markEvidence(expected(page.getByRole('main').getByText(rx).first(), 'ใบยายังอยู่ (รอจัด)'), expected(snap.items.filter({ hasText: MED.m7.code }).first(), 'ค่าใช้จ่ายของยาที่ยกเลิก Order ยังอยู่'));
+      await showCompareTable(page, 'TC-030 หลังกด ยกเลิก Order (อ่านซ้ำ)', ['หน้าจอ / API', 'Expected'], rows, { side: 'bottom' });
+      for (const x of rows) expect(x.same, x.label).toBe(true);
+      await hideCompareTable(page);
+    });
+    finish();
+  });
+
   // ================= ผู้ป่วย D: รับ Order ทั้งหมด · ให้ยาแล้วหลายแถว =================
   const D_TC = [18, 37];
   test('ผู้ป่วย D: รับ Order ทั้งหมด + ให้ยาแล้วหลายแถว (TC 018 · 037)', { tag: ['@SBH-2593', '@SBH-2593-D', ...tagsOf(D_TC)], annotation: notesOf(D_TC) }, async ({ page, browser }) => {
@@ -1310,6 +1517,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     const n = nurse;
     const nr = makeRunner(n);
     await openOrderSummary(n, visit, false);
+    await resolveMedNames(n, () => auth(), visit.en, note);
 
     await startClip(n, 'TC-018');
     await nr.soft(`${TC(18)} รับ Order ทั้งหมด → ยาทุกรายการที่รอรับเป็น กำลังให้ยา ไม่มีปุ่ม รับ Order เหลือ`, async () => {
@@ -1354,6 +1562,59 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
       await showMedCard(n);
       await markEvidence(expected(await cellOf(medCard(n), rowOf(n, MED.m6), /^Action$/), 'ให้ยาแล้ว'), expected(await cellOf(medCard(n), rowOf(n, MED.m7), /^Action$/), 'ให้ยาแล้ว'), expected(btn(rowOf(n, MED.m8), 'ให้ยาแล้ว'), 'ยังกำลังให้ยา'));
       await showCompareTable(n, 'TC-037 สถานะงานยา (API)', ['หลังกด', 'Expected'], rows, { side: 'bottom' });
+      for (const x of rows) expect(x.same, x.label).toBe(true);
+      await hideCompareTable(n);
+    });
+    nr.finish();
+    finish();
+  });
+
+  // ================= ผู้ป่วย D กดซ้ำ TC-018 (SBH Prod 5 พ.ย. 2026 — รอบแรกคำขอรับ 1 ใน 3 ตอบ 500 · ผู้ใช้ให้ "กดซ้ำกับผู้ป่วย D ก่อนสรุป") =================
+  // ผู้ป่วย D หลัง TC-027 มีงานยารอรับ 3 รายการ (MED0000260 เดิม + ที่สั่งซ้ำ 2) · SBH2593_D_VISIT="HN,VN,EN"
+  test('ผู้ป่วย D: กดซ้ำ TC-018 รับ Order ทั้งหมด', { tag: ['@SBH-2593-D18', `@${ISSUE[18]}`], annotation: notesOf([18]) }, async ({ page, browser }) => {
+    const env = (process.env.SBH2593_D_VISIT ?? '').split(',').filter(Boolean);
+    test.skip(env.length < 3, 'ต้องตั้ง SBH2593_D_VISIT=HN,VN,EN');
+    const visit = { hn: env[0], vn: env[1], en: env[2] };
+    const { note, finish } = makeRunner(page);
+    const auth = trackAuthorization(page);
+    note('ผู้ป่วย (รายเดิม · กดซ้ำ)', `HN ${visit.hn} · ${visit.vn} · ${visit.en}`);
+    await gotoVisit(page, visit);
+    nurse = await openNurseWindow(browser, visitUrl(visit), visit.hn);
+    const n = nurse;
+    const nr = makeRunner(n);
+    await openOrderSummary(n, visit, false);
+    const accepts: string[] = [];
+    n.on('response', (r) => {
+      if (/\/er\/nurse-tasks\/[^/]+\/accept/.test(r.url()) && r.request().method() === 'POST') accepts.push(`${r.url().match(/medication:([0-9a-f]{8})/)?.[1] ?? '?'}=${r.status()}`);
+    });
+    const pending = async () => (await medTasks(n, () => auth(), visit.en)).filter((t) => t.status === 'PENDING').length;
+    await startClip(n, 'TC-018');
+    await nr.soft(`${TC(18)} กดซ้ำ: รับ Order ทั้งหมด → งานยาที่รอรับเป็นกำลังให้ยาทุกรายการ`, async () => {
+      await showMedCard(n);
+      const before = await pending();
+      const all = acceptAllBtn(n);
+      const label = (await all.innerText()).trim();
+      note(`${TC(18)} ก่อนกด`, `${label} · งานยารอรับ (API) ${before} รายการ`);
+      await markEvidence(clicked(all, `งานยารอรับ ${before} รายการ`));
+      await snapEvidence(n, 'ก่อนกด — รับ Order ทั้งหมด (กดซ้ำ)');
+      await all.click();
+      const notice = n.locator('.ant-notification-notice, .ant-message-notice').first();
+      await notice.waitFor({ timeout: 20_000 }).catch(() => undefined);
+      const noticeText = (await notice.innerText().catch(() => '(ไม่มีแจ้งเตือน)')).replace(/\s+/g, ' ');
+      await markEvidence(alerted(notice));
+      await snapEvidence(n, 'หลังกด — แจ้งเตือน (กดซ้ำ)');
+      await n.waitForTimeout(4_000);
+      const after = await pending();
+      const left = await medCard(n).getByRole('button', { name: 'รับ Order', exact: true }).count();
+      note(`${TC(18)} หลังกด`, `แจ้งเตือน: ${noticeText} · คำขอรับ: ${accepts.join(' ')} · งานยารอรับ (API) ${after} · ปุ่ม รับ Order ในตาราง ${left}`);
+      const rows: CompareRow[] = [
+        { label: 'คำขอรับ (สถานะ HTTP)', values: [accepts.join(' · ') || '(ไม่มี)', '200 ทุกคำขอ'], same: accepts.length > 0 && accepts.every((a) => a.endsWith('=200')) },
+        { label: 'แจ้งเตือน', values: [noticeText.slice(0, 60), `รับ Order แล้ว ${before} รายการ`], same: noticeText.includes(`รับ Order แล้ว ${before} รายการ`) },
+        { label: 'งานยารอรับ (API)', values: [`${after}`, '0'], same: after === 0 },
+        { label: 'ปุ่ม รับ Order ในตารางยา', values: [`${left}`, '0'], same: left === 0 },
+      ];
+      await markEvidence(expected(medCard(n).locator('tbody'), after === 0 ? 'ไม่มี รับ Order เหลือ' : `ทุกรายการรับแล้ว · จริง: เหลือ ${after}`));
+      await showCompareTable(n, 'TC-018 กดซ้ำ: รับ Order ทั้งหมด', ['หลังกด', 'Expected'], rows, { side: 'bottom' });
       for (const x of rows) expect(x.same, x.label).toBe(true);
       await hideCompareTable(n);
     });
@@ -1427,7 +1688,7 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     const { note, finish } = makeRunner(page);
     const su = makeRunner(page);
     const opdUrl = `/cortex/next/patients/${OPD_PATIENT.hn}?en=${OPD_PATIENT.en}&vn=${OPD_PATIENT.vn}&fromApp=opd`;
-    note('ผู้ป่วย OPD (อ่านอย่างเดียว)', `AUTO MockOrder1022140821 · HN ${OPD_PATIENT.hn} · ${OPD_PATIENT.vn} · ${OPD_PATIENT.en} · ยา med0000008 + ECG ส่งคำสั่งแล้ว`);
+    note('ผู้ป่วย OPD (อ่านอย่างเดียว)', `${OPD_PATIENT.label} · HN ${OPD_PATIENT.hn} · ${OPD_PATIENT.vn} · ${OPD_PATIENT.en} · มียาที่ส่งคำสั่งแล้ว`);
     /** เมนูขวา "คำสั่งการรักษา" → สวิตช์ "ดูรวม" V2 = Order Form / V1 = Order Summary (การ์ด ICD9-CM) */
     const openOpd = async (p: Page) => {
       await expect(async () => {
@@ -1481,13 +1742,13 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     await startClip(page, 'TC-035');
     await su.soft(`${TC(35)} Order Summary และ Order Form ของ OPD ไม่มีปุ่ม รับ Order / ให้ยาแล้ว / ยกเลิก Order / รับ Order ทั้งหมด`, async () => {
       await setView(page, sw, 'V1');
-      const medRow = mainOf(page).getByRole('row').filter({ hasText: '[med0000008]' }).first();
+      const medRow = mainOf(page).getByRole('row').filter({ hasText: MED_CODE }).first();
       await expect(medRow).toBeVisible({ timeout: 30_000 });
       const inSummary = await nurseButtons(page).count();
       await markEvidence(expected(medRow, `Order Summary: ปุ่มงานพยาบาล ${inSummary} ปุ่ม`));
       await snapEvidence(page, 'OPD Order Summary (V1)');
       await setView(page, sw, 'V2');
-      const formRow = mainOf(page).getByRole('row').filter({ hasText: '[med0000008]' }).first();
+      const formRow = mainOf(page).getByRole('row').filter({ hasText: MED_CODE }).first();
       await expect(formRow).toBeVisible({ timeout: 30_000 });
       const inForm = await nurseButtons(page).count();
       note(`${TC(35)} ปุ่มงานพยาบาล`, `Order Summary ${inSummary} · Order Form ${inForm}`);
@@ -1498,5 +1759,25 @@ test.describe('SBH-2593 Improve Order Summary ER (dev-x)', () => {
     await setView(page, sw, original === 'true' ? 'V2' : 'V1').catch(() => undefined);
     su.finish();
     finish();
+  });
+
+  // ================= ท้ายงาน (SBH Prod): ปิด Visit ที่การเงิน — ผู้ใช้เลือก "สร้าง 5 ราย แล้วปิด Visit" (R124) =================
+  // เทสการ์ดไม่ปิด Visit เอง (กันเสียโควตาเมื่อเทสล้มกลางทาง) → ปิดหลังเก็บหลักฐานครบด้วย SBH2593_CLOSE="HN,VN;HN,VN"
+  test('ท้ายงาน: ปิด Visit ของผู้ป่วยที่เทสสร้าง', { tag: ['@SBH-2593-CLOSE'] }, async ({ page }) => {
+    const list = (process.env.SBH2593_CLOSE ?? '').split(';').map((x) => x.split(',').map((s) => s.trim())).filter((x) => x.length === 2 && x[0]);
+    test.skip(!list.length, 'ต้องตั้ง SBH2593_CLOSE="HN,VN;HN,VN"');
+    const failed: string[] = [];
+    for (const [hn, vn] of list) {
+      const result = await closeVisitAtCashier(page, hn, vn).then(
+        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+        (error: Error) => {
+          failed.push(hn);
+          return `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`;
+        },
+      );
+      test.info().annotations.push({ type: 'ปิด Visit', description: `HN ${hn} · ${vn}: ${result}` });
+      console.log(`    ปิด Visit: HN ${hn} · ${vn}: ${result}`);
+    }
+    expect(failed, 'ปิด Visit ไม่สำเร็จ').toEqual([]);
   });
 });

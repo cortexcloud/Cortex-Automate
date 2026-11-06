@@ -68,6 +68,9 @@ import { VITALS_NORMAL, gotoVisit } from '../../../mock-data/uat-play';
 // ชื่อ Template ต่อท้าย SUFFIX (ผู้ใช้เลือก 31 ต.ค. 2026 — ไม่แตะ QA-2629 … #34–37 ที่สร้างไว้ตอนสำรวจ 28 ต.ค.) · ข้อความ Template ตาม TC
 //   → TC-014 ค้นด้วย SUFFIX แทน "QA-2629" · TC-015 ค้น "QA-A" แล้วเห็น #34 ตัวเก่าด้วย (เนื้อหามีคำนี้) = ข้อสังเกต
 // สิ่งที่เขียนบน dev-x: Template ใหม่ 4 ตัว (ทิ้งไว้) · ผู้ป่วย AUTO 1 ราย + Focus 1 รายการ · กดปุ่ม Note Template ฝั่งแพทย์ยิง physician-activity ของผู้ป่วยนี้
+// SBH Prod (ผู้ใช้สั่ง 6 พ.ย. 2026): label "Test" แทน nurse-note · Template แพทย์ที่ใช้ค้น = "pneumonia" · ขั้นเตรียมสร้าง General A / I / E (ข้อความเดียวกับ dev-x ID 31–33) ถ้ายังไม่มี
+//   Template ที่สร้างทิ้งไว้บน Prod (ผู้ใช้เลือก) · ผู้ป่วย AUTO 1 ราย ปิด Visit ที่การเงินท้ายเทส
+//   รัน: npx playwright test -c playwright.sbh-prod.cards.config.ts --headed --grep "@SBH-2629( |$)"
 // รัน (dev-x): npx playwright test --headed --grep @SBH-2629
 //   SBH2629_SUFFIX=3110B = ชื่อรอบใหม่ (รอบก่อนสร้างไปแล้ว — ห้ามใช้ค่าที่เป็นคำนำหน้าของรอบอื่น) · SBH2629_KEEP=1 = ไม่ปิด Visit ท้ายเทส
 
@@ -90,14 +93,24 @@ const TEXT: Record<NurseCategory, string> = { Assessment: 'Focus/problem: QA-A',
 const GENERAL: Record<NurseCategory, string> = { Assessment: 'General Assessment', Intervention: 'General Intervention', Evaluation: 'General Evaluation' };
 const COLUMNS = ['ID', 'ชื่อ', 'Labels', 'ประเภท', 'Assigned To', 'สถานะ', 'สร้างโดย', 'วันที่สร้าง', 'อัปเดตล่าสุดโดย', 'อัปเดตล่าสุดเมื่อ', 'จัดการ'];
 const FOCUS = `QA-2629 Template Focus ${SUFFIX}`;
-const PHYSICIAN_TEMPLATE = 'nurse note'; // Note Template ของแพทย์ (GENERAL) ที่ติด label nurse-note บน dev-x (ID 22)
+const PROD = SYSTEM === 'sbh-prod';
+// Note Template ของแพทย์ (GENERAL): dev-x "nurse note" (ID 22 · label nurse-note) · SBH Prod "pneumonia" (ID 1 — Prod ไม่มี Template แพทย์ที่ติด nurse-note)
+const PHYSICIAN_TEMPLATE = PROD ? 'pneumonia' : 'nurse note';
+// Labels: Prod ไม่มี label nurse-note และระบบลบ label ไม่ได้ → ใช้ label เดิม "Test" (ผู้ใช้เลือก 6 พ.ย. 2026)
+const LABEL = PROD ? 'Test' : 'nurse-note';
+// Template General ของ dev-x (ID 31–33) — Prod ไม่มี ผู้ใช้ให้สร้างชื่อ / ข้อความเดียวกันบน Prod แล้วทิ้งไว้ (6 พ.ย. 2026)
+const GENERAL_TEXT: Record<NurseCategory, string> = {
+  Assessment: 'Focus/problem:\nSubjective (S):\nObjective (O): V/S …, Pain …, Others ',
+  Intervention: 'Nursing care provided:\nMedications given: name, dose, route, time\nCollaboration/communication:',
+  Evaluation: 'Patient response after intervention:\nV/S / Pain score after intervention:\nOngoing plan:',
+};
 
 const main = (page: Page) => page.getByRole('main');
 const cmp = (label: string, want: string, got: string, same = want === got): CompareRow => ({ label, values: [want, got], same });
 const bad = (rows: CompareRow[]) => rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values.join(' ≠ ')}`);
 
 test.describe(`SBH-2629 Nurse Note Template (${SYSTEM})`, () => {
-  test.skip(SYSTEM !== 'dev-x', 'ชุดนี้รันบน dev-x (ผู้ใช้สั่ง 31 ต.ค. 2026) — SBH Prod ต้องขออนุญาตรายการ์ด (R40)');
+  test.skip(SYSTEM !== 'dev-x' && !PROD, 'ชุดนี้รันบน dev-x (31 ต.ค. 2026) และ SBH Prod (ผู้ใช้สั่ง 6 พ.ย. 2026)');
   test.describe.configure({ timeout: 2_700_000 });
 
   // ───────────────────────── เทส A หน้าตั้งค่า ─────────────────────────
@@ -116,6 +129,24 @@ test.describe(`SBH-2629 Nurse Note Template (${SYSTEM})`, () => {
       await expect(settingsTitle(page)).toHaveText('Nurse Note Template');
       await searchSettings(page, SUFFIX);
       expect(await tableRows(page).count(), `มี Template ที่ลงท้าย ${SUFFIX} อยู่แล้ว — ตั้ง SBH2629_SUFFIX ใหม่`).toBe(0);
+      // ขั้นเตรียม (ไม่ใช่ TC): Prod ไม่มี General Assessment / Intervention / Evaluation → สร้างตามข้อความของ dev-x ถ้ายังไม่มี
+      if (PROD)
+        for (const category of CATEGORIES) {
+          await gotoNurseTemplates(page, category);
+          await searchSettings(page, GENERAL[category]);
+          if (await rowByName(page, GENERAL[category]).count()) {
+            note(`เตรียม ${GENERAL[category]}`, 'มีอยู่แล้ว');
+            continue;
+          }
+          await gotoNurseTemplates(page, category);
+          await addTemplateButton(page).click();
+          await expect(page).toHaveURL(new RegExp(`note-templates/create\\?type=NURSE_FOCUS_NOTE_${category.toUpperCase()}`));
+          await fillTemplateForm(page, { name: GENERAL[category], template: GENERAL_TEXT[category], label: LABEL });
+          const result = await saveTemplateForm(page);
+          note(`เตรียม ${GENERAL[category]}`, `สร้างใหม่ HTTP ${result.mutation ?? '-'} · ${result.notices.join(' | ') || '-'}`);
+          expect(result.mutation, `สร้าง ${GENERAL[category]} ไม่สำเร็จ`).toBe(200);
+          await expect(settingsTitle(page)).toHaveText('Nurse Note Template', { timeout: 30_000 });
+        }
       await page.goto('/cortex/setting/admin/note-templates');
       await expect(settingsTab(page, 'Nurse Note Template')).toBeVisible({ timeout: 60_000 });
       await restartVideo(page);
@@ -154,7 +185,7 @@ test.describe(`SBH-2629 Nurse Note Template (${SYSTEM})`, () => {
           await snapEvidence(page, `ก่อนกด — เพิ่ม Template ${category}`);
           await addTemplateButton(page).click();
           await expect(page).toHaveURL(/note-templates\/create\?type=NURSE_FOCUS_NOTE_/);
-          await fillTemplateForm(page, { name: NAME[category], template: TEXT[category], label: 'nurse-note' });
+          await fillTemplateForm(page, { name: NAME[category], template: TEXT[category], label: LABEL });
           note(`TC-${pad(n)} Type`, (await form.scope(page).innerText()).trim());
           await markEvidence(filled(form.name(page)), filled(formItem(page, 'template')), filled(formItem(page, 'labels')), filled(form.scope(page), 'Type'), clicked(form.save(page)));
           await snapEvidence(page, `ก่อนกด — บันทึก ${category}`);
@@ -192,7 +223,7 @@ test.describe(`SBH-2629 Nurse Note Template (${SYSTEM})`, () => {
       await startClip(page, 'TC-028-step1');
       await soft(`${TC(28)} ขั้น 1 สร้าง "${NAME.Inactive}" ปิดสวิตช์ Active → สถานะ ปิดใช้งาน`, async () => {
         await addTemplateButton(page).click();
-        await fillTemplateForm(page, { name: NAME.Inactive, template: 'Inactive: QA-X', label: 'nurse-note', active: false });
+        await fillTemplateForm(page, { name: NAME.Inactive, template: 'Inactive: QA-X', label: LABEL, active: false });
         await expect(form.active(page)).toHaveAttribute('aria-checked', 'false');
         await markEvidence(filled(form.active(page), 'Active ปิด'), filled(form.name(page)), clicked(form.save(page)));
         await snapEvidence(page, 'ก่อนกด — บันทึก Template ปิดใช้งาน');
@@ -207,8 +238,8 @@ test.describe(`SBH-2629 Nurse Note Template (${SYSTEM})`, () => {
 
       // ───── TC-025 / 026 / 027 ฟอร์มไม่ครบ ─────
       const invalid: [number, 'name' | 'template' | 'labels', Parameters<typeof fillTemplateForm>[1]][] = [
-        [25, 'name', { template: 'QA ไม่มีชื่อ', label: 'nurse-note' }],
-        [26, 'template', { name: 'QA-2629 NoText', label: 'nurse-note' }],
+        [25, 'name', { template: 'QA ไม่มีชื่อ', label: LABEL }],
+        [26, 'template', { name: 'QA-2629 NoText', label: LABEL }],
         [27, 'labels', { name: 'QA-2629 NoLabel', template: 'QA ไม่มี label' }],
       ];
       for (const [n, field, input] of invalid) {
@@ -323,6 +354,49 @@ test.describe(`SBH-2629 Nurse Note Template (${SYSTEM})`, () => {
         I: await editorText(noteEditor(noteDialog, 'Intervention')),
         E: await editorText(noteEditor(noteDialog, 'Evaluation')),
       });
+
+      // ───── TC-021 ER Physician Note (เรียกท้ายเทส · SBH2629_ONLY=TC021 = รันข้อนี้ข้อเดียวกับผู้ป่วยใหม่) ─────
+      // หน้า Visit มีปุ่ม Note Template 2 ปุ่ม: ฟอร์มคัดกรอง ER (มาก่อนใน DOM) กับแผง ER Physician Note
+      //   → จับปุ่มในแผงที่มีหัว "ER Physician Note" (รอบ Prod 6 พ.ย. 2026 .first() ได้ปุ่มของฟอร์มคัดกรอง — Sub Agent จับได้)
+      const tc021 = async () => {
+        await gotoVisit(page, visit);
+        const physicianPanel = page
+          .locator('div')
+          .filter({ has: page.getByText('ER Physician Note', { exact: true }) })
+          .filter({ has: page.locator('button[aria-label="Note Template"]') })
+          .last();
+        const ntButton = physicianPanel.locator('button[aria-label="Note Template"]');
+        await expect(ntButton).toHaveCount(1, { timeout: 120_000 });
+        await expect(ntButton).toBeVisible({ timeout: 120_000 });
+        note('TC-021 ปุ่ม Note Template บนหน้า', `${await page.locator('button[aria-label="Note Template"]').count()} ปุ่ม · ใช้ปุ่มในแผง ER Physician Note`);
+        await restartVideo(page);
+        await startClip(page, 'TC-021');
+        for (const word of ['QA-2629', 'General']) {
+          await soft(`${TC(21)} Note Template ของ ER Physician Note ค้น "${word}" → ไม่มี Template`, async () => {
+            const d = physicianTemplateDialog(page);
+            if (!(await d.isVisible().catch(() => false))) {
+              await markEvidence(expected(physicianPanel.getByText('ER Physician Note', { exact: true }), 'แผง ER Physician Note'), clicked(ntButton, 'Note Template'));
+              await snapEvidence(page, 'ก่อนกด — Note Template ของแพทย์');
+              await ntButton.click();
+              await expect(d).toBeVisible();
+              await expect(picker.items(d).first().or(picker.empty(d))).toBeVisible({ timeout: 20_000 });
+            }
+            await searchTemplates(d, word);
+            await expect(picker.empty(d), 'Expected: ไม่มี Template').toHaveText('ไม่มี Template');
+            await expect(picker.copy(d), 'หน้าต่างของแพทย์ (ปุ่ม คัดลอกข้อความ)').toBeVisible();
+            await markEvidence(filled(picker.search(d), word), expected(picker.empty(d), 'ไม่มี Template'), expected(picker.copy(d), 'หน้าต่างของแพทย์'));
+          });
+        }
+        const d = physicianTemplateDialog(page);
+        if (await d.isVisible().catch(() => false)) await picker.close(d).click();
+        await startClip(page, 'after'); // ไม่ให้คลิป TC-021 ยาวไปถึงขั้นปิด Visit ของ afterEach
+      };
+
+      if (process.env.SBH2629_ONLY === 'TC021') {
+        await tc021();
+        finish();
+        return;
+      }
 
       await openPanel();
       await restartVideo(page);
@@ -686,29 +760,8 @@ test.describe(`SBH-2629 Nurse Note Template (${SYSTEM})`, () => {
       await hideCompareTable(page);
       await discardNote();
 
-      // ───── TC-021 ER Physician Note ─────
-      await gotoVisit(page, visit);
-      const ntButton = page.locator('button[aria-label="Note Template"]').first();
-      await expect(ntButton).toBeVisible({ timeout: 120_000 });
-      await startClip(page, 'TC-021');
-      for (const word of ['QA-2629', 'General']) {
-        await soft(`${TC(21)} Note Template ของ ER Physician Note ค้น "${word}" → ไม่มี Template`, async () => {
-          const d = physicianTemplateDialog(page);
-          if (!(await d.isVisible().catch(() => false))) {
-            await markEvidence(clicked(ntButton, 'Note Template'));
-            await snapEvidence(page, 'ก่อนกด — Note Template ของแพทย์');
-            await ntButton.click();
-            await expect(d).toBeVisible();
-            await expect(picker.items(d).first().or(picker.empty(d))).toBeVisible({ timeout: 20_000 });
-          }
-          await searchTemplates(d, word);
-          await expect(picker.empty(d), 'Expected: ไม่มี Template').toHaveText('ไม่มี Template');
-          await expect(picker.copy(d), 'หน้าต่างของแพทย์ (ปุ่ม คัดลอกข้อความ)').toBeVisible();
-          await markEvidence(filled(picker.search(d), word), expected(picker.empty(d), 'ไม่มี Template'), expected(picker.copy(d), 'หน้าต่างของแพทย์'));
-        });
-      }
-      const d = physicianTemplateDialog(page);
-      if (await d.isVisible().catch(() => false)) await picker.close(d).click();
+      await startClip(page, 'gap');
+      await tc021();
       finish();
     },
   );

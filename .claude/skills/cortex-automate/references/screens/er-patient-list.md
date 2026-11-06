@@ -25,3 +25,13 @@ dev-x 3 พ.ย. 2026 · ไฟล์แอป `index-BneIKgug.js` / `index-5sq_
 - **ฟอร์มผู้ป่วยใหม่ ER รับปีเกิดเป็น พ.ศ.** (ตั้งแต่ ~23 ต.ค.) — `newTestPatient()` พิมพ์ 15/01/1990 จึงได้วันเกิด 1447 (อายุ 579 ปี) · พิมพ์ DD/MM/(ค.ศ.+543) แล้วยืนยันจาก `/new-demographic-api/patients` (spec SBH-3181 `beInput`) · คำนำหน้า "นางสาว" ไม่มี (มี "น.ส.") — `registerNewPatient` เพศหญิงพัง
 - ฟอร์ม Consult ของ ER มีความเร่งด่วน Elective / Urgency / Emergency → `requestConsult(page, problem, to, 'er', 'Emergency')`
 - เมนูผู้ใช้มุมขวาบน: แก้ไขข้อมูลของฉัน · คำสั่งรอยืนยัน · รับ Consult · ตารางงาน · ดูการตรวจ นศพ. · **ลงชื่อออก**
+
+## SBH Prod (6 พ.ย. 2026 · การ์ด SBH-3181 · ไฟล์แอป `index-BoC124P0.js` → deploy `index-B30_rCX7.js` ระหว่าง 14:21–14:28 · chunk หน้ารายการ `useErPatientListView-*.js`)
+
+- ฟีเจอร์ขึ้น Prod ครบ (ตรวจด้วยการไล่ chunk หา `er-patient-list-prefs` / `_summary-button_` — ไฟล์ index หลักไม่มี ต้องไล่ chunk ย่อย ~618 ไฟล์)
+- **ตารางแบ่งหน้าละ 20 แถว** (ปุ่มเลขหน้า + "20 / หน้า" ล่างตาราง) · ข้อความ "แสดง n ราย" นับทั้งหมด แต่ DOM มีแค่หน้าปัจจุบัน → `readTable()` ในสเปกไล่ปุ่มเลขหน้าแล้วกลับหน้า 1 · ขั้นที่เปิดแผงคอลัมน์ / ต้องการแถวบนจอ ใช้ `readTablePage()` (กดเลขหน้า = คลิกนอกแผง แผงปิด) · ตารางเทียบ `side:'bottom'` บังปุ่มเลขหน้า → ไปหน้าที่ต้องการก่อนขึ้นตาราง
+- ตัวกรองแพทย์ **จำคำค้นค้างในช่อง** — เลือกแพทย์คนที่ 2 ต้อง Ctrl+A + Backspace ก่อนพิมพ์ ไม่งั้นคำค้นต่อกันแล้วเลือกไม่ติด · แพทย์บัญชีหลัก (user1) = ดร. วิชัย รัตน์ เอื้อเฟื้อ · ผู้ป่วยอุบัติเหตุหมู่ = "นาย ไม่ระบุแพทย์ ไม่ระบุแพทย์"
+- หลัง Logout / Login แอปโหลดใหม่ ~20 วิ — รอแถวในตารางขึ้นก่อนตีกรอบ (ภาพแรกได้จอ spinner)
+- อายุต่ำกว่า 1 ปีแสดง "-" และเรียงไปท้ายทั้ง 2 ทิศ (เหมือน dev-x · BA ยืนยันให้แสดงได้) · บอร์ดยังใช้ "Zone Isolate" · tooltip ชิป Lab ไม่มีชื่อ order
+- ชิป Order สีเขียว: บน Prod สร้างด้วย Consult ที่ตอบแล้วไม่ได้ (ดู screens/sbh-prod.md "Consult จาก ER")
+- **ชิปยา (Prod 6 พ.ย. ตรวจจากโค้ด + ข้อมูลจริง)**: ข้อมูลจาก graphql `GetVisitMedicationStatusSummaries(vns)` → `{ completedItemCount, items[{source PENDING_MEDICATION_ORDER|PRESCRIPTION, status WAITING_RECEIVE|WAITING_REVIEW, pharmacyRoom}] }` · มี item ค้าง = pending (ส้ม) · ไม่มีค้างและ completedItemCount > 0 = done (เขียว · tooltip "ยา: จ่ายแล้ว n ใบสั่งยา") · **สร้างใบยาแล้วยังไม่จ่าย = ส้ม** · ทำเขียวบน Prod: One Day Order MED0000619 + ส่งคำสั่ง → ห้องยาชั้น 1 `createPrescriptionAt` → `chargeItems` + ยอด 0 = `createInvoicesOnly` → จัดยาแล้ว / ยืนยันรอจ่าย / จ่ายยา (เทส `@P3181-med`) · ห้องยาบน Prod ช่องเลขที่ใบยาในแถวเป็น "01001" (ไม่มี " - ชื่อ") → `dispensePrescription()` ของ BizSim คลิกไม่เจอ ใช้ `td.nth(1)`

@@ -35,7 +35,12 @@ const yes = (b: boolean) => (b ? 'มี' : 'ไม่มี');
 const bad = (rows: CompareRow[]) => rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`);
 const TRIAGE_SAVED = 'กรอกข้อมูล คัดกรอง ER สำเร็จ';
 
-type Prep = { fastTrack: string; trauma: boolean; vitals: boolean; gcs: boolean; underlying: boolean; level: number };
+/** fallback = Fast Track ที่ใช้แทนเมื่อบันทึกคัดกรองด้วย fastTrack ไม่ได้ (ถ่ายหลักฐานแจ้งเตือนก่อนสลับ) */
+type Prep = { fastTrack: string; fallback?: string; trauma: boolean; vitals: boolean; gcs: boolean; underlying: boolean; level: number };
+/** Fast Track ที่บันทึกคัดกรองได้จริงของผู้ป่วยแต่ละราย (A / B / …) */
+const ftUsed: Record<string, string> = {};
+// Retest 4 พ.ย. 2026: SBH2058_FT="Trauma Fast Track" = ผู้ป่วย A คัดกรองด้วย Trauma Fast Track (ตัวแก้ SBH-3839 ข้อ 2) · บันทึกไม่ได้ → สลับเป็น Stroke
+const A_FAST_TRACK = process.env.SBH2058_FT || 'Stroke Fast Track';
 
 // ------------------------------------------------------------------------------------------------
 // หน้าต่างของบัญชีอื่น (context แยก · session .auth/<Role>.json · อัดวิดีโอ video-<Role>.webm)
@@ -62,7 +67,8 @@ function note(doc: Page) {
   const pn = physicianNotePanel(doc);
   const title = (t: string) => pn.getByText(t, { exact: true }).first();
   const section = (t: string, inner: Locator) => pn.locator('div').filter({ has: doc.getByText(t, { exact: true }) }).filter({ has: inner }).last();
-  const pe = pn.locator('div').filter({ has: doc.getByRole('combobox', { name: 'System 1' }) }).filter({ has: doc.getByRole('button', { name: 'ปกติทั้งหมด' }) }).last();
+  // ช่อง System: รุ่น 2 พ.ย. เป็น dropdown (combobox) · ตัวแก้ SBH-3839 ข้อ 6 เปลี่ยนเป็นข้อความอิสระ → จับด้วย label ได้ทั้ง 2 แบบ
+  const pe = pn.locator('div').filter({ has: doc.getByLabel('System 1', { exact: true }) }).filter({ has: doc.getByRole('button', { name: 'ปกติทั้งหมด' }) }).last();
   return {
     pn,
     title,
@@ -83,7 +89,7 @@ function note(doc: Page) {
     ps: section('ER trauma primary survey', doc.getByRole('radiogroup', { name: 'ทางเดินหายใจ' })),
     psTitle: title('Trauma Primary Survey'),
     pe,
-    peRows: () => pe.getByRole('combobox', { name: /^System \d+$/ }),
+    peRows: () => pe.getByLabel(/^System \d+$/),
     compression: section('ER compression test', doc.getByRole('radiogroup', { name: 'Chest compression test' })),
     bodyChart: section('Body chart', doc.getByText(/ไม่สามารถแสดงฟอร์มได้|FRONT|Front/)),
     bodyChartTitle: title('Body chart'),
@@ -186,7 +192,9 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
     const reuse = process.env[`SBH2058_${key}`]?.split(',');
     if (reuse?.length === 3) {
       const visit = { hn: reuse[0], vn: reuse[1], en: reuse[2] };
+      ftUsed[key] = prep.fastTrack;
       say(`ผู้ป่วย ${key}`, `ใช้รายเดิม HN ${visit.hn} · ${visit.vn} · ${visit.en}`);
+      if (process.env.SBH2058_CLOSE_REUSED) opened.set(visit.en, visit as ErVisit); // ใช้รายเดิมแล้วให้ afterEach ปิด Visit ด้วย
       return visit;
     }
     const visit = await checkStep(page, `เตรียมข้อมูล: ผู้ป่วย ${key} AUTO ใหม่ + เปิด Visit ER`, async () => {
@@ -222,7 +230,8 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
           await select.selectOption({ label });
         }
       }
-      if (prep.underlying) {
+      // SBH2058_NO_UD=1 ข้ามการใส่โรคประจำตัว (4 พ.ย. 19:00 dev-x ส่วน Underlying Disease โหลดไม่ได้ ปิดการแก้ไข) — ใช้กับ TC ที่ไม่ตรวจ Underlying Disease
+      if (prep.underlying && !process.env.SBH2058_NO_UD) {
         const section = page.getByRole('main').getByRole('heading', { name: /Underlying Disease/ }).first().locator('xpath=ancestor::div[.//table][1]');
         const input = section.getByRole('combobox').first();
         await section.scrollIntoViewIfNeeded();
@@ -238,9 +247,28 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
       await levels.scrollIntoViewIfNeeded();
       await levels.getByText(String(prep.level), { exact: true }).click();
       await page.waitForTimeout(1_000);
+      await markEvidence(filled(panel.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first(), prep.fastTrack));
       await snapEvidence(page, `ก่อนกด — บันทึกคัดกรอง ${key}`);
-      await saveErTriageForm(page, `บันทึกคัดกรอง ผู้ป่วย ${key}`);
-      await expect(page.getByText(TRIAGE_SAVED, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+      await clearEvidenceMarks(page).catch(() => undefined);
+      try {
+        await saveErTriageForm(page, `บันทึกคัดกรอง ผู้ป่วย ${key}`);
+        await expect(page.getByText(TRIAGE_SAVED, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+        ftUsed[key] = prep.fastTrack;
+        say(`ผู้ป่วย ${key} คัดกรอง`, `บันทึกได้ด้วย ${prep.fastTrack}`);
+      } catch (error) {
+        if (!prep.fallback) throw error;
+        const msg = (error as Error).message.split('\n')[0];
+        say(`ผู้ป่วย ${key} คัดกรอง`, `บันทึกด้วย ${prep.fastTrack} ไม่ได้ (${msg}) → สลับเป็น ${prep.fallback}`);
+        const toast = page.getByText(/ไม่ผ่านการตรวจสอบ|ไม่สำเร็จ/).first();
+        const shown = await toast.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true, () => false);
+        await markEvidence(filled(panel.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first(), prep.fastTrack), ...(shown ? [alerted(toast, 'บันทึกไม่ได้')] : []));
+        await snapEvidence(page, `บันทึกไม่ได้ — ${prep.fastTrack} ${key}`);
+        await clearEvidenceMarks(page).catch(() => undefined);
+        await panel.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first().selectOption({ label: prep.fallback });
+        await saveErTriageForm(page, `บันทึกคัดกรอง ผู้ป่วย ${key} (${prep.fallback})`);
+        await expect(page.getByText(TRIAGE_SAVED, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+        ftUsed[key] = prep.fallback;
+      }
     });
     return visit;
   }
@@ -262,7 +290,7 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
     meta(1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38),
     async ({ page, browser }) => {
       const main = makeRunner(page);
-      const visit = await preparePatient(page, 'A', { fastTrack: 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: true, level: 2 }, main.note);
+      const visit = await preparePatient(page, 'A', { fastTrack: A_FAST_TRACK, fallback: A_FAST_TRACK === 'Stroke Fast Track' ? undefined : 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: true, level: 2 }, main.note);
       const doc = await openRoleWindow(browser, 'Doctor');
       windows.push(doc);
       const { note: say, soft: softAll, finish } = makeRunner(doc);
@@ -304,6 +332,7 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         await markEvidence(expected(n.bodyChartTitle, 'Body Chart (โหลดไม่ได้ ดู TC-037)'));
         expect(bad(rows)).toEqual([]);
       });
+      if (!n) ({ n } = await doctorOpens(doc, visit)); // SBH2058_ONLY ที่ไม่มี 1 — ยังต้องเปิดฟอร์มแพทย์
       say(`${TC(1)} ข้อสังเกต`, `หัวแผงขวาเป็น "${norm(await n.heading.innerText().catch(() => ''))}" ไม่มีคำว่า Trauma Exam Form`);
 
       // TC-004 ลำดับส่วน
@@ -346,11 +375,23 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         await n.title('Chief Complaint - General').scrollIntoViewIfNeeded();
         await markEvidence(expected(n.title('Chief Complaint - General'), '1'), expected(n.title('Present illness general'), '2'), expected(n.title('Verified Underlying Disease'), '3'));
         await snapEvidence(doc, 'TC-004 ลำดับ 1–3');
-        await n.title('Vital signs').scrollIntoViewIfNeeded();
-        await markEvidence(expected(n.title('Vital signs'), '4'), expected(n.rts, '5 RTS'), expected(n.psTitle, '6 Primary Survey'));
-        await snapEvidence(doc, 'TC-004 ลำดับ 4–6');
-        await n.bodyChartTitle.scrollIntoViewIfNeeded();
-        await markEvidence(expected(n.title('Physical examination'), '7'), expected(n.bodyChartTitle, '8 Body Chart'));
+        // แต่ละส่วนห่างกัน ~800 px → ภาพละส่วน (เลื่อนให้อยู่กลางจอ กรอบไม่หลุดขอบบน)
+        const center = (l: Locator) => l.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        await clearEvidenceMarks(doc);
+        await center(n.title('Vital signs'));
+        await markEvidence(expected(n.title('Vital signs'), '4 Vital Signs'));
+        await snapEvidence(doc, 'TC-004 ลำดับ 4');
+        await clearEvidenceMarks(doc);
+        await center(n.rts);
+        await markEvidence(expected(n.rts, '5 RTS'), expected(n.psTitle, '6 Primary Survey'));
+        await snapEvidence(doc, 'TC-004 ลำดับ 5–6');
+        await clearEvidenceMarks(doc);
+        await center(n.title('Physical examination'));
+        await markEvidence(expected(n.title('Physical examination'), '7 Physical Examination'));
+        await snapEvidence(doc, 'TC-004 ลำดับ 7');
+        await clearEvidenceMarks(doc);
+        await center(n.bodyChartTitle);
+        await markEvidence(expected(n.bodyChartTitle, '8 Body Chart (ส่วนสุดท้ายของลำดับ)'));
         expect(bad(rows)).toEqual([]);
       });
 
@@ -416,12 +457,24 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         const result = norm(await n.rtsResult.innerText().catch(() => text));
         const rows: CompareRow[] = [
           { label: 'ช่อง GCS', values: ['15', /GCS\s*15|GCS:4/.test(text) ? text.match(/GCS[^,)]*/)?.[0] ?? text : text], same: /GCS\s*15\b/.test(text) },
-          { label: 'ช่อง Systolic BP', values: ['120', text.match(/SBP[^,)]*/)?.[0] ?? '(ไม่แสดง)'], same: /SBP\s*120\b/.test(text) },
-          { label: 'ช่อง RR', values: ['20', text.match(/RR[^,)]*/)?.[0] ?? '(ไม่แสดง)'], same: /RR\s*20\b/.test(text) },
-          { label: 'แถบผล', values: ['Revised Trauma Score - 8 Points', result], same: /8\s*Points/i.test(result) },
+          // รุ่น 4 พ.ย. แสดง "GCS 15 · Systolic BP 120 · RR 20" + "Revised Trauma Score - 8 คะแนน" (ภาษาไทย) — รุ่น 2 พ.ย. แสดง "RTS = 12 (GCS:4, SBP:4, RR:4)"
+          { label: 'ช่อง Systolic BP', values: ['120', text.match(/(SBP|Systolic BP)[^,)]*?\d+/)?.[0] ?? '(ไม่แสดง)'], same: /(SBP|Systolic BP)\s*120\b/.test(text) },
+          { label: 'ช่อง RR', values: ['20', text.match(/RR[^,)]*?\d+/)?.[0] ?? '(ไม่แสดง)'], same: /RR\s*20\b/.test(text) },
+          { label: 'แถบผล (ข้อสังเกต: คำว่า คะแนน)', values: ['Revised Trauma Score - 8 Points', result], same: /Revised Trauma Score\s*-\s*8\s*(Points|คะแนน)/i.test(result) },
         ];
+        const bg = await n.rtsResult.evaluate((el) => {
+          for (let e: Element | null = el; e; e = e.parentElement) {
+            const c = getComputedStyle(e).backgroundColor;
+            const m = c.match(/\d+/g);
+            if (m && !(m.length === 4 && m[3] === '0') && c !== 'rgb(255, 255, 255)') return c;
+          }
+          return '';
+        }).catch(() => '');
+        const rgb = (bg.match(/\d+/g) ?? []).map(Number);
+        const green = rgb.length >= 3 && rgb[1] > rgb[0] && rgb[1] > rgb[2];
+        rows.push({ label: 'สีแถบผล', values: ['เขียว', green ? `เขียว (${bg})` : bg || '(ไม่มีสีพื้น)'], same: green });
         await compare(15, rows);
-        await markEvidence(expected(n.rtsResult, `8 Points · จริง: ${result}`));
+        await markEvidence(expected(n.rts, bad(rows).length ? `GCS 15 · SBP 120 · RR 20 · 8 Points · จริง: ${result}` : `GCS 15 · Systolic BP 120 · RR 20 · ${result.replace(/^.*?-\s*/, '')} สีเขียว`));
         expect(bad(rows)).toEqual([]);
       });
 
@@ -451,7 +504,8 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         await markEvidence(
           filled(n.gcsSelect('Motor Response (M)'), 'M5'),
           expected(gcsCard.getByText(/GCS\s*14/).first(), summary),
-          ...(noStar.length ? [expected(n.pn.getByText('Eye Opening (E)', { exact: true }).first(), `ต้องมี * · จริง: ไม่มี (${noStar.length} ช่อง)`)] : []),
+          // ป้ายเดียวที่หัวการ์ด GCS (ไม่ทับค่าในช่อง) · กรอบป้ายชื่อ E / V / M ไม่ใส่ป้าย
+          ...(noStar.length ? [expected(gcsTitle, `ป้าย E / V / M ต้องมี * · จริง: ไม่มี (${noStar.length} ช่อง)`), ...['Eye Opening (E)', 'Verbal Response (V)', 'Motor Response (M)'].map((t) => n.pn.getByText(t, { exact: true }).first())] : []),
         );
         expect(bad(rows)).toEqual([]);
       });
@@ -515,18 +569,43 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         const result = norm(await mewsCard.innerText()).match(/MEWS\s*=.*$/)?.[0] ?? norm(await mewsCard.innerText()).slice(-80);
         const table = n.pn.getByRole('button', { name: 'MEWS scoring table' }).first();
         let tableText = '(ไม่มีปุ่มตาราง)';
+        let visible: Record<string, string> = {};
+        let pop: Locator | undefined;
         // ถ่าย AVPU + แถบผลก่อนเปิดตาราง (ตารางเปิดแล้วบังแถบผล)
-        await markEvidence(expected(n.avpu, `AVPU: ${avpu.join(' · ')}`), expected(mewsCard.getByText(/MEWS\s*=/).first(), result));
+        // ป้ายสั้น (ป้ายยาวหาที่ว่างไม่ได้ ไปลอยทับแผงซ้าย)
+        await markEvidence(expected(n.avpu, 'AVPU: GCS(0) · A(0) · V(1) · P(2) · U(3)'), expected(mewsCard.getByText(/MEWS\s*=/).first(), `MEWS = ${result.match(/MEWS\s*=\s*(\d+)/)?.[1] ?? '?'} ${/Low Risk/i.test(result) ? 'Low Risk' : ''}`.trim()));
         await snapEvidence(doc, 'TC-009 AVPU + แถบ MEWS');
         if (await table.count()) {
           await markEvidence(clicked(table, 'ตารางคะแนน MEWS'));
           await snapEvidence(doc, 'ก่อนกด — ตาราง MEWS');
           await table.click();
           await doc.waitForTimeout(1_500);
-          const pop = doc.locator('.ant-popover:visible, .ant-modal:visible, [role="dialog"]:visible, [role="tooltip"]:visible').last();
+          pop = doc.locator('.ant-popover:visible, .ant-modal:visible, [role="dialog"]:visible, [role="tooltip"]:visible').last();
           tableText = (await pop.count()) ? norm(await pop.innerText()) : '(กดแล้วไม่เห็นตาราง)';
-          const band = n.pn.getByText('Score band', { exact: true }).first();
-          if (await band.count()) await markEvidence(expected(band, 'ตารางช่วงค่า / คะแนน SBP · PR · RR · Temp · AVPU'));
+          // ผู้ใช้ทัก 3 พ.ย.: ข้อความครบใน DOM แต่กล่องถูกตัด เห็นแค่ SBP / PR / RR → ตรวจว่าแถวแต่ละตัวมองเห็นบนจอจริง (hit-test ไล่ shadow DOM)
+          const hitTest = (p: Locator) => p.evaluate((root) => {
+              const out: Record<string, string> = {};
+              for (const key of ['SBP', 'PR', 'RR', 'Temp', 'AVPU']) {
+                const el = Array.from(root.querySelectorAll('*')).find((e) => Array.from(e.childNodes).some((c) => c.nodeType === 3 && c.textContent?.trim() === key)) as HTMLElement | undefined;
+                if (!el) { out[key] = 'ไม่พบ'; continue; }
+                const r = el.getBoundingClientRect();
+                const x = r.left + Math.min(r.width / 2, 8);
+                const y = r.top + r.height / 2;
+                if (y < 0 || y > window.innerHeight || x < 0 || x > window.innerWidth) { out[key] = 'นอกจอ'; continue; }
+                let hit: Element | null = document.elementFromPoint(x, y);
+                while (hit?.shadowRoot) { const inner = hit.shadowRoot.elementFromPoint(x, y); if (!inner || inner === hit) break; hit = inner; }
+                out[key] = hit && (hit === el || el.contains(hit) || hit.contains(el)) ? 'เห็น' : 'ถูกตัด / บัง';
+              }
+              return out;
+            });
+          if (await pop.count()) {
+            // จังหวะ 1: ทันทีหลังกด ? (ไม่เลื่อนจอ) · ถ่ายภาพก่อนตีกรอบ (markEvidence เลื่อนจอแล้วกล่องขยับ)
+            visible = await hitTest(pop);
+            const seenNow = Object.entries(visible).filter(([, s]) => s === 'เห็น').map(([k]) => k);
+            // ตีกรอบที่ปุ่ม ? (อยู่ในจออยู่แล้ว ไม่ทำให้จอเลื่อน) · ไม่ตีกรอบกล่องเกณฑ์ (ตีแล้วจอเลื่อน กล่องขยับ)
+            await markEvidence(expected(table, seenNow.length === 5 ? 'กด ? เห็นเกณฑ์ครบ 5 แถว' : `เห็นครบ 5 แถว · จริง: เห็น ${seenNow.join(' · ') || '-'}`));
+            await snapEvidence(doc, 'TC-009 กด ? กล่องเกณฑ์');
+          }
         }
         const has = (re: RegExp) => re.test(tableText);
         const tableOk = has(/SBP/) && has(/PR/) && has(/RR/) && has(/Temp/) && has(/AVPU/);
@@ -534,11 +613,11 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         const rows: CompareRow[] = [
           { label: 'AVPU', values: ['ปุ่ม GCS (V) · A (0) · V (1) · P (2) · U (3)', `ช่องเลือก: ${avpu.join(' · ')}`], same: avpu.length === 5 },
           { label: 'ตาราง SBP / PR / RR / Temp / AVPU', values: ['มีช่วงค่าและคะแนน', tableText], same: tableOk },
+          { label: 'ปุ่ม ? เห็นเกณฑ์ครบ: ทันทีหลังกด (ผู้ใช้เพิ่ม 3 พ.ย.)', values: ['เห็นครบ 5 แถว', Object.entries(visible).map(([k, v]) => `${k}: ${v}`).join(' · ') || '(ไม่ได้ตรวจ)'], same: Object.keys(visible).length === 5 && Object.values(visible).every((v) => v === 'เห็น') },
           { label: 'แถบสรุป', values: ['Total MEWS 1 / 14 Low Risk', result], same: /MEWS\s*=\s*1\b/.test(result) && /Low Risk/i.test(result) },
         ];
         await compare(9, rows);
-        const band = n.pn.getByText('Score band', { exact: true }).first();
-        if (await band.isVisible().catch(() => false)) await markEvidence(expected(band, 'ตาราง SBP · PR · RR · Temp · AVPU'));
+        // ภาพท้าย step: ตารางเทียบ + กรอบที่ปุ่ม ? (ตีกรอบไว้แล้วตอนถ่ายภาพกล่องเกณฑ์)
         expect(bad(rows)).toEqual([]);
       });
 
@@ -683,6 +762,65 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         await hideCompareTable(doc);
         const mainArea = doc.getByRole('main');
         const triage = mainArea.locator('div').filter({ has: doc.getByText('คัดกรอง ER', { exact: true }) }).filter({ has: doc.getByRole('combobox', { name: 'Suspect Fast Track Type' }) }).filter({ hasNot: doc.getByRole('heading', { name: 'ER Physician Note', exact: true }) }).last();
+        if ((await triage.count()) === 0) {
+          // รุ่น 4 พ.ย. (ตัวแก้ SBH-3839 ข้อ 3): แผงซ้ายของแพทย์เป็นมุมมองอ่านอย่างเดียว ไม่มีช่องกรอก → ตรวจค่าที่แสดง + ไล่หาช่องที่แก้ได้ (รวม shadow DOM)
+          // คำ "คัดกรอง ER" มีในเมนูซ้ายของแอปด้วย (x < 40) → เลือกตัวที่อยู่ในแผงเนื้อหา
+          let head = mainArea.getByText('คัดกรอง ER', { exact: true }).first();
+          for (const h of await mainArea.getByText('คัดกรอง ER', { exact: true }).all()) {
+            const b = await h.boundingBox();
+            if (b && b.x > 60 && b.width > 0) { head = h; break; }
+          }
+          await head.scrollIntoViewIfNeeded();
+          await doc.waitForTimeout(800);
+          const pnBox = await n.pn.boundingBox();
+          const headBox = await head.boundingBox();
+          const scan = async () => doc.evaluate(({ minX, maxX, minY }) => {
+            const editable: string[] = [];
+            const texts: string[] = [];
+            const walk = (root: Document | ShadowRoot) => {
+              for (const el of Array.from(root.querySelectorAll('*'))) {
+                if (el.shadowRoot) walk(el.shadowRoot);
+                const r = el.getBoundingClientRect();
+                if (!r.width || !r.height || r.left < minX || r.left >= maxX || r.top < minY || r.top > window.innerHeight) continue;
+                const tag = el.tagName;
+                const input = el as HTMLInputElement;
+                const isField = (tag === 'INPUT' && input.type !== 'hidden') || tag === 'SELECT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable;
+                if (isField) {
+                  const off = input.disabled || input.readOnly || !!el.closest('[aria-disabled="true"],[inert]') || getComputedStyle(el).pointerEvents === 'none';
+                  if (!off) editable.push(`${tag.toLowerCase()}${input.type ? `[${input.type}]` : ''} ${el.getAttribute('aria-label') ?? el.getAttribute('placeholder') ?? el.getAttribute('name') ?? ''}`.trim());
+                }
+                for (const node of Array.from(el.childNodes)) if (node.nodeType === 3 && node.textContent?.trim()) texts.push(node.textContent.trim());
+              }
+            };
+            walk(document);
+            return { editable, text: texts.join(' ') };
+          }, { minX: (headBox?.x ?? 90) - 40, maxX: pnBox?.x ?? 960, minY: (headBox?.y ?? 0) - 5 });
+          const s1 = await scan();
+          say(`${TC(3)} แผงซ้าย (ข้อความ)`, s1.text.slice(0, 900));
+          say(`${TC(3)} แผงซ้าย (ช่องที่แก้ได้)`, s1.editable.join(' · ') || 'ไม่มี');
+          const ftShown = s1.text.match(/Fast Track Type\s+(\S+)/)?.[1] ?? '';
+          const ftOk = !!ftShown && ftUsed.A.toLowerCase().startsWith(ftShown.toLowerCase());
+          const ftLabel = mainArea.getByText('Fast Track Type', { exact: true }).first();
+          // ลองแก้: คลิกค่าที่แสดงแล้วพิมพ์ — มุมมองอ่านอย่างเดียวค่าต้องไม่เปลี่ยน
+          const value = mainArea.getByText(ftShown || 'trauma', { exact: true }).first();
+          await doc.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // กันพิมพ์ลงช่องของฟอร์มแพทย์ที่โฟกัสค้าง
+          await value.click().catch(() => undefined);
+          await doc.keyboard.type('130');
+          await doc.waitForTimeout(800);
+          const s2 = await scan();
+          const changed = s2.text.includes('130') && !s1.text.includes('130');
+          const rows: CompareRow[] = [
+            { label: 'ค่าที่พยาบาลบันทึก: Fast Track Type', values: [ftUsed.A, ftShown || '(ไม่พบ)'], same: ftOk },
+            ...(/Trauma Classification\s+(\S+)/.test(s1.text) ? [{ label: 'ค่าที่พยาบาลบันทึก: Trauma Classification', values: ['trauma', s1.text.match(/Trauma Classification\s+(\S+)/)![1]], same: /^trauma$/i.test(s1.text.match(/Trauma Classification\s+(\S+)/)![1]) }] : []),
+            { label: 'ช่องที่แก้ไขได้ในแผงคัดกรอง', values: ['ไม่มี (อ่านอย่างเดียว)', s1.editable.length ? `${s1.editable.length} ช่อง: ${s1.editable.slice(0, 4).join(' · ')}` : 'ไม่มี'], same: s1.editable.length === 0 },
+            { label: 'คลิกค่าแล้วพิมพ์ 130', values: ['ค่าไม่เปลี่ยน', changed ? 'ค่าเปลี่ยน' : 'ค่าไม่เปลี่ยน'], same: !changed },
+          ];
+          await compare(3, rows, 'right');
+          // ป้ายเดียวที่หัวแผง · กรอบค่า Fast Track ไม่ใส่ป้าย (ป้ายยาวทับการ์ด Trauma Classification ข้างกัน)
+          await markEvidence(expected(head, `อ่านอย่างเดียว · Fast Track Type: ${ftShown || 'ไม่พบ'} · ช่องที่แก้ได้: ${s1.editable.length}`), ftLabel.locator('xpath=..'));
+          expect(bad(rows)).toEqual([]);
+          return;
+        }
         await triage.scrollIntoViewIfNeeded();
         const ft = triage.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first();
         const sys = triage.getByRole('spinbutton', { name: 'Systolic' }).first();
@@ -691,7 +829,7 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         const ftEnabled = await ft.isEnabled();
         const sysEditable = await sys.isEditable().catch(() => false);
         const rows: CompareRow[] = [
-          { label: 'ค่าที่พยาบาลบันทึก: Suspect Fast Track', values: ['Stroke Fast Track', ftNow], same: ftNow === 'Stroke Fast Track' },
+          { label: 'ค่าที่พยาบาลบันทึก: Suspect Fast Track', values: [ftUsed.A, ftNow], same: ftNow === ftUsed.A },
           { label: 'ค่าที่พยาบาลบันทึก: Systolic', values: ['120', sysNow || '(ว่าง)'], same: sysNow === '120' },
         ];
         // ลองแก้ระดับ Systolic (ไม่กดบันทึก) แล้วคืนค่า
@@ -981,6 +1119,7 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         const now = new Date();
         const ymd = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear() + 543}`;
         const rows: CompareRow[] = [
+          { label: 'Pre-condition: Fast Track ของผู้ป่วย A', values: ['Trauma Fast Track', ftUsed.A], same: ftUsed.A === 'Trauma Fast Track' },
           { label: 'ปุ่ม Acknowledge ที่ Fast Track', values: ['มี', has ? `มี (${before})` : 'ไม่มี'], same: has },
           { label: 'หลังกด', values: ['Acknowledged โดย <แพทย์> <วันเวลา>', after], same: /ดร\.|โดย/.test(after) && after.includes(ymd) },
           { label: 'POST clinical-acknowledgements', values: ['สำเร็จ', String(status)], same: status < 300 },
@@ -1281,20 +1420,25 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
     meta(12, 42, 43, 46),
     async ({ page, browser }) => {
       const main = makeRunner(page);
+      // SBH2058_ONLY=12 = เล่นเฉพาะ TC ที่ระบุ และสร้างเฉพาะผู้ป่วยของ TC นั้น (G = 012 · D = 042 · E = 043 · F = 046)
+      const onlyN = process.env.SBH2058_ONLY?.split(',').map(Number);
+      const want = (num: number) => !onlyN || onlyN.includes(num);
+      const skip = undefined as unknown as ErVisit;
       const patients = {
-        G: await preparePatient(page, 'G', { fastTrack: 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: false, level: 3 }, main.note),
-        D: await preparePatient(page, 'D', { fastTrack: 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: false, level: 3 }, main.note),
-        E: await preparePatient(page, 'E', { fastTrack: 'Stroke Fast Track', trauma: false, vitals: true, gcs: true, underlying: false, level: 3 }, main.note),
-        F: await preparePatient(page, 'F', { fastTrack: 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: false, level: 3 }, main.note),
+        G: want(12) ? await preparePatient(page, 'G', { fastTrack: 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: false, level: 3 }, main.note) : skip,
+        D: want(42) ? await preparePatient(page, 'D', { fastTrack: 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: false, level: 3 }, main.note) : skip,
+        E: want(43) ? await preparePatient(page, 'E', { fastTrack: 'Stroke Fast Track', trauma: false, vitals: true, gcs: true, underlying: false, level: 3 }, main.note) : skip,
+        F: want(46) ? await preparePatient(page, 'F', { fastTrack: 'Stroke Fast Track', trauma: true, vitals: true, gcs: true, underlying: false, level: 3 }, main.note) : skip,
       };
       const doc = await openRoleWindow(browser, 'Doctor');
       windows.push(doc);
       const { note: say, soft, finish } = makeRunner(doc);
-      for (const [k, v] of Object.entries(patients)) say(`ผู้ป่วย ${k}`, `HN ${v.hn} · ${v.vn} · ${v.en}`);
+      for (const [k, v] of Object.entries(patients)) if (v) say(`ผู้ป่วย ${k}`, `HN ${v.hn} · ${v.vn} · ${v.en}`);
       const compare = (p: Page, n: number, rows: CompareRow[]) => showCompareTable(p, `${ISSUE(n)} ${tcId(n)}`, ['Expected', 'บนบอร์ด'], rows, { side: 'right' });
       const WAIT = 120_000;
 
       // TC-012 MEWS บนการ์ด
+      if (want(12)) {
       await hideCompareTable(doc).catch(() => undefined);
       await clearEvidenceMarks(doc).catch(() => undefined);
       await openBoardCard(doc, patients.G.hn); // โหลดบอร์ดให้เสร็จก่อนเริ่มคลิป (ไม่มีจอขาวต้นคลิป)
@@ -1329,6 +1473,8 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         await markEvidence(expected(after ? mews2 : card2, after ? `ไม่แสดง · จริง: ${after}` : 'MEWS หายแล้ว'));
         expect(bad(rows)).toEqual([]);
       });
+      if (onlyN) await startClip(doc, 'after'); // ตัดคลิปของ TC-012 ก่อนขั้นปิด Visit
+      }
 
       // TC-042 / 043 เวลารอหยุดเมื่อแพทย์เริ่มทำงาน
       const doctorStops = async (num: number, key: 'D' | 'E') => {
@@ -1362,20 +1508,25 @@ test.describe('SBH-2058 Trauma Exam Form · ER Physician Note (dev-x)', () => {
         await markEvidence(expected(t3.label, `หลังรอ 2 นาที: ${t3.text}`));
         expect(bad(rows)).toEqual([]);
       };
+      if (want(42)) {
       await hideCompareTable(doc).catch(() => undefined);
       await clearEvidenceMarks(doc).catch(() => undefined);
       await openBoardCard(doc, patients.D.hn); // โหลดบอร์ดให้เสร็จก่อนเริ่มคลิป (ไม่มีจอขาวต้นคลิป)
       await doc.waitForTimeout(1_500);
       await startClip(doc, tcId(42));
       await soft(`${TC(42)} เวลารอหยุดเมื่อแพทย์เริ่ม (Trauma)`, () => doctorStops(42, 'D'));
+      }
+      if (want(43)) {
       await hideCompareTable(doc).catch(() => undefined);
       await clearEvidenceMarks(doc).catch(() => undefined);
       await openBoardCard(doc, patients.E.hn); // โหลดบอร์ดให้เสร็จก่อนเริ่มคลิป (ไม่มีจอขาวต้นคลิป)
       await doc.waitForTimeout(1_500);
       await startClip(doc, tcId(43));
       await soft(`${TC(43)} เวลารอหยุดเมื่อแพทย์เริ่ม (Non-Trauma)`, () => doctorStops(43, 'E'));
+      }
       await closeRoleWindow(doc);
       windows = [];
+      if (!want(46)) { finish(); return; }
 
       // TC-046 พยาบาลเปิด / กรอก → เวลายังเดิน
       const nurse = await openRoleWindow(browser, 'Nurse');

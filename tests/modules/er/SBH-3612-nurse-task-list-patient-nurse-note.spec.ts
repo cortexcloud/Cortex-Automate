@@ -21,7 +21,9 @@ import { authFile } from '../../../utils/env';
 // บัญชี: Super_User (user1) ลงทะเบียน / คัดกรอง / สั่ง order / Focus ตั้งต้น · Nurse (x-nurse) เล่น TC ที่หน้ารายการงานพยาบาล (หน้าต่างแยก)
 // หน้าจอรุ่นใหม่ (สำรวจ 3 พ.ย.): แถบบน `[เพิ่ม Nurse Note] [ดู Nurse Note (n)] [+ เพิ่ม Nurse task] [รีเฟรช]` · ดู = drawer "Nurse Focus Note (พยาบาล)"
 //   (ปุ่มปิด aria-label "ปิด") · เพิ่ม = drawer + หน้าต่าง "Nurse Note" ซ้อน (Focus / A / I / E) · หัวตารางไม่มี Nurse note
-// รัน (dev-x): npx playwright test --headed --grep @SBH-3612
+// รัน (dev-x): npx playwright test --headed --grep "@SBH-3612( |$)"
+// รัน (SBH Prod · ผู้ใช้อนุญาต 6 พ.ย. 2026 — รังสี IMG0000194 ผ่าน SETTINGS): SBH3612_KEEP=1 npm run card:prod -- --headed --grep "@SBH-3612( |$)"
+//   → ปิด Visit: SBH3612_A=… SBH3612_B=… npm run card:prod -- --headed --grep "@SBH-3612-CLOSE"
 //   SBH3612_KEEP=1 = ไม่ปิด Visit ท้ายเทส · SBH3612_A=hn,vn,en + SBH3612_B=hn,vn,en = ใช้ผู้ป่วยเดิม (ข้ามขั้นเตรียม)
 
 const ISSUE: Record<number, string> = {};
@@ -198,7 +200,26 @@ async function openNurseWindow(browser: Browser): Promise<Page> {
 
 const box = async (l: Locator) => (await l.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
 
-test.describe('SBH-3612 ER รายการงานพยาบาล — Nurse Note ระดับผู้ป่วย (dev-x)', () => {
+/** ปิด Visit ที่การเงิน — มี order รังสี → ปิดได้ 400 ErrAccountHasUninvoicedItems → ชำระเงินสดทั้งหมดก่อน แล้วปิดใหม่ (แบบ SBH-2947 · รอบแรก 3 พ.ย. ปิดไม่ได้) */
+async function closeErVisit(page: Page, visit: ErVisit): Promise<string> {
+  const closeOnce = () => closeVisitAtCashier(page, visit.hn, visit.vn);
+  const result = await closeOnce()
+    .catch(async (error: Error) => {
+      if (!/Uninvoiced/.test(error.message)) throw error;
+      await gotoCashierAccount(page, visit.hn, visit.vn);
+      await payAllInCash(page);
+      return closeOnce();
+    })
+    .then(
+      (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+      (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+    );
+  test.info().annotations.push({ type: 'หลังเทส', description: `HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}` });
+  console.log(`    หลังเทส: HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}`);
+  return result;
+}
+
+test.describe('SBH-3612 ER รายการงานพยาบาล — Nurse Note ระดับผู้ป่วย', () => {
   test.describe.configure({ timeout: 1_800_000 });
 
   let opened: Map<string, ErVisit>;
@@ -215,23 +236,15 @@ test.describe('SBH-3612 ER รายการงานพยาบาล — Nur
       await nurse.context().close().catch(() => undefined);
     }
     if (process.env.SBH3612_KEEP) return;
-    for (const visit of opened.values()) {
-      // มี order รังสี → ปิดได้ 400 ErrAccountHasUninvoicedItems → ชำระเงินสดทั้งหมดก่อน แล้วปิดใหม่ (แบบ SBH-2947 · รอบแรก 3 พ.ย. ปิดไม่ได้)
-      const closeOnce = () => closeVisitAtCashier(page, visit.hn, visit.vn);
-      const result = await closeOnce()
-        .catch(async (error: Error) => {
-          if (!/Uninvoiced/.test(error.message)) throw error;
-          await gotoCashierAccount(page, visit.hn, visit.vn);
-          await payAllInCash(page);
-          return closeOnce();
-        })
-        .then(
-        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
-        (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
-      );
-      test.info().annotations.push({ type: 'หลังเทส', description: `HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}` });
-      console.log(`    หลังเทส: HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}`);
-    }
+    for (const visit of opened.values()) await closeErVisit(page, visit);
+  });
+
+  test('ปิด Visit ผู้ป่วย AUTO ของ SBH-3612 ที่การเงิน (SBH3612_A / SBH3612_B)', { tag: ['@SBH-3612-CLOSE'] }, async ({ page }) => {
+    const visits = [fromEnv(process.env.SBH3612_A), fromEnv(process.env.SBH3612_B)].filter((v): v is ErVisit => !!v);
+    test.skip(visits.length === 0, 'ไม่มี SBH3612_A / SBH3612_B');
+    const results: string[] = [];
+    for (const visit of visits) results.push(await closeErVisit(page, visit));
+    expect(results.filter((r) => r.startsWith('ปิด Visit ไม่สำเร็จ')), 'ปิด Visit ไม่สำเร็จบางราย').toEqual([]);
   });
 
   test(

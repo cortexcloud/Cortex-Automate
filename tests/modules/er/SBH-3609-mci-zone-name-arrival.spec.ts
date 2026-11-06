@@ -33,6 +33,8 @@ import { gotoVisit } from '../../../mock-data/uat-play';
 // คำตอบผู้ใช้ 4 พ.ย. 2026: ลงผล + สถานะ · ลบ member MC B ท้ายงาน (ทำนอกเทส) · TC-011 ไม่เห็น ER Arrival บนหน้า Visit = Fail
 // ทำต่อกับเหตุการณ์เดิม: SBH3609_B_ID=<id> (+ SBH3609_P=<HN>,<VN>,<EN> ผู้ป่วยรายเดียว) · SBH3609_A_ID=<id> · ข้าม TC: SBH3609_SKIP=001,003
 // รัน: npx playwright test tests/modules/er/SBH-3609-mci-zone-name-arrival.spec.ts --headed --grep "@SBH-3609-B"
+// SBH Prod (ผู้ใช้อนุญาต 5 พ.ย. 2026 — decisions R125): npm run card:prod -- --headed --grep "@SBH-3609-B( |$)" แล้ว "@SBH-3609-A( |$)" ทีละเทส
+//   ข้าม TC-011 (Canceled) ด้วย SBH3609_SKIP=011 · ชื่อโซนอ่านจาก API (Prod ไม่มี Isolation — หน้า MC ซ่อน โซนเขียว ER ตามรหัส ER_GREEN_ZONE)
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const ISSUE: Record<number, string> = {
@@ -52,10 +54,22 @@ const SHARED_CC = 'อุบัติเหตุรถบัสคว่ำ';
 const TRANSPORTER_B = 'หน่วยกู้ภัย SBH-3609 B';
 const TRANSPORTER_A = 'หน่วยกู้ภัย SBH-3609';
 const TRANSPORTER_A_EDIT = 'หน่วยกู้ภัย SBH-3609 แก้';
-const ZONES_MC = ['Resuscitation', 'Urgency', 'Observation'];
-const ZONES_ALL = ['Resuscitation', 'Urgency', 'Isolation 1', 'Isolation 2', 'Observation'];
-const ZONE_RE = /^(Resuscitation|Urgency|Isolation 1|Isolation 2|Observation)(\s*แนะนำ)?$/;
-const ESCORT_EMS = /EMS ขึ้นทะเบียน/;
+// ชื่อโซนต่างกันตามระบบ (dev-x: Resuscitation / Urgency / Isolation 1 / Isolation 2 / Observation ·
+// SBH Prod: โซนแดง ER / โซนเหลือง ER / โซนเขียว ER / ห้องสังเกตอาการ ER) → อ่านจาก API triage/zones ตอนรัน (loadZones)
+// หน้า MC ซ่อนตาม "รหัส" โซน (โค้ดแอป: ER_GREEN_ZONE + ER_ISOLATION_2_ZONE) — dev-x รหัสนี้ชื่อ Isolation 1 / 2 · Prod คือ โซนเขียว ER
+const HIDDEN_CODES = ['ER_GREEN_ZONE', 'ER_ISOLATION_2_ZONE'];
+let ZONES_ALL = ['Resuscitation', 'Urgency', 'Isolation 1', 'Isolation 2', 'Observation'];
+let ZONES_MC = ['Resuscitation', 'Urgency', 'Observation'];
+let ZONES_HIDDEN = ['Isolation 1', 'Isolation 2'];
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const zoneRe = () => new RegExp(`^(${ZONES_ALL.map(esc).join('|')})(\\s*แนะนำ)?$`);
+const hiddenRe = () => new RegExp(`^(${ZONES_HIDDEN.map(esc).join('|')})`);
+// ตัวเลือก "ผู้นำส่ง" มาจาก registration-options ของระบบ — dev-x: "EMS ขึ้นทะเบียน" / "ญาติ/ผู้พบเห็น/อื่นๆ" ·
+// SBH Prod 5 พ.ย. 2026 ยังเป็นชุดเก่า (ไม่มีผู้มาด้วย / ญาติ / ผู้ดูแล / เจ้าหน้าที่ EMS) → ผู้ใช้ให้ใช้ "เจ้าหน้าที่ EMS" แทน (decisions R125)
+//   SBH3609_ESCORT_EMS="เจ้าหน้าที่ EMS" SBH3609_ESCORT_RELATIVE="ญาติ"
+const ESCORT_EMS_TEXT = process.env.SBH3609_ESCORT_EMS ?? 'EMS ขึ้นทะเบียน';
+const ESCORT_RELATIVE_TEXT = process.env.SBH3609_ESCORT_RELATIVE ?? 'ญาติ/ผู้พบเห็น/อื่นๆ';
+const ESCORT_EMS = new RegExp(ESCORT_EMS_TEXT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 const ESCORT_RELATIVE = /ญาติ/;
 const TAG_INHERITED = 'ตามเหตุการณ์';
 const TAG_OWN = 'แก้ไขเฉพาะรายนี้';
@@ -113,11 +127,25 @@ const sendZoneBar = (page: Page) =>
 async function zoneNames(scope: Locator): Promise<string[]> {
   // ปุ่มโซนฟอร์มรายเดียวมีจำนวนที่ใช้ต่อท้าย ("Resuscitation ใช้ 9") · ฟอร์ม MC มี "แนะนำ" ต่อท้าย
   const texts = await scope.getByRole('button').evaluateAll((els) => els.map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim()));
-  return texts.map((t) => t.replace(/\s*ใช้\s*\d+\s*$/, '').replace(/\s*แนะนำ\s*$/, '').trim()).filter((t) => ZONE_RE.test(t));
+  const re = zoneRe();
+  return texts.map((t) => t.replace(/\s*ใช้\s*\d+\s*$/, '').replace(/\s*แนะนำ\s*$/, '').trim()).filter((t) => re.test(t));
 }
 
-/** กลุ่มปุ่มโซนในฟอร์มขวาของหน้า MC (แม่ของปุ่ม Resuscitation ตัวสุดท้าย) */
-const formZoneGroup = (page: Page) => page.getByRole('main').getByRole('button', { name: /^Resuscitation(\s*แนะนำ)?$/ }).last().locator('xpath=..');
+/** รายชื่อโซนของระบบที่รัน จาก API triage/zones (ชื่อบนปุ่มภาษาไทย = nameTh || nameEn || code ตามโค้ดแอป) */
+async function loadZones(page: Page, authorization: () => string) {
+  const res = await page.request.get('/cortex-api/er/triage/zones?triageLevel=3', { headers: { authorization: authorization() } });
+  await expectOk(res, 'อ่านรายชื่อโซน ER');
+  const zones = ((await res.json()) as { zones: { code: string; nameTh?: string; nameEn?: string; rank: number }[] }).zones;
+  const label = (z: (typeof zones)[number]) => z.nameTh || z.nameEn || z.code;
+  const sorted = [...zones].sort((x, y) => x.rank - y.rank);
+  ZONES_ALL = sorted.map(label);
+  ZONES_MC = sorted.filter((z) => !HIDDEN_CODES.includes(z.code)).map(label);
+  ZONES_HIDDEN = sorted.filter((z) => HIDDEN_CODES.includes(z.code)).map(label);
+  return sorted.map((z) => `${z.code}=${label(z)}`).join(' · ');
+}
+
+/** กลุ่มปุ่มโซนในฟอร์มขวาของหน้า MC (แม่ของปุ่มโซนแรกที่หน้า MC แสดง ตัวสุดท้าย) */
+const formZoneGroup = (page: Page) => page.getByRole('main').getByRole('button', { name: new RegExp(`^${esc(ZONES_MC[0])}(\\s*แนะนำ)?$`) }).last().locator('xpath=..');
 
 /** กล่อง ER Arrival ของผู้ป่วยที่เลือก (ฟอร์มขวา) */
 function arrivalBox(page: Page) {
@@ -168,7 +196,7 @@ async function encounterArrival(page: Page, authorization: () => string, en: str
   return { arrivalMethod: e.arrivalMethod, emsLevel: e.emsLevel, accompanyingPersonOptionId: e.accompanyingPersonOptionId, transporterName: e.transporterName, preHospitalInfo: e.preHospitalInfo };
 }
 
-test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้าชื่อ · ER Arrival (dev-x)', () => {
+test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้าชื่อ · ER Arrival', () => {
   test.describe.configure({ timeout: 1_800_000 });
   const opened = new Map<string, ErVisit>();
   test.afterEach(async ({ page }) => {
@@ -201,6 +229,8 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         return v;
       });
     opened.set(single.en, single);
+    if (!page.url().startsWith('http')) await gotoErDashboard(page);
+    note('โซน ER ของระบบที่รัน (รหัส=ชื่อบนปุ่ม)', `${await loadZones(page, authorization)} · หน้า MC ต้องซ่อนรหัส ${HIDDEN_CODES.join(' / ')} = ${ZONES_HIDDEN.join(' / ') || '(ไม่มีในระบบนี้)'}`);
 
     if (run(12)) {
       const panel = erTriagePanel(page);
@@ -209,13 +239,13 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
       await dismissToast(page, 'สร้าง Visit สำเร็จ').catch(() => undefined);
       await startClip(page, tcId(12));
       // แท็บ ผู้ป่วยรายเดียว → เลือกผู้ป่วย (ลงทะเบียน + เปิด Visit) → ระบบพาไปฟอร์ม "คัดกรอง ER" ของผู้ป่วยรายนั้นเอง
-      await soft(`${TC(12)} ขั้น 1-3 แท็บ ผู้ป่วยรายเดียว · ผู้ป่วย ER ยังไม่คัดกรอง (HN ${single.hn}) → ฟอร์มคัดกรอง ปุ่มโซนครบ 5 โซน`, async () => {
+      await soft(`${TC(12)} ขั้น 1-3 แท็บ ผู้ป่วยรายเดียว · ผู้ป่วย ER ยังไม่คัดกรอง (HN ${single.hn}) → ฟอร์มคัดกรอง ปุ่มโซนครบ ${ZONES_ALL.length} โซน`, async () => {
         await zones.scrollIntoViewIfNeeded();
         const names = await zoneNames(zones);
         const rows: CompareRow[] = ZONES_ALL.map((z) => ({ label: z, values: ['แสดง', names.includes(z) ? 'แสดง' : 'ไม่แสดง'], same: names.includes(z) }));
         await showCompareTable(page, `${ISSUE[12]} ${tcId(12)} ปุ่มโซน ฟอร์มรายเดียว`, ['Expected', 'หน้าจอ'], rows, { side: 'left', width: '520px' });
-        await markEvidence(expected(zones, `5 โซน: ${names.join(' · ')}`), expected(page.getByText(`HN ${single.hn}`, { exact: true }).first(), 'ผู้ป่วยรายเดียว ยังไม่คัดกรอง'));
-        expect(names, 'Expected: ปุ่มโซนครบ 5 โซนเหมือนเดิม').toEqual(ZONES_ALL);
+        await markEvidence(expected(zones, `${ZONES_ALL.length} โซน: ${names.join(' · ')}`), expected(page.getByText(`HN ${single.hn}`, { exact: true }).first(), 'ผู้ป่วยรายเดียว ยังไม่คัดกรอง'));
+        expect(names, `Expected: ปุ่มโซนครบ ${ZONES_ALL.length} โซนเหมือนเดิม`).toEqual(ZONES_ALL);
       });
       await hideCompareTable(page);
       await clearEvidenceMarks(page);
@@ -245,7 +275,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         await openIncidentFromList(page, incident.displayCode, id);
         await markEvidence(expected(main.getByText(incident.displayCode, { exact: false }).first(), 'เหตุการณ์ MC B'));
       });
-      await soft(`${TC(1)} ขั้น 3 แถบ "ส่งเข้าโซน" มีเฉพาะ Resuscitation · Urgency · Observation`, async () => {
+      await soft(`${TC(1)} ขั้น 3 แถบ "ส่งเข้าโซน" มีเฉพาะ ${ZONES_MC.join(' · ')}`, async () => {
         const bar = sendZoneBar(page);
         await expect(bar).toBeVisible();
         const names = await zoneNames(bar);
@@ -255,8 +285,8 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
           return { label: z, values: [want, got], same: want === got };
         });
         await showCompareTable(page, `${ISSUE[1]} ${tcId(1)} แถบ ส่งเข้าโซน`, ['Expected', 'หน้าจอ'], rows, { side: 'right', width: '560px' });
-        await markEvidence(expected(bar, `ส่งเข้าโซน: ${names.join(' · ')} (ไม่มี Isolation)`));
-        expect(names, 'Expected: แถบส่งเข้าโซนมีเฉพาะ Resuscitation · Urgency · Observation').toEqual(ZONES_MC);
+        await markEvidence(expected(bar, `ส่งเข้าโซน: ${names.join(' · ')} (ไม่มี ${ZONES_HIDDEN.join(' / ')})`));
+        expect(names, `Expected: แถบส่งเข้าโซนมีเฉพาะ ${ZONES_MC.join(' · ')}`).toEqual(ZONES_MC);
       });
       await hideCompareTable(page);
     } else await page.goto(`/cortex/er/triage?mode=mass-casualty&incidentId=${id}`);
@@ -286,21 +316,21 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
       await markEvidence(clicked(title(m1), 'แถวที่ 1'));
     });
     if (run(2)) {
-      await soft(`${TC(2)} ขั้น 3 ปุ่มโซนในฟอร์มขวามีเฉพาะ Resuscitation · Urgency · Observation`, async () => {
+      await soft(`${TC(2)} ขั้น 3 ปุ่มโซนในฟอร์มขวามีเฉพาะ ${ZONES_MC.join(' · ')}`, async () => {
         const group = formZoneGroup(page);
         await group.scrollIntoViewIfNeeded();
         const names = await zoneNames(group);
-        const all = await main.getByRole('button', { name: /Isolation/ }).count();
+        const all = ZONES_HIDDEN.length ? await main.getByRole('button', { name: hiddenRe() }).count() : 0;
         const rows: CompareRow[] = ZONES_ALL.map((z) => {
           const want = ZONES_MC.includes(z) ? 'แสดง' : 'ไม่แสดง';
           const got = names.includes(z) ? 'แสดง' : 'ไม่แสดง';
           return { label: z, values: [want, got], same: want === got };
         });
-        note(`${TC(2)} ปุ่มที่มีคำว่า Isolation ทั้งหน้า`, String(all));
+        note(`${TC(2)} ปุ่มโซนที่ต้องซ่อน (${ZONES_HIDDEN.join(' / ')}) ทั้งหน้า`, String(all));
         await showCompareTable(page, `${ISSUE[2]} ${tcId(2)} ปุ่มโซนในฟอร์ม`, ['Expected', 'หน้าจอ'], rows, { side: 'left', width: '520px' });
-        await markEvidence(expected(group, `โซน: ${names.join(' · ')} (ไม่มี Isolation)`));
-        expect(names, 'Expected: ปุ่มโซนมีเฉพาะ Resuscitation · Urgency · Observation').toEqual(ZONES_MC);
-        expect(all, 'ต้องไม่มีปุ่ม Isolation ในหน้า').toBe(0);
+        await markEvidence(expected(group, `โซน: ${names.join(' · ')} (ไม่มี ${ZONES_HIDDEN.join(' / ')})`));
+        expect(names, `Expected: ปุ่มโซนมีเฉพาะ ${ZONES_MC.join(' · ')}`).toEqual(ZONES_MC);
+        expect(all, `ต้องไม่มีปุ่ม ${ZONES_HIDDEN.join(' / ')} ในหน้า`).toBe(0);
       });
       await hideCompareTable(page);
     }
@@ -372,7 +402,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
     // ─── TC-007 ค่า ER Arrival รายคนยังอยู่หลังสลับผู้ป่วย
     if (run(7)) {
       await startClip(page, tcId(7));
-      await soft(`${TC(7)} ขั้น 3 แถวที่ 1: EMS · ALS · ผู้นำส่ง EMS ขึ้นทะเบียน · ชื่อผู้นำส่ง ${TRANSPORTER_B}`, async () => {
+      await soft(`${TC(7)} ขั้น 3 แถวที่ 1: EMS · ALS · ผู้นำส่ง ${ESCORT_EMS_TEXT} · ชื่อผู้นำส่ง ${TRANSPORTER_B}`, async () => {
         if (!(await a.radio('EMS').isChecked())) await a.option('EMS').click();
         await expect(a.radio('EMS')).toBeChecked();
         await a.option('ALS').click();
@@ -384,7 +414,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         await a.transporter.press('Tab');
         note(`${TC(7)} บันทึกชื่อผู้นำส่ง`, `PATCH registration-details ${(await saved.catch(() => null))?.status() ?? 'ไม่พบ'}`);
         await page.waitForTimeout(1_500);
-        await markEvidence(filled(a.option('EMS'), 'EMS'), filled(a.option('ALS'), 'ALS'), filled(a.escort, 'EMS ขึ้นทะเบียน'), filled(a.transporter, TRANSPORTER_B));
+        await markEvidence(filled(a.option('EMS'), 'EMS'), filled(a.option('ALS'), 'ALS'), filled(a.escort, ESCORT_EMS_TEXT), filled(a.transporter, TRANSPORTER_B));
       });
       await soft(`${TC(7)} ขั้น 4 เลือกแถวที่ 2 แล้วกลับมาแถวที่ 1 → ค่า ER Arrival ของแถวที่ 1 ยังอยู่ครบ`, async () => {
         await clearEvidenceMarks(page);
@@ -399,7 +429,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         const rows: CompareRow[] = [
           { label: 'วิธีการมาถึง', values: ['EMS', got.method, String(api.arrivalMethod)], same: got.method === 'EMS' },
           { label: 'ระดับความเร่งด่วน EMS', values: ['ALS', got.ems, String(api.emsLevel)], same: got.ems === 'ALS' },
-          { label: 'ผู้นำส่ง', values: ['EMS ขึ้นทะเบียน', got.escort, String(api.accompanyingPersonOptionId)], same: ESCORT_EMS.test(got.escort) },
+          { label: 'ผู้นำส่ง', values: [ESCORT_EMS_TEXT, got.escort, String(api.accompanyingPersonOptionId)], same: ESCORT_EMS.test(got.escort) },
           { label: 'ชื่อผู้นำส่ง', values: [TRANSPORTER_B, got.transporter, String(api.transporterName)], same: got.transporter === TRANSPORTER_B },
         ];
         note(`${TC(7)} API Encounter ${m1.en}`, JSON.stringify(api));
@@ -513,7 +543,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
 
       // ─── TC-009 สร้างเหตุการณ์ A + ER Arrival ระดับเหตุการณ์
       await startClip(page, tcId(9));
-      await checkStep(page, `${TC(9)} ขั้น 2-3 ชื่อเหตุการณ์ ${NAME_A} · จำนวนผู้ป่วย 2 · การมาถึง EMS · ALS · EMS ขึ้นทะเบียน · ${TRANSPORTER_A} > กด สร้าง`, async () => {
+      await checkStep(page, `${TC(9)} ขั้น 2-3 ชื่อเหตุการณ์ ${NAME_A} · จำนวนผู้ป่วย 2 · การมาถึง EMS · ALS · ${ESCORT_EMS_TEXT} · ${TRANSPORTER_A} > กด สร้าง`, async () => {
         await dialog.getByRole('textbox', { name: /ชื่อเหตุการณ์/ }).fill(NAME_A);
         await dialog.getByRole('textbox', { name: /สถานที่เกิดเหตุ/ }).fill(LOCATION);
         await dialog.getByRole('textbox', { name: /อาการสำคัญร่วม/ }).fill(SHARED_CC);
@@ -535,7 +565,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
           filled(dialog.getByRole('spinbutton', { name: 'จำนวนผู้ป่วย' }), 'จำนวน 2'),
           filled(opt('EMS'), 'EMS'),
           filled(opt('ALS'), 'ALS'),
-          filled(escort, 'EMS ขึ้นทะเบียน'),
+          filled(escort, ESCORT_EMS_TEXT),
           filled(dialog.getByRole('textbox', { name: 'ระบุชื่อผู้นำส่ง, ชื่อหน่วยงาน, มูลนิธิ' }), TRANSPORTER_A),
           clicked(dialog.getByRole('button', { name: 'สร้าง', exact: true })),
         );
@@ -565,7 +595,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         const rows: CompareRow[] = [
           { label: 'วิธีการมาถึง', values: ['EMS', got.method, String(api.arrivalMethod)], same: got.method === 'EMS' },
           { label: 'ระดับความเร่งด่วน EMS', values: ['ALS', got.ems, String(api.emsLevel)], same: got.ems === 'ALS' },
-          { label: 'ผู้นำส่ง', values: ['EMS ขึ้นทะเบียน', got.escort, String(api.accompanyingPersonOptionId)], same: ESCORT_EMS.test(got.escort) },
+          { label: 'ผู้นำส่ง', values: [ESCORT_EMS_TEXT, got.escort, String(api.accompanyingPersonOptionId)], same: ESCORT_EMS.test(got.escort) },
           { label: 'ชื่อผู้นำส่ง', values: [TRANSPORTER_A, got.transporter, String(api.transporterName)], same: got.transporter === TRANSPORTER_A },
           { label: 'ป้าย', values: ['ใช้ค่าจากเหตุการณ์', tagText, ''], same: tagText === TAG_INHERITED },
         ];
@@ -581,7 +611,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
     if (run(10)) {
       await clearEvidenceMarks(page);
       await startClip(page, tcId(10));
-      await soft(`${TC(10)} ขั้น 2 เลือกแถวที่ 2 > ER Arrival เปลี่ยนเป็น Walk-in · ผู้นำส่ง = ญาติ/ผู้พบเห็น/อื่นๆ`, async () => {
+      await soft(`${TC(10)} ขั้น 2 เลือกแถวที่ 2 > ER Arrival เปลี่ยนเป็น Walk-in · ผู้นำส่ง = ${ESCORT_RELATIVE_TEXT}`, async () => {
         await selectMember(page, m2.hn);
         await expect(a.region).toBeVisible({ timeout: 30_000 });
         let saved = waitForApi(page, 'PATCH', /\/registration-details$/, 20_000);
@@ -615,7 +645,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         await expectOk(r, 'อัปเดตเหตุการณ์');
         await expect(dlg).toBeHidden({ timeout: 20_000 });
       });
-      await soft(`${TC(10)} ขั้น 4 เลือกแถวที่ 2 → ยังเป็น Walk-in · ญาติ/ผู้พบเห็น/อื่นๆ ไม่เปลี่ยนตามเหตุการณ์ · ป้ายบอกว่าแก้เฉพาะราย`, async () => {
+      await soft(`${TC(10)} ขั้น 4 เลือกแถวที่ 2 → ยังเป็น Walk-in · ${ESCORT_RELATIVE_TEXT} ไม่เปลี่ยนตามเหตุการณ์ · ป้ายบอกว่าแก้เฉพาะราย`, async () => {
         await clearEvidenceMarks(page);
         await selectMember(page, m1.hn);
         await selectMember(page, m2.hn);
@@ -625,7 +655,7 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         const api = await encounterArrival(page, authorization, m2.en);
         const rows: CompareRow[] = [
           { label: 'วิธีการมาถึง', values: ['Walk-in', got.method, String(api.arrivalMethod)], same: got.method === 'Walk-in' },
-          { label: 'ผู้นำส่ง', values: ['ญาติ/ผู้พบเห็น/อื่นๆ', got.escort, String(api.accompanyingPersonOptionId)], same: ESCORT_RELATIVE.test(got.escort) },
+          { label: 'ผู้นำส่ง', values: [ESCORT_RELATIVE_TEXT, got.escort, String(api.accompanyingPersonOptionId)], same: ESCORT_RELATIVE.test(got.escort) },
           { label: 'ชื่อผู้นำส่ง', values: [`ไม่เป็น ${TRANSPORTER_A_EDIT}`, got.transporter || '(ว่าง)', String(api.transporterName)], same: got.transporter !== TRANSPORTER_A_EDIT },
           { label: 'ป้าย', values: ['แก้เฉพาะราย', tagText, ''], same: tagText === TAG_OWN },
         ];
@@ -677,8 +707,8 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         await snapEvidence(page, 'หลังกด — ส่ง Triage ทั้งเหตุการณ์');
       });
       const want: Record<string, { method: string; ems: string; escort: RegExp; escortText: string; transporter: string }> = {
-        [m1.en]: { method: 'EMS', ems: 'ALS', escort: ESCORT_EMS, escortText: 'EMS ขึ้นทะเบียน', transporter: TRANSPORTER_A_EDIT },
-        [m2.en]: { method: 'Walk-in', ems: '-', escort: ESCORT_RELATIVE, escortText: 'ญาติ/ผู้พบเห็น/อื่นๆ', transporter: '' },
+        [m1.en]: { method: 'EMS', ems: 'ALS', escort: ESCORT_EMS, escortText: ESCORT_EMS_TEXT, transporter: TRANSPORTER_A_EDIT },
+        [m2.en]: { method: 'Walk-in', ems: '-', escort: ESCORT_RELATIVE, escortText: ESCORT_RELATIVE_TEXT, transporter: '' },
       };
       for (const [i, m] of [m1, m2].entries()) {
         const w = want[m.en];
@@ -791,16 +821,23 @@ test.describe('SBH-3609 Mass Casualty — โซน · เลขนำหน้�
         await page.waitForTimeout(2_500);
         const zones = await zoneState();
         const hasSuggest = zones.some((z) => /แนะนำ/.test(z));
+        // Retest SBH-3883 (4 พ.ย. 2026 · PR "suggest Observation for ESI 5"): ESI 4 → Urgency · ESI 5 → Observation · โซนแนะนำต้องถูกเลือกให้ด้วย
+        const want = level === 4 ? 'Urgency' : 'Observation';
+        const sugg = zones.filter((z) => /แนะนำ/.test(z));
+        const picked = zones.filter((z) => /\[เลือก\]$/.test(z)).map((z) => z.replace(/\s*\[เลือก\]$/, ''));
+        const okSuggest = sugg.some((z) => z.startsWith(want));
+        const okPicked = picked.some((z) => z.startsWith(want));
         const api = await suggested(level);
         note(`ESI ${level}`, `ปุ่มโซน: ${zones.join(' | ')} · API triage/zones suggestedLocationId ${api}`);
-        await showCompareTable(page, `SBH-3609 การ์ดบั๊ก — ESI ${level}`, ['Expected', 'หน้าจอ', 'API แนะนำ (location id)'], [
-          { label: 'โซนแนะนำ', values: [level === 4 ? 'Urgency แนะนำ' : 'มีโซนแนะนำ (เช่น Observation)', hasSuggest ? zones.filter((z) => /แนะนำ/.test(z)).join(', ') : 'ไม่มีโซนแนะนำ / ไม่มีโซนถูกเลือก', api], same: hasSuggest },
+        await showCompareTable(page, `SBH-3883 Retest — ESI ${level}`, ['Expected', 'หน้าจอ', 'API แนะนำ (location id)'], [
+          { label: 'โซนแนะนำ', values: [`${want} แนะนำ`, sugg.length ? sugg.map((z) => z.replace(/\s*\[เลือก\]$/, '')).join(', ') : 'ไม่มีโซนแนะนำ', api], same: okSuggest },
+          { label: 'โซนที่ถูกเลือก', values: [want, picked.join(', ') || 'ไม่มีโซนถูกเลือก', ''], same: okPicked },
         ], { side: 'left', width: '680px', top: '730px' });
         await markEvidence(
           filled(esiButton(page, level), `ESI ${level}`),
-          expected(zoneGroup, hasSuggest ? `โซนแนะนำ: ${zones.filter((z) => /แนะนำ/.test(z)).join(', ')}` : 'มีโซนแนะนำ · จริง: ไม่มี'),
+          expected(zoneGroup, okSuggest && okPicked ? `${want} แนะนำ + ถูกเลือก` : `${want} แนะนำ + ถูกเลือก · จริง: ${sugg.join(', ') || 'ไม่มีโซนแนะนำ'}`),
         );
-        expect(hasSuggest, `ESI ${level} ต้องมีโซนแนะนำ`).toBe(true);
+        expect(hasSuggest && okSuggest && okPicked, `ESI ${level} ต้องแนะนำและเลือก ${want}`).toBe(true);
       });
       await hideCompareTable(page);
     }

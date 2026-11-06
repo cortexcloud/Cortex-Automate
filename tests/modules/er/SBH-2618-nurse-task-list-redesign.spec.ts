@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { type Browser, type Locator, type Page } from '@playwright/test';
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { dismissToast, expectOk, fetchBoard, fetchZones, gotoErDashboard, openCarePanel, openErMenu, trackOpenedErVisits, waitForApi, type ErVisit } from '../../../helpers/functions/er';
@@ -11,7 +13,7 @@ import { newTestPatient } from '../../../helpers/functions/test-data';
 import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
 import { fetchNurseTasks, registerAndOpenErVisit, SETTINGS, submitOrders } from '../../../mock-data/uat-er';
 import { VITALS_NORMAL, careMenu, gotoVisit } from '../../../mock-data/uat-play';
-import { authFile } from '../../../utils/env';
+import { authFile, envName } from '../../../utils/env';
 
 // SBH-2618 [ER][Nurse Task list] Redesign — หน้า ER "รายการงานพยาบาล" (/cortex/er/nurse-task-list)
 //   AC: ไม่แสดงผู้ป่วยที่ออกจาก ER · แสดงเฉพาะผู้ป่วยที่มี order · ตัดคอลัมน์ ประเภท / ผู้รับผิดชอบ / Note · แยกผู้ป่วยตามโซน
@@ -84,6 +86,14 @@ async function refresh(n: Page) {
     console.log(`    รีเฟรชได้ ${res.status()} → ลองใหม่ (ครั้งที่ ${attempt + 1})`);
     await n.waitForTimeout(5_000);
   }
+  await n.waitForTimeout(800);
+}
+
+/** สวิตช์ "แสดงผู้ป่วยที่ยังไม่มี Order" ให้อยู่สถานะที่ต้องการ — Prod รอบ 1: TC-010 ล้มแล้วสวิตช์ค้างเปิด ทำให้ TC-007 / 009 / 008 เห็นผู้ป่วย 0/0 */
+async function setWithoutOrders(n: Page, on: boolean) {
+  const sw = withoutOrders(n);
+  if (((await sw.getAttribute('aria-checked')) === 'true') !== on) await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', String(on));
   await n.waitForTimeout(800);
 }
 
@@ -199,8 +209,17 @@ async function openNurseWindow(browser: Browser): Promise<Page> {
 /** Disposition (Improved · With Approval · K30) → ลงนาม → รายการ ER แท็บ รอจำหน่าย → จำหน่าย */
 async function dischargeFromEr(page: Page, visit: ErVisit, who: string) {
   const main = mainOf(page);
-  await gotoVisit(page, visit);
-  await openCarePanel(page, 'Disposition', main.getByText('สรุปการจำหน่าย', { exact: true }));
+  // SBH Prod 6 พ.ย. รอบ 1: แท็บ Disposition ของ C หมุนค้าง 60 วิ (ของ A โหลดปกติ) → โหลดหน้า Visit ใหม่แล้วลองอีก 1 ครั้ง
+  for (let attempt = 1; ; attempt++) {
+    await gotoVisit(page, visit);
+    try {
+      await openCarePanel(page, 'Disposition', main.getByText('สรุปการจำหน่าย', { exact: true }));
+      break;
+    } catch (error) {
+      if (attempt >= 2) throw error;
+      console.log(`    Disposition ของ ${who} โหลดไม่ขึ้น → โหลดหน้า Visit ใหม่ (ครั้งที่ 2)`);
+    }
+  }
   await restartVideo(page); // ตัดจอขาวตอนหน้าผู้ป่วยโหลดออกจากคลิป -staff (Retest 3 พ.ย.)
   await startDisposition(page);
   await main.getByRole('radio', { name: 'Improved', exact: true }).check();
@@ -248,6 +267,13 @@ async function moveZone(page: Page, visit: ErVisit, level: 2 | 3, zone: string) 
   const redo = mainOf(page).getByRole('button', { name: 'redo คัดกรองซ้ำ' }).first();
   await expect(redo).toBeVisible({ timeout: 60_000 });
   await restartVideo(page); // ตัดจอขาวตอนหน้าผู้ป่วยโหลดออกจากคลิป -staff
+  // Prod รอบ 1: ตีกรอบตอนหน้ายังโหลด กรอบ "กด" ล้อมพื้นที่ว่าง → รอปุ่มนิ่งก่อน
+  await expect(async () => {
+    const a = await redo.boundingBox();
+    await page.waitForTimeout(1_500);
+    const b = await redo.boundingBox();
+    expect(a && b && Math.abs(a.y - b.y) < 2 && Math.abs(a.x - b.x) < 2).toBe(true);
+  }, 'รอปุ่มคัดกรองซ้ำนิ่ง').toPass({ timeout: 30_000 });
   await redo.scrollIntoViewIfNeeded();
   await markEvidence(clicked(redo));
   await snapEvidence(page, 'ก่อนกด — คัดกรองซ้ำ');
@@ -269,8 +295,18 @@ async function moveZone(page: Page, visit: ErVisit, level: 2 | 3, zone: string) 
 const boardCard = (page: Page, hn: string) => page.locator('[class*="er-patient-card"]').filter({ hasText: `HN: ${hn}` }).first();
 const boardColumn = (page: Page, zone: string) => mainOf(page).locator('strong').filter({ hasText: new RegExp(`^${zone}$`) }).first();
 
+// ไฟล์จด Visit ที่เทสเปิด แยกระบบ — รันด้วย SBH2618_KEEP=1 แล้วปิดทีหลังด้วย --grep @SBH-2618-CLOSE (ปิดเฉพาะรายในไฟล์ ไม่แตะผู้ป่วยของ session อื่นบน Prod)
+const STATE_FILE = path.join('.cache', 'SBH-2618', `visits-${envName() ?? 'dev-x'}.json`);
+const readState = (): ErVisit[] => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) as ErVisit[]; } catch { return []; } };
+const writeState = (visits: ErVisit[]) => { fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true }); fs.writeFileSync(STATE_FILE, JSON.stringify(visits, null, 2)); };
+
 async function closeVisits(page: Page, opened: Map<string, ErVisit>) {
-  if (process.env.SBH2618_KEEP) return;
+  if (process.env.SBH2618_KEEP) {
+    const all = [...readState().filter((v) => !opened.has(v.en)), ...opened.values()];
+    writeState(all);
+    test.info().annotations.push({ type: 'หลังเทส', description: `SBH2618_KEEP — ไม่ปิด Visit · จดลง ${STATE_FILE} (${all.length} ราย)` });
+    return;
+  }
   for (const visit of opened.values()) {
     const result = await closeVisitAtCashier(page, visit.hn, visit.vn).then(
       (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
@@ -310,11 +346,24 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
       // SBH2618_ONLY=TC007 = รันเฉพาะ TC-007 กับผู้ป่วย B รายใหม่ (รอบ 4 ล้มเพราะ dev-x ตอบ 502)
       const only7 = process.env.SBH2618_ONLY === 'TC007';
       if (only7) note('โหมด', 'รันเฉพาะ TC-007 (SBH2618_ONLY=TC007)');
+      // SBH2618_ONLY=RERUN + SBH2618_C_HN=<HN> = ใช้ผู้ป่วย C เดิมจากไฟล์ state (ยังอยู่ ER มีรังสี) + B ใหม่ 1 ราย
+      //   → จำหน่าย C → TC-001 → TC-010 → TC-007 (Prod 6 พ.ย. รอบ 1: Disposition ของ C หมุนค้าง · ผู้ใช้เลือก "C เดิม + ผู้ป่วยใหม่ 1 ราย")
+      const rerun = process.env.SBH2618_ONLY === 'RERUN';
+      // SBH2618_ONLY=A98 = ผู้ป่วย A ใหม่รายเดียว → TC-009 → TC-008 (Prod 6 พ.ย. รอบ 1 สวิตช์ค้างเปิด ภาพไม่สะอาด · ผู้ใช้เลือก "รันใหม่ผู้ป่วยใหม่ 1 ราย")
+      const onlyA = process.env.SBH2618_ONLY === 'A98';
+      if (onlyA) note('โหมด', 'รันเฉพาะ TC-009 / TC-008 กับผู้ป่วย A รายใหม่ (SBH2618_ONLY=A98)');
+      const full = !only7 && !rerun && !onlyA;
+      let reusedC: ErVisit | undefined;
+      if (rerun) {
+        reusedC = readState().find((v) => v.hn === process.env.SBH2618_C_HN);
+        expect(reusedC, `SBH2618_C_HN=${process.env.SBH2618_C_HN} ต้องอยู่ในไฟล์ state ${STATE_FILE}`).toBeTruthy();
+        note('โหมด', `รันซ้ำ TC-001 / 010 / 007 (SBH2618_ONLY=RERUN) · ผู้ป่วย C เดิม HN ${reusedC!.hn} · VN ${reusedC!.vn} · EN ${reusedC!.en}`);
+      }
 
       // ---------- เตรียมผู้ป่วย (Super_User) ----------
-      const A = only7 ? ({} as ErVisit) : await preparePatient(page, 'Ntl2618A', 2, [SETTINGS.imagingCode], note);
-      const B = await preparePatient(page, 'Ntl2618B', 3, [], note);
-      const C = only7 ? ({} as ErVisit) : await preparePatient(page, 'Ntl2618C', 3, [SETTINGS.imagingCode], note);
+      const A = full || onlyA ? await preparePatient(page, 'Ntl2618A', 2, [SETTINGS.imagingCode], note) : ({} as ErVisit);
+      const B = onlyA ? ({} as ErVisit) : await preparePatient(page, 'Ntl2618B', 3, [], note);
+      const C = reusedC ?? (only7 || onlyA ? ({} as ErVisit) : await preparePatient(page, 'Ntl2618C', 3, [SETTINGS.imagingCode], note));
       const zones = await fetchZones(page, authorization);
       const boardZone = async (hn: string) => {
         const e = (await fetchBoard(page, authorization)).find((x) => x.hn === hn);
@@ -328,17 +377,18 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         note(`โซนบนบอร์ดหลังเตรียม ${k}`, z);
         expect(z, `Pre-condition: ผู้ป่วย ${k} ต้องอยู่โซน ${wantZone[k]} บนบอร์ด`).toBe(wantZone[k]);
       }
-      const tasksA = only7 ? [] : await fetchNurseTasks(page, authorization(), A.en);
-      note('งานพยาบาลของ A (API)', tasksA.map((t) => `${t.type} ${t.name} ${t.status}`).join(' · ') || 'ไม่มี');
-      if (!only7) expect(tasksA.length, 'ผู้ป่วย A ต้องมีงานพยาบาลจาก order รังสี (Pre-condition)').toBeGreaterThan(0);
+      const tasksA = full ? await fetchNurseTasks(page, authorization(), A.en) : [];
+      if (full) note('งานพยาบาลของ A (API)', tasksA.map((t) => `${t.type} ${t.name} ${t.status}`).join(' · ') || 'ไม่มี');
+      if (full) expect(tasksA.length, 'ผู้ป่วย A ต้องมีงานพยาบาลจาก order รังสี (Pre-condition)').toBeGreaterThan(0);
 
       nurse = await openNurseWindow(browser);
       const n = nurse;
       // ขั้นที่ดูหน้าจอ Nurse ต้องใช้ runner ของหน้าต่าง Nurse — ภาพ ผ่าน / Error ของ checkStep ถ่ายจากหน้าที่ผูกกับ runner (รอบ 3 ถ่ายผิดหน้าต่าง)
       const { soft: nsoft, finish: nfinish } = makeRunner(n);
-      if (!only7) await expect.poll(async () => { await clearSearch(n); return patientBtn(n, A.hn).isVisible(); }, { timeout: 60_000, intervals: [3_000] }).toBe(true);
+      if (full || onlyA) await expect.poll(async () => { await clearSearch(n); return patientBtn(n, A.hn).isVisible(); }, { timeout: 60_000, intervals: [3_000] }).toBe(true);
+      if (rerun) await expect.poll(async () => { await clearSearch(n); return patientBtn(n, C.hn).isVisible(); }, { timeout: 60_000, intervals: [3_000] }).toBe(true);
 
-      if (!only7) {
+      if (full) {
       // ---------- TC-002 ผู้ป่วย A (มี order) แสดง + ตารางงาน ----------
       await startClip(n, 'TC-002');
       await nsoft(`${TC(2)} พบผู้ป่วย A ใต้โซน ${RESUS} · กดแล้วเห็นงานจาก order`, async () => {
@@ -485,6 +535,9 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await expect(sidebarEmpty(n)).toBeVisible();
       });
       await clearSearch(n);
+      }
+
+      if (!only7 && !onlyA) {
       await startClip(n, '_wait-001'); // ช่วงรอจำหน่าย C ไม่ให้ต่อท้ายคลิป TC-003
 
       // ---------- จำหน่าย C แล้ว TC-001 ----------
@@ -535,7 +588,8 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
           expect(bCount).toBe('0/0');
           const cFound = await searchHn(n, C.hn);
           note(`${TC(10)} ค้นหา C (จำหน่ายแล้ว) ตอนเปิดสวิตช์`, cFound ? 'พบ' : 'ไม่พบ');
-          await markEvidence(filled(searchBox(n), `HN C ${C.hn}`), expected(sidebarEmpty(n), 'ไม่พบ C'));
+          // พบ C แล้วไม่มีข้อความ "ไม่พบผู้ป่วย" ให้วง — Prod รอบ 1 ตีกรอบ sidebarEmpty แล้วค้าง 20 วิ
+          await markEvidence(filled(searchBox(n), `HN C ${C.hn}`), cFound ? expected(patientBtn(n, C.hn), 'ไม่พบ C · จริง: ยังพบ C') : expected(sidebarEmpty(n), 'ไม่พบ C'));
           await snapEvidence(n, 'เปิดสวิตช์ — ค้นหาผู้ป่วย C');
           expect(cFound, 'ผู้ป่วย C ที่จำหน่ายแล้วต้องไม่แสดงแม้เปิดสวิตช์').toBe(false);
           await clearSearch(n);
@@ -546,18 +600,27 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
           await markEvidence(expected(sw, 'ปิด'), expected(sidebar(n), `ไม่มี B (HN ${B.hn})`));
         });
         await clearSearch(n);
+        await setWithoutOrders(n, false); // TC-010 ล้มกลางทางแล้วสวิตช์ต้องไม่ค้างเปิดไปถึง TC-007
       }
 
       }
 
+      if (!onlyA) {
       // ---------- TC-007 B ได้ order แรก (Lab) ----------
       await startClip(n, 'TC-007');
       await nsoft(`${TC(7)} ขั้น 1 ยืนยันว่าไม่พบผู้ป่วย B ก่อนสั่ง Lab`, async () => {
+        await setWithoutOrders(n, false);
         await refresh(n);
         const found = await searchHn(n, B.hn);
-        await markEvidence(filled(searchBox(n), `HN B ${B.hn}`), expected(sidebarEmpty(n), 'ยังไม่พบ B'));
+        // แสดงสถานะสวิตช์ในตารางเทียบ — พิสูจน์ว่า "ไม่พบ" ไม่ได้มาจากสวิตช์ (Sub Agent ทัก Prod รอบ 1)
+        await showCompareTable(n, 'ก่อนสั่ง Lab', ['ที่เห็น'], [
+          { label: 'สวิตช์ แสดงผู้ป่วยที่ยังไม่มี Order', values: ['ปิด'], same: true },
+          { label: `ค้นหา HN B ${B.hn}`, values: [found ? 'พบ' : 'ไม่พบ'], same: !found },
+        ], { side: 'bottom' });
+        await markEvidence(filled(searchBox(n), `HN B ${B.hn}`), found ? expected(patientBtn(n, B.hn), 'ยังไม่พบ B · จริง: พบ B') : expected(sidebarEmpty(n), 'ยังไม่พบ B'), expected(withoutOrders(n), 'สวิตช์ปิด'));
         expect(found).toBe(false);
       });
+      await hideCompareTable(n).catch(() => undefined);
       await clearSearch(n);
       await startClip(page, 'TC-007-staff');
       let labSent = false;
@@ -587,8 +650,17 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
             ], { side: 'bottom' });
             expect(found, 'สั่ง Lab แล้วผู้ป่วย B ต้องแสดงในรายชื่อ').toBe(true);
           }
-          const all = await readSidebar(n);
+          // ตัวนับ x/y ของแถวผู้ป่วยอัปเดตช้ากว่าแผงงาน (Prod รอบ 1 B ยัง 0/0) → รีเฟรชจนตัวนับไม่ใช่ 0/0 ก่อนถ่าย
+          let all = await readSidebar(n);
+          const countOf = (zs: SidebarZone[]) => zs.flatMap((z) => z.patients).find((p) => p.hn === B.hn)?.count ?? '';
+          for (let i = 0; i < 6 && countOf(all) === '0/0'; i++) { await refresh(n); all = await readSidebar(n); }
+          note(`${TC(7)} ขั้น 3 ตัวนับของ B`, countOf(all) || '-');
           expect(zoneOf(all, B.hn), 'B ต้องอยู่ใต้โซน Urgency').toMatch(new RegExp(`^zone: ${URGENCY}`));
+          await showCompareTable(n, 'ผู้ป่วย B หลังสั่ง Lab', ['ที่เห็น'], [
+            { label: 'สวิตช์ แสดงผู้ป่วยที่ยังไม่มี Order', values: [(await withoutOrders(n).getAttribute('aria-checked')) === 'true' ? 'เปิด' : 'ปิด'], same: (await withoutOrders(n).getAttribute('aria-checked')) !== 'true' },
+            { label: 'โซนของ B', values: [zoneOf(all, B.hn)], same: zoneOf(all, B.hn).startsWith(`zone: ${URGENCY}`) },
+            { label: 'ตัวนับงานของ B', values: [countOf(all)], same: countOf(all) !== '0/0' },
+          ], { side: 'right' });
           await patientBtn(n, B.hn).click();
           await expect(taskRows(n).first()).toBeVisible({ timeout: 30_000 });
           await markEvidence(expected(zoneHeaderOf(n, B.hn), 'โซนของ B'), expected(patientBtn(n, B.hn)), expected(taskRows(n).first(), 'งาน Lab'));
@@ -596,11 +668,13 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         await hideCompareTable(n).catch(() => undefined);
         await clearSearch(n);
       } else note(`${TC(7)} ขั้น 3 ตรวจไม่ได้`, 'ส่ง Lab ไม่สำเร็จ');
+      }
 
-      if (!only7) {
+      if (full || onlyA) {
       // ---------- TC-009 ย้าย A จาก Resuscitation ไป Urgency ----------
       await startClip(n, 'TC-009');
       await nsoft(`${TC(9)} ขั้น 1 ผู้ป่วย A อยู่ใต้โซน ${RESUS}`, async () => {
+        await setWithoutOrders(n, false);
         const all = await waitZone(n, A.hn, RESUS, 10_000);
         note(`${TC(9)} ก่อนย้าย`, describe(all));
         await patientBtn(n, A.hn).scrollIntoViewIfNeeded();
@@ -632,6 +706,15 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
           note(`${TC(9)} แผงขวาหลังย้ายโซน`, paneError ? 'ขึ้น เกิดข้อผิดพลาด ไม่สามารถโหลดรายการงานได้' : 'แสดงปกติ');
           note(`${TC(9)} หลังย้าย`, describe(all));
           const inResus = all.filter((z) => z.label.startsWith(`zone: ${RESUS}`)).some((z) => z.patients.some((p) => p.hn === A.hn));
+          // เลือก A ให้แผงขวาเป็นของ A (Prod รอบ 1 แผงขวาค้างเป็น B) + ตารางยืนยันทุกกลุ่ม (Sub Agent ทัก: "ไม่อยู่ใต้ Resuscitation" เห็นแค่ทางอ้อม)
+          await patientBtn(n, A.hn).click();
+          await expect(mainOf(n).getByText(`HN ${A.hn}`, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+          await showCompareTable(n, 'กลุ่มของผู้ป่วย A หลังย้ายโซน', ['ที่เห็น'], [
+            { label: 'สวิตช์ แสดงผู้ป่วยที่ยังไม่มี Order', values: [(await withoutOrders(n).getAttribute('aria-checked')) === 'true' ? 'เปิด' : 'ปิด'], same: true },
+            { label: 'กลุ่มทั้งหมดในรายชื่อ', values: [all.map((z) => z.label).join(' · ') || '-'], same: true },
+            { label: `กลุ่มที่มี HN ${A.hn}`, values: [zoneOf(all, A.hn) || 'ไม่พบ'], same: zoneOf(all, A.hn).startsWith(`zone: ${URGENCY}`) },
+            { label: `HN ${A.hn} ใต้ ${RESUS}`, values: [inResus ? 'มี' : 'ไม่มี'], same: !inResus },
+          ], { side: 'bottom' });
           await patientBtn(n, A.hn).scrollIntoViewIfNeeded();
           const marks = [expected(zoneHeaderOf(n, A.hn), 'หลังย้าย'), expected(patientBtn(n, A.hn), 'ผู้ป่วย A')];
           if (await zoneHeader(n, RESUS).isVisible()) marks.push(expected(zoneHeader(n, RESUS), `ไม่มี A (HN ${A.hn})`));
@@ -641,6 +724,7 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
         });
       } else note(`${TC(9)} ขั้น 3 ตรวจไม่ได้`, 'ย้ายโซนไม่สำเร็จ');
 
+      await hideCompareTable(n).catch(() => undefined);
       // ---------- TC-008 จำหน่าย A ----------
       await startClip(n, 'TC-008');
       await nsoft(`${TC(8)} ขั้น 1 พบผู้ป่วย A (มี order) ในรายชื่อ`, async () => {
@@ -663,6 +747,14 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
           const still = await waitPresence(n, A.hn, false);
           const all = await readSidebar(n);
           note(`${TC(8)} หลังจำหน่าย`, describe(all));
+          // ตารางยืนยันกลุ่มทั้งหมด (ภาพเห็นกลุ่มไม่ครบจอเมื่อรายชื่อยาว — Sub Agent ทัก Prod รอบ 1)
+          const leftGroups = all.filter((z) => z.label.includes('ออกจาก ER'));
+          await showCompareTable(n, 'รายชื่อทุกกลุ่มหลังจำหน่าย A', ['ที่เห็น'], [
+            { label: 'สวิตช์ แสดงผู้ป่วยที่ยังไม่มี Order', values: [(await withoutOrders(n).getAttribute('aria-checked')) === 'true' ? 'เปิด' : 'ปิด'], same: true },
+            { label: 'กลุ่มทั้งหมดในรายชื่อ', values: [all.map((z) => z.label).join(' · ') || 'ไม่มีผู้ป่วย'], same: true },
+            { label: 'กลุ่ม ออกจาก ER', values: [leftGroups.length ? 'มี' : 'ไม่มี'], same: leftGroups.length === 0 },
+            { label: `HN ${A.hn} ในรายชื่อ`, values: [still ? 'มี' : 'ไม่มี'], same: !still },
+          ], { side: 'right' });
           await markEvidence(expected(sidebar(n), `ไม่มี A (HN ${A.hn}) · ไม่มีกลุ่ม ออกจาก ER`));
           await snapEvidence(n, 'หลังจำหน่าย — รายชื่อทุกกลุ่ม');
           expect(all.filter((z) => z.label.includes('ออกจาก ER')), 'ต้องไม่มีกลุ่ม ออกจาก ER').toEqual([]);
@@ -686,4 +778,21 @@ test.describe('SBH-2618 ER รายการงานพยาบาล Redesig
       if (nurseFailed) throw nurseFailed;
     },
   );
+
+  test('ปิด Visit ผู้ป่วยที่รอบ KEEP จดไว้ (เฉพาะรายในไฟล์ state)', { tag: ['@SBH-2618-CLOSE'] }, async ({ page }) => {
+    test.setTimeout(900_000);
+    const visits = readState();
+    test.info().annotations.push({ type: 'ไฟล์ state', description: `${STATE_FILE} · ${visits.length} ราย` });
+    const left: ErVisit[] = [];
+    for (const visit of visits) {
+      const result = await closeVisitAtCashier(page, visit.hn, visit.vn).then(
+        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+        (error: Error) => { left.push(visit); return `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`; },
+      );
+      test.info().annotations.push({ type: 'ปิด Visit', description: `HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}` });
+      console.log(`    HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}`);
+    }
+    writeState(left);
+    expect(left.map((v) => v.hn), 'ปิด Visit ครบทุกราย').toEqual([]);
+  });
 });

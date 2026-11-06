@@ -26,6 +26,7 @@ import { VITALS_HIGH_MEWS, VITALS_NORMAL, gotoVisit, recordMenu } from '../../..
 // "ชื่อผู้ใช้งานที่ถูกต้อง" = ชื่อที่แถว "เปิด ER Visit / ผู้ป่วยมาถึง" แสดง (ทำด้วยบัญชีเดียวกัน — Super_User = user1)
 // ข้อมูล: ผู้ป่วย AUTO ใหม่ 1 ราย → Visit ER → Triage ESI 2 (MEWS สูง) → ... → ปิด Visit ที่การเงินท้ายเทส (afterEach)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-2355
+// รัน (SBH Prod — ผู้ใช้อนุญาต 5 พ.ย. 2026 · สร้าง 1 ราย แล้วปิด Visit): npx playwright test -c playwright.sbh-prod.cards.config.ts --headed --grep @SBH-2355
 // SBH2355_VISIT=<HN>,<VN>,<EN> = ทำต่อกับผู้ป่วยเดิม (Triage แล้ว) · SBH2355_ONLY=1,3,… = เล่นเฉพาะ TC ที่ระบุ · SBH2355_KEEP=1 = ไม่ปิด Visit ท้ายเทส
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
@@ -179,12 +180,33 @@ test.describe(`SBH-2355 Timeline แสดงชื่อผู้ใช้ง�
 
       // ---------- Pre-condition / TC-001 ขั้น 1: ผู้ป่วยใหม่ เปิด Visit ER + คัดกรองครั้งแรก ----------
       // คลิปแยก TC เริ่มได้หลังหน้าแรกโหลด (fixture เริ่มอัดหลังโหลดแอป) → startClip หลัง goto ครั้งแรก
+      const triageFirst = () =>
+        checkStep(page, `${TC(1)} ขั้น 1 บันทึกคัดกรองครั้งแรก (ESI 2 · MEWS สูง)`, async () => {
+        await fillErTriageForm(page, { level: 2, vitals: VITALS_HIGH_MEWS });
+        await markEvidence(filled(erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' })), clicked(erTriageSaveButton(page)));
+        await snapEvidence(page, 'ก่อนกด — บันทึกคัดกรองครั้งแรก');
+        await saveErTriageForm(page, `บันทึกคัดกรองครั้งแรกของ ${visit.en}`);
+        await snapToast(triageToast, 'หลังกด — แจ้งเตือน บันทึกคัดกรอง');
+        await expect(summary, 'บันทึก Triage แล้วหน้าต้องเปลี่ยนเป็น Overview ของ Visit').toBeVisible({ timeout: 60_000 });
+        await expect(main.getByText(/Triage Level|TRIAGE LEVEL/i).first()).toBeVisible();
+        await dismissToast(page, 'กรอกข้อมูล คัดกรอง ER สำเร็จ');
+        await markEvidence(expected(summary));
+        await holdForClip(page);
+      });
       if (reuse.length) {
         visit = { hn: reuse[0], vn: reuse[1], en: reuse[2] };
         note('ทำต่อกับผู้ป่วยเดิม', `HN ${visit.hn} · ${visit.vn} · ${visit.en}`);
         await gotoVisit(page, visit);
-        await expect(summary).toBeVisible({ timeout: 60_000 });
+        // รอบก่อนพังที่บันทึกคัดกรอง (SBH Prod 5 พ.ย. 2026) → Visit ยังไม่คัดกรอง = คัดกรองต่อกับรายเดิม ไม่สร้างผู้ป่วยใหม่
+        const triageHeading = main.getByRole('heading', { name: 'คัดกรอง ER', exact: true });
+        await expect(summary.or(triageHeading).first()).toBeVisible({ timeout: 60_000 });
         await startClip(page, 'TC-001');
+        // หน้า Overview ก็มีหัว "คัดกรอง ER" (แผงคัดกรองที่บันทึกแล้ว) → ตัดสินจาก summary ของ Visit ไม่ใช่หัวข้อ
+        await page.waitForTimeout(3_000);
+        if (!(await summary.isVisible())) {
+          await expect(erTriagePanel(page).getByRole('spinbutton', { name: 'Systolic' }).first(), 'ฟอร์มคัดกรองต้องโหลดเสร็จ').toBeVisible({ timeout: 90_000 });
+          await triageFirst();
+        }
       } else {
         await checkStep(page, `${TC(1)} ขั้น 1 เปิด Visit ER ให้ผู้ป่วยรายใหม่`, async () => {
           await gotoErDashboard(page);
@@ -200,18 +222,7 @@ test.describe(`SBH-2355 Timeline แสดงชื่อผู้ใช้ง�
           await holdForClip(page);
         });
 
-        await checkStep(page, `${TC(1)} ขั้น 1 บันทึกคัดกรองครั้งแรก (ESI 2 · MEWS สูง)`, async () => {
-          await fillErTriageForm(page, { level: 2, vitals: VITALS_HIGH_MEWS });
-          await markEvidence(filled(erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' })), clicked(erTriageSaveButton(page)));
-          await snapEvidence(page, 'ก่อนกด — บันทึกคัดกรองครั้งแรก');
-          await saveErTriageForm(page, `บันทึกคัดกรองครั้งแรกของ ${visit.en}`);
-          await snapToast(triageToast, 'หลังกด — แจ้งเตือน บันทึกคัดกรอง');
-          await expect(summary, 'บันทึก Triage แล้วหน้าต้องเปลี่ยนเป็น Overview ของ Visit').toBeVisible({ timeout: 60_000 });
-          await expect(main.getByText(/Triage Level|TRIAGE LEVEL/i).first()).toBeVisible();
-          await dismissToast(page, 'กรอกข้อมูล คัดกรอง ER สำเร็จ');
-          await markEvidence(expected(summary));
-          await holdForClip(page);
-        });
+        await triageFirst();
       }
 
       // ---------- TC-001 แพทย์เริ่มการรักษา ----------

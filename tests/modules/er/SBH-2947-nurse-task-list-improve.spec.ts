@@ -13,7 +13,7 @@ import { alerted, clearEvidenceMarks, clicked, expected, filled, hideCompareTabl
 import { finishVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
-import { registerAndOpenErVisit, SETTINGS, submitOrders } from '../../../mock-data/uat-er';
+import { registerAndOpenErVisit, SETTINGS, submitOrders, SYSTEM } from '../../../mock-data/uat-er';
 import { VITALS_HIGH_MEWS, VITALS_NORMAL, careMenu, gotoVisit, options } from '../../../mock-data/uat-play';
 import { authFile } from '../../../utils/env';
 
@@ -53,21 +53,49 @@ const URGENCY = 'Urgency';
 const ISO1 = 'Isolation 1';
 const ISO2 = 'Isolation 2';
 const OBS = 'Observation';
-const STATE_FILE = path.join(__dirname, '..', '..', '..', '.cache', 'sbh2947-visits.json');
+// ไฟล์จด Visit แยกตามระบบ (SBH Prod 6 พ.ย. 2026: กันขั้นปิด Visit ไปปิด HN ของ dev-x บน Prod)
+const STATE_FILE = path.join(__dirname, '..', '..', '..', '.cache', SYSTEM === 'dev-x' ? 'sbh2947-visits.json' : `sbh2947-visits-${SYSTEM}.json`);
+const ON_PROD = SYSTEM !== 'dev-x';
 
 // ---------- ผู้ป่วยที่เปิด Visit ในชุดนี้ (ปิดที่การเงินท้ายเทส 5) ----------
+type SavedVisit = ErVisit & { label: string; at: string; stage?: 'created' | 'triaged' | 'ordered'; an?: string; ward?: string; bed?: string; discharged?: boolean; closed?: boolean };
 function rememberVisit(label: string, v: ErVisit) {
   const all = readVisits();
-  all.push({ label, hn: v.hn, vn: v.vn, en: v.en, at: new Date().toISOString() });
+  all.push({ label, hn: v.hn, vn: v.vn, en: v.en, at: new Date().toISOString(), stage: 'created' });
+  writeVisits(all);
+}
+function writeVisits(all: SavedVisit[]) {
   fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
   fs.writeFileSync(STATE_FILE, JSON.stringify(all, null, 1));
 }
-function readVisits(): (ErVisit & { label: string; at: string })[] {
+function updateVisit(en: string, patch: Partial<SavedVisit>) {
+  const all = readVisits();
+  const v = all.find((x) => x.en === en);
+  if (!v) return;
+  Object.assign(v, patch);
+  writeVisits(all);
+}
+function readVisits(): SavedVisit[] {
   try {
     return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
   } catch {
     return [];
   }
+}
+/**
+ * SBH2947_REUSE=1 (โหมดทำต่อ — SBH Prod 6 พ.ย. 2026 · กันสร้างผู้ป่วยเกินเพดานเมื่อเทสล้มกลางทาง):
+ * ใช้ผู้ป่วยรายเดิมวันนี้ที่ label เดียวกันและคัดกรอง + สั่ง Imaging ครบแล้ว (stage ordered) แทนการสร้างใหม่
+ */
+const reused = new Set<string>();
+/** ผู้ป่วยที่ต้องส่งรายการที่ค้างในตะกร้า (submitOrders resume) */
+const resumeOrder = new Set<string>();
+function reusableVisit(label: string): ErVisit | undefined {
+  if (!process.env.SBH2947_REUSE) return undefined;
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const v = readVisits().filter((x) => x.label === label && x.stage === 'ordered' && !x.closed && new Date(x.at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }) === today).pop();
+  if (!v) return undefined;
+  reused.add(v.en);
+  return { hn: v.hn, vn: v.vn, en: v.en } as ErVisit;
 }
 
 // ---------- หน้า รายการงานพยาบาล (หน้าต่าง Nurse) ----------
@@ -312,13 +340,47 @@ interface Prep {
 
 /** ผู้ป่วย AUTO ใหม่ → Visit ER → คัดกรอง (ESI / สัญญาณชีพ / Fast Track / โซน) → สั่ง Imaging */
 async function preparePatient(page: Page, p: Prep, note: (t: string, d: string) => void): Promise<ErVisit> {
-  await gotoErDashboard(page);
-  const patient = newTestPatient(p.label);
-  const visit = await registerAndOpenErVisit(page, patient);
-  rememberVisit(p.label, visit);
-  note(`ผู้ป่วย ${p.label}`, `${patient.firstName} ${patient.familyName} · HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
-  await expect(mainOf(page).getByRole('heading', { name: 'คัดกรอง ER', exact: true })).toBeVisible({ timeout: 60_000 });
-  await dismissToast(page, 'สร้าง Visit สำเร็จ');
+  const old = reusableVisit(p.label);
+  // SBH2947_REUSE: คัดกรองแล้วแต่สั่ง Order ไม่สำเร็จ (stage triaged · Prod Retest 6 พ.ย. ผู้ป่วย D รายการค้างในตะกร้า) → เปิดหน้าผู้ป่วย แล้ว orderImaging ส่งรายการที่ค้าง (resume)
+  const triaged = process.env.SBH2947_REUSE
+    ? readVisits().filter((x) => x.label === p.label && x.stage === 'triaged' && !x.closed).pop()
+    : undefined;
+  if (triaged) {
+    const v = { hn: triaged.hn, vn: triaged.vn, en: triaged.en } as ErVisit;
+    note(`ผู้ป่วย ${p.label}`, `ใช้รายเดิม (SBH2947_REUSE · คัดกรองแล้ว ส่ง Order ต่อ) HN ${v.hn} · VN ${v.vn} · EN ${v.en}`);
+    resumeOrder.add(v.en);
+    await gotoVisit(page, v);
+    return v;
+  }
+  if (old) {
+    // ทุกรายใช้รายเดิม = หน้าหลักยังไม่ได้เปิดแอป (ไม่มี Authorization header ให้ trackAuthorization) → เปิด ER Dashboard ครั้งแรก
+    if (!/\/cortex\//.test(page.url())) await gotoErDashboard(page);
+    note(`ผู้ป่วย ${p.label}`, `ใช้รายเดิม (SBH2947_REUSE) HN ${old.hn} · VN ${old.vn} · EN ${old.en} — คัดกรอง + สั่ง Imaging ไว้แล้ว`);
+    return old;
+  }
+  // SBH2947_REUSE: รายที่สร้าง Visit แล้วแต่ยังคัดกรองไม่เสร็จ (stage created) → เปิดหน้าผู้ป่วยแล้วคัดกรองต่อ (SBH Prod 6 พ.ย. P5 ล้มที่ Fast Track)
+  const half = process.env.SBH2947_REUSE
+    ? readVisits().filter((x) => x.label === p.label && x.stage === 'created' && !x.closed && new Date(x.at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }) === new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })).pop()
+    : undefined;
+  let visit: ErVisit;
+  const triageHeading = mainOf(page).getByRole('heading', { name: 'คัดกรอง ER', exact: true });
+  if (half) {
+    visit = { hn: half.hn, vn: half.vn, en: half.en } as ErVisit;
+    note(`ผู้ป่วย ${p.label}`, `ใช้รายเดิม (SBH2947_REUSE · ยังไม่คัดกรอง) HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
+    await gotoVisit(page, visit);
+    if (!(await triageHeading.isVisible({ timeout: 20_000 }).catch(() => false)) && !(await triageHeading.waitFor({ timeout: 20_000 }).then(() => true, () => false))) {
+      await careMenu(page, 'คัดกรอง ER', triageHeading);
+    }
+    await expect(erTriagePanel(page).getByRole('combobox', { name: 'Eye Opening (E)' }).first(), 'ฟอร์มคัดกรองต้องโหลดเสร็จ').toBeVisible({ timeout: 120_000 });
+  } else {
+    await gotoErDashboard(page);
+    const patient = newTestPatient(p.label);
+    visit = await registerAndOpenErVisit(page, patient);
+    rememberVisit(p.label, visit);
+    note(`ผู้ป่วย ${p.label}`, `${patient.firstName} ${patient.familyName} · HN ${visit.hn} · VN ${visit.vn} · EN ${visit.en}`);
+    await expect(triageHeading).toBeVisible({ timeout: 60_000 });
+    await dismissToast(page, 'สร้าง Visit สำเร็จ');
+  }
   if (p.triage !== false) {
     const panel = erTriagePanel(page);
     await fillErTriageForm(page, { level: p.level ?? 3, vitals: p.vitals ?? VITALS_NORMAL });
@@ -326,8 +388,12 @@ async function preparePatient(page: Page, p: Prep, note: (t: string, d: string) 
     if (p.fastTrack) {
       const ft = panel.getByRole('combobox', { name: /Suspect Fast Track Type/ }).filter({ visible: true }).last();
       await ft.scrollIntoViewIfNeeded();
-      await ft.selectOption({ label: p.fastTrack });
-      await expect(ft.locator('option:checked')).toHaveText(p.fastTrack);
+      // ชื่อตัวเลือกต่างตาม env: dev-x "STEMI" · SBH Prod "STEMI / ACS Fast Track" (6 พ.ย. 2026) → เลือกตัวที่มีคำนั้น
+      const ftLabel = (await ft.locator('option').allInnerTexts()).map((t) => t.trim()).find((t) => t === p.fastTrack) ??
+        (await ft.locator('option').allInnerTexts()).map((t) => t.trim()).find((t) => t.includes(p.fastTrack!));
+      expect(ftLabel, `ต้องมีตัวเลือก Fast Track ที่มีคำว่า ${p.fastTrack}`).toBeTruthy();
+      await ft.selectOption({ label: ftLabel! });
+      await expect(ft.locator('option:checked')).toHaveText(ftLabel!);
       marks.push(filled(ft, `Fast Track ${p.fastTrack}`));
     }
     if (p.zone) {
@@ -356,12 +422,14 @@ async function preparePatient(page: Page, p: Prep, note: (t: string, d: string) 
     await saveErTriageForm(page, `บันทึกคัดกรองของ ${visit.en}`);
     await expectOk(await zoned, `ส่งผู้ป่วย ${p.label} เข้าโซน`);
     await dismissToast(page, 'กรอกข้อมูล คัดกรอง ER สำเร็จ');
+    updateVisit(visit.en, { stage: 'triaged' });
   }
   return visit;
 }
 
 /** สั่ง Imaging ให้ผู้ป่วย (One Day Order) — คืนข้อความผล */
 async function orderImaging(page: Page, visit: ErVisit, reload = false) {
+  if (reused.has(visit.en)) return; // SBH2947_REUSE — รายเดิมสั่งไว้แล้ว
   if (reload) await gotoVisit(page, visit);
   // รอบ 3 (31 ต.ค.): หลังคัดกรอง ESI 1 กดเมนู One Day Order แล้วแผงไม่เปลี่ยน 2 นาที — เปิดหน้าผู้ป่วยใหม่แล้วกดซ้ำได้ปกติ
   await openOneDayOrder(page, 60_000).catch(async () => {
@@ -369,7 +437,8 @@ async function orderImaging(page: Page, visit: ErVisit, reload = false) {
     await gotoVisit(page, visit);
     await openOneDayOrder(page);
   });
-  await submitOrders(page, [SETTINGS.imagingCode]);
+  await submitOrders(page, [SETTINGS.imagingCode], { resume: resumeOrder.has(visit.en) });
+  updateVisit(visit.en, { stage: 'ordered' });
 }
 
 /** Disposition (Improved · With Approval · K30) → ลงนาม → (ถ้า discharge) รายการ ER แท็บ รอจำหน่าย → จำหน่าย */
@@ -442,7 +511,8 @@ async function pickFreeBed(page: Page): Promise<string> {
   for (let i = 0; i < 60; i++) {
     // ข้อความตัวเลือกเป็นหลาย element ติดกัน ("SBH013สามัญว่าง") → ดูจาก innerText ทีละตัว (รอบ 5 ใช้ regex ช่องว่างแล้วหาไม่เจอ)
     const texts = (await options(page).allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
-    const idx = texts.findIndex((t) => /ว่าง/.test(t) && !/ไม่ว่าง/.test(t) && !/จองแล้ว/.test(t));
+    // SBH Prod (ผู้ใช้อนุญาต 6 พ.ย. 2026 "ใช้ SBHAUTO 1 เตียง แล้วคืน"): เลือกเฉพาะเตียง SBHAUTO-xx ที่ว่าง
+    const idx = texts.findIndex((t) => /ว่าง/.test(t) && !/ไม่ว่าง/.test(t) && !/จองแล้ว/.test(t) && (!ON_PROD || /SBHAUTO-/.test(t)));
     if (idx >= 0) {
       const free = options(page).nth(idx);
       await free.click({ timeout: 4_000 }).catch(() => free.click({ force: true }));
@@ -476,6 +546,19 @@ async function admitWithBed(page: Page, visit: ErVisit, auth: () => string, note
   for (const label of [/^เลขเตียง :/, /^ประเภทการรับ Admit :/, /^รับ Admit จาก :/]) {
     const sel = main.getByText(label).first().locator('xpath=following::div[contains(concat(" ", @class, " "), " ant-select ")][1]');
     const current = (await sel.innerText()).trim();
+    // SBH Prod: เตียงตอนสร้าง AN ต้องเป็น SBHAUTO-xx ที่ว่าง (ห้ามจองเตียงอื่น) — ค่าตั้งต้นไม่ใช่ SBHAUTO → เปิดเลือกเอง
+    if (ON_PROD && /^เลขเตียง/.test(label.source.replace('^', '')) && !/SBHAUTO-/.test(current)) {
+      // dropdown เตียงหน้าสร้าง AN ไม่บอกสถานะ "ว่าง" (Prod 6 พ.ย.) → เลือกตามชื่อจาก env SBH2947_BED (เช็คว่างด้วย graphql bedSetupBeds ก่อนรัน)
+      const want = process.env.SBH2947_BED ?? 'SBHAUTO-15';
+      await sel.click();
+      await page.keyboard.type(want);
+      const opt = options(page).filter({ hasText: new RegExp(`^\\s*${want}\\s*$`) }).first();
+      await expect(opt, `ต้องมีเตียง ${want} ในรายการ`).toBeVisible({ timeout: 15_000 });
+      await opt.click();
+      await page.waitForTimeout(800);
+      picked.push((await sel.innerText()).trim());
+      continue;
+    }
     // เตียงตอนสร้าง AN ใช้ตัวแรกแบบ SBH-2593 (รอบ 3 สร้าง AN ได้) — เตียงว่างจริงไปเลือกตอนลงเตียงที่ IPD
     // (รอบ 4 เลือก "ว่าง" ตัวแรกที่นี่ = TESTBED22 แล้วขึ้น "คำขอเดิมยังรอยืนยันผล")
     if (current && current !== 'เลือก') {
@@ -549,8 +632,14 @@ async function putToBed(page: Page, visit: ErVisit, ward: string, note: (t: stri
   // รอบ 3: เตียงที่ติดมาจากตอนสร้าง AN (SBH009 ไม่ว่าง) → "คำขอถูกปฏิเสธ กรุณาโหลดข้อมูลใหม่…" → เลือกเตียงที่ว่าง · ถูกปฏิเสธอีกให้กดโหลดใหม่แล้วกรอกซ้ำ (ไม่เกิน 2 รอบ)
   for (let attempt = 1; ; attempt++) {
     await expect(selectAfter(/เตียง :/)).toBeVisible({ timeout: 30_000 });
-    await selectAfter(/เตียง :/).click();
-    bed = await pickFreeBed(page);
+    const prefilled = (await selectAfter(/เตียง :/).innerText()).replace(/\s+/g, ' ').trim();
+    // SBH Prod: ครั้งแรกใช้เตียง SBHAUTO ที่จองไว้ตอนสร้าง AN (ไม่ให้จองค้าง 2 เตียง)
+    if (ON_PROD && attempt === 1 && /SBHAUTO-/.test(prefilled)) {
+      bed = prefilled;
+    } else {
+      await selectAfter(/เตียง :/).click();
+      bed = await pickFreeBed(page);
+    }
     await page.waitForTimeout(800);
     const doctor = selectAfter(/แพทย์เจ้าของไข้/);
     if (/^\s*เลือก\s*$/.test(await doctor.innerText())) {
@@ -586,6 +675,86 @@ async function putToBed(page: Page, visit: ErVisit, ward: string, note: (t: stri
   await snapEvidence(page, 'หลังกด — ยืนยันลงเตียง');
   note('ลงเตียง', `IPD ${ward} · ${bed}`);
   return bed;
+}
+
+/**
+ * IPD Discharge คืนเตียง (SBH Prod 6 พ.ย. 2026 — ผู้ใช้เลือก "ใช้ SBHAUTO 1 เตียง แล้วคืน" · วิธีจาก screens/ipd-bed.md):
+ * เลือกหอ → รายการเตียง แท็บ เตียงทั้งหมด → แถว HN → ปุ่ม ⋮ ท้ายแถว → Discharge (เมนูไม่ใช่ role menuitem) →
+ * "ยืนยันการจำหน่ายผู้ป่วย" → ยืนยันรายการที่ทบทวนแล้ว → DischargeAdmission 200 → เตียงว่าง → ปิด Visit ER ที่การเงินได้
+ */
+async function ipdDischarge(page: Page, hn: string, ward: string): Promise<string> {
+  const main = mainOf(page);
+  await page.goto('/cortex/ipd/select-ward');
+  await main.locator('.ant-select').first().click();
+  await expect(options(page).first()).toBeVisible({ timeout: 30_000 });
+  const wardOpt = options(page).filter({ hasText: ward }).first();
+  await ((await wardOpt.count()) ? wardOpt : options(page).first()).click();
+  await main.getByRole('button', { name: 'ส่ง' }).click();
+  await page.waitForURL(/ipd\/bed-list/, { timeout: 60_000 });
+  await main.getByRole('tab', { name: /เตียงทั้งหมด/ }).first().click().catch(() => main.getByText('เตียงทั้งหมด', { exact: true }).first().click());
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+  // ตัวกรองแพทย์เจ้าของไข้ค้างจากผู้ใช้ (Prod 6 พ.ย.: ดร. วิชัย) → ตารางว่าง → ล้างตัวกรองก่อน
+  const clear = main.getByRole('button', { name: /ล้างตัวกรอง/ });
+  if (await clear.isVisible().catch(() => false)) await clear.click();
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+  const row = main.getByRole('row').filter({ hasText: hn }).first();
+  await expect(row, `แถวผู้ป่วย HN ${hn} ในแท็บ เตียงทั้งหมด`).toBeVisible({ timeout: 60_000 });
+  const discharge = page.locator('.ant-dropdown:visible').getByText('Discharge', { exact: true }).first();
+  await expect(async () => {
+    await row.getByRole('button').last().click();
+    await expect(discharge).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 40_000 });
+  await discharge.click();
+  const dlg = page.locator('.ant-modal:visible').filter({ hasText: 'ยืนยันการจำหน่ายผู้ป่วย' }).first();
+  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  // Prod 6 พ.ย. 16:20 (index-B30_rCX7.js): ช่องบังคับ สถานะ / ประเภทจำหน่ายโดยพยาบาล ว่าง (รุ่นก่อนเติมให้) → เลือกเอง
+  for (const [label, prefer] of [[/^\s*\*?\s*สถานะจำหน่ายโดยพยาบาล/, /Complete Recovery/], [/^\s*\*?\s*ประเภทจำหน่ายโดยพยาบาล/, /With Approval/]] as const) {
+    const sel = dlg.getByText(label).first().locator('xpath=following::div[contains(concat(" ", @class, " "), " ant-select ")][1]');
+    if (!(await sel.count()) || (await sel.innerText()).trim()) continue;
+    await sel.click();
+    await expect(options(page).first()).toBeVisible({ timeout: 15_000 });
+    const want = options(page).filter({ hasText: prefer }).first();
+    await ((await want.count()) ? want : options(page).first()).click();
+    await page.waitForTimeout(500);
+  }
+  const ok = dlg.getByRole('button', { name: 'ยืนยันรายการที่ทบทวนแล้ว' });
+  await expect(ok, 'ปุ่มยืนยันต้องกดได้หลังกรอกช่องบังคับ').toBeEnabled({ timeout: 15_000 });
+  const done = page.waitForResponse((r) => r.request().method() === 'POST' && /\/cortex-api\/graphql/.test(r.url()) && /DischargeAdmission/.test(r.request().postData() ?? ''), { timeout: 60_000 });
+  await ok.click();
+  const res = await done;
+  const body = (await res.json().catch(() => ({}))) as { errors?: { message: string }[] };
+  if (!res.ok() || body.errors?.length) throw new Error(`DischargeAdmission ${res.status()} ${body.errors?.map((e) => e.message).join(' / ') ?? ''}`);
+  await expect(dlg).toBeHidden({ timeout: 30_000 });
+  return 'Discharge ที่ IPD แล้ว (คืนเตียง)';
+}
+
+/**
+ * ปิด Visit ผู้ป่วยในไฟล์จด Visit ที่ยังไม่ปิด (closed) — ลงเตียง IPD แล้ว → Discharge คืนเตียงก่อน ·
+ * มี order ค้างออกใบแจ้งหนี้ (400 ErrAccountHasUninvoicedItems) → หน้าบัญชี → สร้างใบแจ้งหนี้ + ชำระเงินสด → ปิดอีกครั้ง
+ */
+async function closeAllVisits(page: Page, note: (t: string, d: string) => void) {
+  for (const v of readVisits().filter((x) => !x.closed || (x.bed && !x.discharged))) {
+    if (v.bed && !v.discharged) {
+      const d = await ipdDischarge(page, v.hn, v.ward ?? '').then(
+        (r) => { updateVisit(v.en, { discharged: true }); return r; },
+        (error: Error) => `Discharge ที่ IPD ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+      );
+      note('หลังเทส', `${v.label} HN ${v.hn} · AN ${v.an} · ${v.bed}: ${d}`);
+    }
+    const closeOnce = () => closeVisitAtCashier(page, v.hn, v.vn);
+    const result = await closeOnce()
+      .catch(async (error: Error) => {
+        if (!/Uninvoiced/.test(error.message)) throw error;
+        await gotoCashierAccount(page, v.hn, v.vn);
+        await payAllInCash(page);
+        return closeOnce();
+      })
+      .then(
+        (closed) => { updateVisit(v.en, { closed: true }); return closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'; },
+        (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+      );
+    note('หลังเทส', `${v.label} HN ${v.hn} · ${v.vn}: ${result}`);
+  }
 }
 
 /** ยกเลิก Encounter จากช่องสถานะมุมขวาบนของหน้าผู้ป่วย (วิธีเดียวกับ UAT-ER-10) */
@@ -765,7 +934,8 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
             { label: `หัวกลุ่มของ ${who}`, values: [label || '-', zone], same: zoneName(label) === zone },
             { label: `หัวกลุ่มที่มีคำว่า ${old}`, values: [oldHit.join(', ') || 'ไม่มี', 'ไม่มี'], same: oldHit.length === 0 },
           ], { side: 'bottom' });
-          await markEvidence(expected(zoneHeaderOf(n, v.hn), zone), expected(patientBtn(n, v.hn), `ผู้ป่วย ${who}`));
+          // ป้ายเดียวที่หัวกลุ่ม + กรอบแถวผู้ป่วยไม่มีป้าย (SBH Prod 6 พ.ย.: ป้ายของแถวไปทับชื่อหัวกลุ่ม TC-009 / 010)
+          await markEvidence(expected(zoneHeaderOf(n, v.hn), `${zone} · ผู้ป่วย ${who}`), patientBtn(n, v.hn));
           expect(zoneName(label), `${who} ต้องอยู่ใต้หัวกลุ่ม ${zone}`).toBe(zone);
           expect(oldHit, `ต้องไม่มีหัวกลุ่ม ${old}`).toEqual([]);
         });
@@ -804,7 +974,35 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
 
       // ---------- TC-017 Bubble แดงที่เมนู ----------
       await startClip(n, 'TC-017');
-      await nsoft(`${TC(17)} เมนู รายการงานพยาบาล แสดง Bubble แดง (มี Order ที่ยังไม่รับ)`, async () => {
+      // รุ่นแก้ SBH-3843 (dev-x 4 พ.ย. · SBH Prod index-BoC124P0.js 6 พ.ย.) Bubble เป็นวงตัวเลข → ตรวจแบบเทส RETEST (SBH2947_OLD_DOT=1 = ตรวจแบบจุดของรุ่นเก่า)
+      if (!process.env.SBH2947_OLD_DOT) await nsoft(`${TC(17)} เมนู รายการงานพยาบาล แสดง Bubble แดงแบบเดียวกับ ผู้ป่วยนอก (มี Order ที่ยังไม่รับ)`, async () => {
+        const auth = trackAuthorization(n);
+        await refresh(n);
+        await openNav(n);
+        await expect(nurseBadge(n).first(), 'เมนู รายการงานพยาบาล ต้องมี Bubble').toBeVisible({ timeout: 60_000 });
+        const { api, seen } = await waitBadgeMatchesApi(n, auth);
+        const opd = opdMenuTitle(n).locator('.ant-badge-count').first();
+        const opdInfo = (await opd.count())
+          ? await opd.evaluate((e) => ({ text: (e.textContent ?? '').trim(), bg: getComputedStyle(e).backgroundColor, h: Math.round(e.getBoundingClientRect().height) }))
+          : null;
+        const ours = api.counted.filter((e) => [A, Y, I1, I2, O].some((v) => v.en === e.en));
+        nnote(`${TC(17)} Bubble`, `เห็น ${seen ? (seen.dot ? 'จุด (ไม่มีตัวเลข)' : `"${seen.text}"`) : 'ไม่มี'} ${seen ? `สี ${seen.bg} · ${seen.w}×${seen.h}px` : ''} · ที่ควรเป็น (API ผู้ป่วยโซนจริง) ${api.total} งาน: ${api.counted.map((e) => `HN ${e.hn} ${e.taskTotalCount}`).join(', ')} · ไม่นับ (โซน Triage / ไม่ทราบโซน) ${api.notCounted.map((e) => `HN ${e.hn} ${e.taskTotalCount}`).join(', ') || '-'} · ผู้ป่วยนอก ${opdInfo ? `"${opdInfo.text}" สี ${opdInfo.bg} สูง ${opdInfo.h}px` : 'ไม่มี'}`);
+        await showCompareTable(n, 'Bubble ของเมนู รายการงานพยาบาล', ['ที่เห็น', 'ที่ควรเป็น'], [
+          { label: 'รูปแบบ', values: [seen ? (seen.dot ? 'จุด ไม่มีตัวเลข' : `วงมีตัวเลข (สูง ${seen.h}px)`) : 'ไม่มี', opdInfo ? `วงมีตัวเลขแบบ ผู้ป่วยนอก (สูง ${opdInfo.h}px)` : 'วงมีตัวเลข'], same: !!seen && !seen.dot },
+          { label: 'สี', values: [seen ? colorName(seen.bg) : '-', 'แดง'], same: !!seen && colorName(seen.bg) === 'แดง' },
+          { label: 'ตัวเลข', values: [seen?.text ?? '-', `${badgeText(api.total)} (งานรอรับ ${api.counted.length} ราย)`], same: seen?.text === badgeText(api.total) },
+          { label: 'ผู้ป่วยชุดนี้ที่มีงานรอรับ (API)', values: [`${ours.length} ราย`, 'อย่างน้อย 1'], same: ours.length > 0 },
+        ], { side: 'right', width: '640px' });
+        const marks = [expected(nurseMenu(n), `Bubble แดง ${seen?.text ?? ''}`)];
+        if (opdInfo) marks.push(expected(opdMenuTitle(n), `เทียบ ผู้ป่วยนอก ${opdInfo.text}`));
+        await markEvidence(...marks);
+        await holdForClip(n, 2_500);
+        expect(seen?.dot, 'Bubble ต้องเป็นวงตัวเลข ไม่ใช่จุด').toBe(false);
+        expect(colorName(seen?.bg ?? ''), 'Bubble ต้องเป็นสีแดง').toBe('แดง');
+        expect(seen?.text, 'ตัวเลขต้องเท่างานรอรับของผู้ป่วยโซนจริง').toBe(badgeText(api.total));
+        expect(ours.length, 'Pre-condition: ผู้ป่วยชุดนี้ต้องมีงานรอรับ').toBeGreaterThan(0);
+      });
+      else await nsoft(`${TC(17)} เมนู รายการงานพยาบาล แสดง Bubble แดง (มี Order ที่ยังไม่รับ)`, async () => {
         const auth = trackAuthorization(n);
         await refresh(n);
         const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
@@ -1077,7 +1275,10 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
         if (!who.includes(k)) return;
         const v = V[k];
         await startClip(n, `TC-${pad(no)}`);
-        const ok1 = await nsoft(`${TC(no)} ขั้น 1 ค้น HN ผู้ป่วย ${k} → พบในรายการ`, async () => expectFound(n, v.hn, k));
+        // SBH2947_SKIP1=F — ขั้น 1 ของผู้ป่วยรายนี้ผ่านแล้วในรอบก่อน (ทำต่อหลังจำหน่ายแล้ว ผู้ป่วยไม่อยู่ในรายการ)
+        const skip1 = (process.env.SBH2947_SKIP1 ?? '').split(',').includes(k);
+        if (skip1) nnote(`${TC(no)} ขั้น 1`, `ผ่านแล้วในรอบก่อน (ผู้ป่วย ${k} HN ${v.hn} พบในรายการ) — รอบนี้ทำต่อจากขั้น 2`);
+        const ok1 = skip1 || (await nsoft(`${TC(no)} ขั้น 1 ค้น HN ผู้ป่วย ${k} → พบในรายการ`, async () => expectFound(n, v.hn, k)));
         await clearSearch(n);
         await startClip(page, `TC-${pad(no)}-staff`);
         const done = await soft(`${TC(no)} ขั้น 2 ${label}`, action);
@@ -1088,9 +1289,20 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
       };
 
       await run(3, 'C', 'แพทย์ Disposition เลือก Admit > Save → Admit Order → สร้าง AN + เตียง → IPD เพิ่มผู้ป่วยลงเตียง', async () => {
-        await soft(`${TC(3)} ขั้น 2.1 Disposition เลือก รับไว้รักษาต่อIPD > บันทึกฉบับร่าง`, async () => saveAdmitDisposition(page, V.C));
-        const { ward } = await admitWithBed(page, V.C, authorization, note);
-        await putToBed(page, V.C, ward, note);
+        // SBH2947_REUSE + ผู้ป่วย C รายเดิมได้ AN แล้ว (ไฟล์จด Visit มี an / ward) → ข้ามไปลงเตียงที่ IPD (SBH Prod Retest 6 พ.ย.: ลงเตียงรอบแรกถูกปฏิเสธ)
+        const savedC = readVisits().find((x) => x.en === V.C.en);
+        let ward: string;
+        if (process.env.SBH2947_REUSE && savedC?.an && savedC.ward) {
+          ward = savedC.ward;
+          note('ผู้ป่วย C', `ทำต่อ: Disposition รับไว้รักษาต่อIPD + Admit Order + AN ${savedC.an} (${ward}) ทำไว้แล้วรอบก่อน → ลงเตียงที่ IPD`);
+        } else {
+          await soft(`${TC(3)} ขั้น 2.1 Disposition เลือก รับไว้รักษาต่อIPD > บันทึกฉบับร่าง`, async () => saveAdmitDisposition(page, V.C));
+          const r = await admitWithBed(page, V.C, authorization, note);
+          ward = r.ward;
+          updateVisit(V.C.en, { an: r.an, ward });
+        }
+        const bed = await putToBed(page, V.C, ward, note);
+        updateVisit(V.C.en, { bed });
         await expect.poll(async () => {
           const b = (await fetchBoard(page, authorization)).find((e) => e.en === V.C.en) as (Record<string, unknown> & { patientStatus?: string; admission?: { hasBed?: boolean } }) | undefined;
           return b ? `${b.patientStatus} hasBed=${b.admission?.hasBed}` : 'ไม่อยู่บนบอร์ด (admitted)';
@@ -1104,14 +1316,20 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
         await dischargeOf(page, V.E, 'E');
       });
       await run(6, 'F', 'Disposition Save + ลงนาม > จำหน่าย > การเงินปิด Visit', async () => {
-        await signDispositionOf(page, V.F, 'F');
-        await dischargeOf(page, V.F, 'F');
-        // ปิด Visit ที่มี order ได้ 400 ErrAccountHasUninvoicedItems → สร้างใบแจ้งหนี้ทั้งหมด + ชำระเงินสดก่อน
-        // (ชำระแล้วหน้าเว็บพาไปหน้าใบแจ้งหนี้ → closeVisitAtCashier เปิดหน้าบัญชีใหม่เอง — รอบ 4 ชำระใน beforeClose แล้วหาปุ่มปิด Visit ไม่เจอ)
-        await gotoCashierAccount(page, V.F.hn, V.F.vn);
-        const paid = await payAllInCash(page);
-        note('การเงิน F', `ใบแจ้งหนี้ ${paid.invoiceId} · ใบเสร็จ ${paid.receiptId} · ${paid.amount} บาท`);
-        await snapEvidence(page, 'หลังกด — ชำระเงิน F');
+        // SBH2947_REUSE + ผู้ป่วย F รายเดิมจำหน่ายแล้ว (Encounter discharged) → ข้ามไปปิด Visit ที่การเงิน (SBH Prod Retest 6 พ.ย.: ชำระเงินแล้วแต่สคริปต์รอหน้าต่าง ชำระเงิน ไม่ขึ้น)
+        const encF = (await (await page.request.get(`/cortex-api/er/encounters/${V.F.en}`, { headers: { authorization: authorization() } })).json()) as { latestStatusCode?: string };
+        if (process.env.SBH2947_REUSE && encF.latestStatusCode === 'discharged') {
+          note('ผู้ป่วย F', 'ทำต่อ: Disposition ลงนาม + จำหน่าย + ชำระเงิน ทำไว้แล้วรอบก่อน (Encounter discharged) → ปิด Visit ที่การเงิน');
+        } else {
+          await signDispositionOf(page, V.F, 'F');
+          await dischargeOf(page, V.F, 'F');
+          // ปิด Visit ที่มี order ได้ 400 ErrAccountHasUninvoicedItems → สร้างใบแจ้งหนี้ทั้งหมด + ชำระเงินสดก่อน
+          // (ชำระแล้วหน้าเว็บพาไปหน้าใบแจ้งหนี้ → closeVisitAtCashier เปิดหน้าบัญชีใหม่เอง — รอบ 4 ชำระใน beforeClose แล้วหาปุ่มปิด Visit ไม่เจอ)
+          await gotoCashierAccount(page, V.F.hn, V.F.vn);
+          const paid = await payAllInCash(page);
+          note('การเงิน F', `ใบแจ้งหนี้ ${paid.invoiceId} · ใบเสร็จ ${paid.receiptId} · ${paid.amount} บาท`);
+          await snapEvidence(page, 'หลังกด — ชำระเงิน F');
+        }
         const closed = await closeVisitAtCashier(page, V.F.hn, V.F.vn, async (close) => {
           await markEvidence(clicked(close, 'ปิด Visit'));
           await snapEvidence(page, 'ก่อนกด — การเงินปิด Visit F');
@@ -1613,24 +1831,7 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
     await startClip(n, 'after'); // จบคลิป TC-022 ก่อนขั้นปิด Visit (กับดัก SBH-2947 TC-022 คลิปยาว / หาย)
 
     // ---------- ปิด Visit ผู้ป่วยของชุดนี้ ----------
-    if (!process.env.SBH2947_KEEP) {
-      for (const v of readVisits()) {
-        // มี order ค้างออกใบแจ้งหนี้ (400 ErrAccountHasUninvoicedItems) → หน้าบัญชี → สร้างใบแจ้งหนี้ + ชำระเงินสด → ปิดอีกครั้ง
-        const closeOnce = () => closeVisitAtCashier(page, v.hn, v.vn);
-        const result = await closeOnce()
-          .catch(async (error: Error) => {
-            if (!/Uninvoiced/.test(error.message)) throw error;
-            await gotoCashierAccount(page, v.hn, v.vn);
-            await payAllInCash(page);
-            return closeOnce();
-          })
-          .then(
-          (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
-          (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
-        );
-        note('หลังเทส', `${v.label} HN ${v.hn} · ${v.vn}: ${result}`);
-      }
-    }
+    if (!process.env.SBH2947_KEEP) await closeAllVisits(page, note);
     let nurseFailed: unknown;
     try {
       nfinish();
@@ -1639,6 +1840,59 @@ test.describe('SBH-2947 ER รายการงานพยาบาล Improve
     }
     finish();
     if (nurseFailed) throw nurseFailed;
+  });
+
+  // ======================= ปิด Visit อย่างเดียว (SBH Prod Retest 6 พ.ย. 2026 — TC-003–006 รอบ 2 ไม่รันเทส BUBBLE) =======================
+  test('ปิด Visit ผู้ป่วยของชุดนี้ที่ยังไม่ปิด (Discharge IPD คืนเตียงก่อน)', { tag: ['@SBH-2947', '@SBH-2947-CLOSE'] }, async ({ page }) => {
+    const { note, finish } = makeRunner(page);
+    await gotoErDashboard(page);
+    await closeAllVisits(page, note);
+    finish();
+  });
+
+  // ======================= TC-001 รุ่นปุ่มที่แถบบน (SBH Prod 6 พ.ย. 2026) =======================
+  // Prod index-BoC124P0.js: แถวงานมีแค่ปุ่ม "รับ Order" · ปุ่ม "เพิ่ม Nurse Note" อยู่แถบบนของตาราง (ข้าง ดู Nurse Note / + เพิ่ม Nurse task)
+  // ใช้ผู้ป่วย A รายเดิมของเทส ZONE (ไฟล์จด Visit) ไม่สร้างผู้ป่วยใหม่ · เปิดฟอร์มแล้วกด ยกเลิก (ไม่บันทึก Nurse Note)
+  test('เพิ่ม Nurse Note จากปุ่มแถบบนของรายการงาน (TC 001 · ผู้ป่วย A รายเดิม)', tagsOf('NOTE', [1]), async ({ browser }) => {
+    const saved = readVisits().filter((v) => v.label === 'Ntl2947A').pop();
+    test.skip(!saved, 'ไม่มีผู้ป่วย A ของเทส ZONE ในไฟล์จด Visit');
+    const A = { hn: saved!.hn, vn: saved!.vn, en: saved!.en } as ErVisit;
+    nurse = await openNurseWindow(browser);
+    const n = nurse;
+    const { note: nnote, soft: nsoft, finish: nfinish } = makeRunner(n);
+    nnote('ผู้ป่วย A', `HN ${A.hn} · VN ${A.vn} · EN ${A.en} (สร้างในเทส ZONE)`);
+    await refresh(n);
+    await startClip(n, 'TC-001');
+    await nsoft(`${TC(1)} เลือกผู้ป่วย A → กด เพิ่ม Nurse Note → ฟอร์ม Nurse Note เปิดสำเร็จ ไม่มี error`, async () => {
+      await searchHn(n, A.hn);
+      await patientBtn(n, A.hn).click();
+      await expect(mainOf(n).getByText(`HN ${A.hn}`, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+      await expect(taskRows(n).first()).toBeVisible({ timeout: 60_000 });
+      const add = mainOf(n).getByRole('button', { name: /เพิ่ม Nurse Note/i }).first();
+      await expect(add).toBeVisible({ timeout: 30_000 });
+      nnote(`${TC(1)} ปุ่มในแถวงาน`, (await taskRows(n).first().getByRole('button').allInnerTexts()).join(' / ') || '-');
+      await markEvidence(expected(patientBtn(n, A.hn), 'ผู้ป่วย A'), clicked(add, 'เพิ่ม Nurse Note'));
+      await snapEvidence(n, 'ก่อนกด — เพิ่ม Nurse Note');
+      await clearEvidenceMarks(n);
+      const ctx = n.waitForResponse((r) => /\/nursing-note-context\?/.test(r.url()), { timeout: 30_000 }).catch(() => undefined);
+      await add.click();
+      const modal = n.locator('.ant-modal:visible, .ant-drawer-open').filter({ hasText: /Nurse Note/i }).first();
+      await expect(modal).toBeVisible({ timeout: 30_000 });
+      const res = await ctx;
+      nnote(`${TC(1)} API nursing-note-context`, res ? `${res.status()} ${new URL(res.url()).pathname}` : 'ไม่มีคำขอนี้ภายใน 30 วิ');
+      await n.waitForTimeout(2_000);
+      const errors = await n.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error').allInnerTexts();
+      nnote(`${TC(1)} ข้อความ error`, errors.join(' | ') || 'ไม่มี');
+      nnote(`${TC(1)} หัวฟอร์ม`, (await modal.locator('.ant-modal-title, .ant-drawer-title').first().innerText().catch(() => '')).trim());
+      await markEvidence(expected(modal.locator('.ant-modal-title, .ant-drawer-title').first(), 'Nurse Note เปิดสำเร็จ'));
+      await holdForClip(n, 2_000);
+      if (res) expect(res.ok(), 'API ของฟอร์ม Nurse Note ต้องตอบสำเร็จ').toBe(true);
+      expect(errors, 'ต้องไม่มีข้อความ error').toEqual([]);
+    });
+    await n.locator('.ant-modal:visible, .ant-drawer-open').getByRole('button', { name: 'ยกเลิก' }).first().click().catch(() => n.keyboard.press('Escape'));
+    await holdForClip(n);
+    await startClip(n, 'after');
+    nfinish();
   });
 
   // ======================= เทส 6 (บั๊ก): Bubble ไม่นับงานที่พยาบาลเพิ่มเอง (NURSE_ADDED) =======================

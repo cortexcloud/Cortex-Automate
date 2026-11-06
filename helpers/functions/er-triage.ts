@@ -152,15 +152,47 @@ export async function fillErTriageForm(page: Page, input: { level: 1 | 2 | 3 | 4
  * กดบันทึกฟอร์มคัดกรองแบบใหม่ → รอ POST …/clinical-form-groups/<id>/saves สำเร็จ
  * dev-x 28 ต.ค. 2026 (SBH-2355 run 4): กดตอนส่วน MEWS ยัง "กำลังโหลดข้อมูลต้นทาง / Loading sources…" → 400 INVALID_SNAPSHOT + แจ้ง "บันทึกคัดกรอง ER ไม่สำเร็จ"
  * → รอข้อความโหลดหายก่อนกด · ยังได้ INVALID_SNAPSHOT ให้รอ 5 วินาทีแล้วกดใหม่ 1 ครั้ง
+ * SBH Prod 5 พ.ย. 2026 (SBH-2355): กดตอนแอปยังบันทึกร่างอัตโนมัติ (PUT …/draft + …/draft/occurrences) → แจ้ง "ร่างถูกแก้ไขจากที่อื่น …"
+ * และไม่ส่ง POST saves → รอร่างนิ่ง 3 วินาทีก่อนกด · ยังเจอแจ้งเตือนนี้ให้รอร่างนิ่งแล้วกดใหม่ (รวมไม่เกิน 3 ครั้ง)
  */
 export async function saveErTriageForm(page: Page, what = 'บันทึกฟอร์มคัดกรอง ER') {
   const panel = erTriagePanel(page);
+  const conflict = page.getByText(/ร่างถูกแก้ไขจากที่อื่น/);
   for (let attempt = 1; ; attempt++) {
     await expect(panel.getByText(/กำลังโหลดข้อมูลต้นทาง|Loading sources/), 'MEWS ต้องโหลดข้อมูลต้นทางเสร็จก่อนบันทึก').toHaveCount(0, { timeout: 45_000 });
-    await page.waitForTimeout(1_500); // ให้ร่างของช่องที่เพิ่งกรอกเก็บเสร็จ (PUT …/draft/occurrences)
+    await waitDraftIdle(page); // ให้ร่างของช่องที่เพิ่งกรอกเก็บเสร็จ (PUT …/draft/occurrences)
+    // SBH Prod 5 พ.ย. 2026 17:05 (SBH-2593): แจ้ง "เก็บร่างไม่สำเร็จ … ลองเก็บร่างอีกครั้ง" แล้วกดบันทึกไม่ส่งคำสั่ง 90 วิ → กดลองเก็บร่างก่อน
+    const retryDraft = page.getByRole('button', { name: 'ลองเก็บร่างอีกครั้ง' }).first();
+    if (await retryDraft.isVisible().catch(() => false)) {
+      console.log(`    ${what}: แจ้ง "เก็บร่างไม่สำเร็จ" → กด ลองเก็บร่างอีกครั้ง`);
+      await retryDraft.click();
+      await page.waitForTimeout(2_000);
+      await waitDraftIdle(page);
+      if (attempt < 5) continue;
+    }
+    const conflictShown = await conflict.first().isVisible().catch(() => false);
     const saved = waitForApi(page, 'POST', /\/cortex-api\/clinical-form-groups\/[^/]+\/saves$/, 90_000);
     await erTriageSaveButton(page).click();
-    const res = await saved;
+    // แจ้งเตือนร่างชนค้างอยู่จากรอบก่อน = แยกไม่ออกว่าขึ้นใหม่ไหม → รอแค่ POST saves
+    const outcome: { res: Awaited<typeof saved> | null } = await (conflictShown || attempt >= 3
+      ? saved.then((res) => ({ res }))
+      : Promise.race([
+          saved.then((res) => ({ res })),
+          conflict.first().waitFor({ state: 'visible', timeout: 90_000 }).then(() => ({ res: null })),
+          retryDraft.waitFor({ state: 'visible', timeout: 90_000 }).then(() => ({ res: null })),
+        ]));
+    // dev-x 6 พ.ย. 2026 (SBH-3182 Retest): แจ้ง "ร่างถูกแก้ไขจากที่อื่น" ขึ้นก่อน POST saves ตอบกลับ แต่บันทึกสำเร็จจริง
+    // → กดซ้ำเจอปุ่ม disabled 20 วิ · รอ POST saves ต่ออีก 10 วิก่อนสรุปว่าไม่ได้ส่งคำสั่ง
+    if (!outcome.res) {
+      const late = await Promise.race([saved.catch(() => null), page.waitForTimeout(10_000).then(() => null)]);
+      if (late) outcome.res = late;
+    }
+    if (!outcome.res) {
+      console.log(`    ${what}: แจ้ง "ร่างถูกแก้ไขจากที่อื่น" (ไม่ส่งคำสั่งบันทึก) → รอร่างนิ่งแล้วบันทึกใหม่ (ครั้งที่ ${attempt + 1})`);
+      await conflict.first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
+      continue;
+    }
+    const res = outcome.res;
     if (attempt === 1 && res.status() === 400 && (await res.text()).includes('INVALID_SNAPSHOT')) {
       console.log(`    ${what}: 400 INVALID_SNAPSHOT → รอ 5 วินาทีแล้วบันทึกใหม่`);
       await page.waitForTimeout(5_000);
@@ -168,5 +200,25 @@ export async function saveErTriageForm(page: Page, what = 'บันทึกฟ
     }
     await expectOk(res, what);
     return;
+  }
+}
+
+/** รอจนแอปไม่ส่งร่างฟอร์ม (…/clinical-form-groups/<id>/draft…) ค้างอยู่ และเงียบอย่างน้อย quietMs */
+async function waitDraftIdle(page: Page, quietMs = 3_000, timeoutMs = 30_000) {
+  const isDraft = (url: string) => /\/clinical-form-groups\/[^/]+\/draft/.test(url);
+  let inflight = 0;
+  let last = Date.now();
+  const onRequest = (req: { url(): string }) => { if (isDraft(req.url())) { inflight++; last = Date.now(); } };
+  const onDone = (req: { url(): string }) => { if (isDraft(req.url())) { inflight = Math.max(0, inflight - 1); last = Date.now(); } };
+  page.on('request', onRequest);
+  page.on('requestfinished', onDone);
+  page.on('requestfailed', onDone);
+  try {
+    const end = Date.now() + timeoutMs;
+    while (Date.now() < end && (inflight > 0 || Date.now() - last < quietMs)) await page.waitForTimeout(250);
+  } finally {
+    page.off('request', onRequest);
+    page.off('requestfinished', onDone);
+    page.off('requestfailed', onDone);
   }
 }

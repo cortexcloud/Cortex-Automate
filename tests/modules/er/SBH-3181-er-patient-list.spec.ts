@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
 import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
-import { confirmOpenErVisit, dismissToast, expectOk, gotoErDashboard, openTriagePage, openVisitDialog, type ErVisit } from '../../../helpers/functions/er';
+import { confirmOpenErVisit, dismissToast, expectOk, waitForApi, gotoErDashboard, openTriagePage, openVisitDialog, type ErVisit } from '../../../helpers/functions/er';
 import { ER_LIST_TABS, erListCell, erListRow, erListTab, erListTabCount, gotoErPatientList, openErListTab, openErPatientListFromMenu, type ErListTabKey } from '../../../helpers/functions/er-list';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { clicked, expected, filled, hideCompareTable, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
@@ -10,10 +10,13 @@ import { authFile, getCredentials } from '../../../utils/env';
 import { erTriagePanel, fillErTriageForm, saveErTriageForm, type VitalSigns } from '../../../helpers/functions/er-triage';
 import { newTestPatient, type NewPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
-import { registerAndOpenErVisit } from '../../../mock-data/uat-er';
-import { VITALS_HIGH_MEWS, VITALS_NORMAL, gotoVisit, openPatientAs, replyConsult, requestConsult } from '../../../mock-data/uat-play';
+import { SYSTEM, registerAndOpenErVisit, submitOrders } from '../../../mock-data/uat-er';
+import { amountDue, answerConsultFromList, chargeItems, createInvoicesOnly, createPrescriptionAt, dispensePrescription, gotoPharmacy } from '../../../mock-data/bizsim-opd';
+import { payAllInCash } from '../../../helpers/functions/cashier';
+import { selectOpdUnit } from '../../../helpers/functions/opd-activity';
+import { VITALS_HIGH_MEWS, VITALS_NORMAL, addMedicineToCart, careMenu, gotoVisit, openPatientAs, replyConsult, requestConsult } from '../../../mock-data/uat-play';
 
-// SBH-3181 [ER][Dashboard][Patientlist] ปรับปรุงเงื่อนไขการแสดงผล — EXE SBH-3751 · TC-SBH-3181-001 … 066 · dev-x
+// SBH-3181 [ER][Dashboard][Patientlist] ปรับปรุงเงื่อนไขการแสดงผล — EXE SBH-3751 · TC-SBH-3181-001 … 066 · dev-x + SBH Prod (playwright.sbh-prod.cards.config.ts)
 // หน้า: แดชบอร์ด / คิว มุมมอง "รายการ" (/cortex/er/dashboard?view=list) — สำรวจ 3 พ.ย. 2026 (ไฟล์แอป index-wF045BWX.js / index-DGTxGbMW.js)
 //
 // ข้อมูล: ผู้ป่วยบน dev-x ใช้ร่วมกันทั้งทีม → ทุก TC นับ / เทียบจากตารางตอนรัน ไม่ฝังตัวเลข
@@ -29,10 +32,19 @@ import { VITALS_HIGH_MEWS, VITALS_NORMAL, gotoVisit, openPatientAs, replyConsult
 // ฟอร์มลงทะเบียนผู้ป่วยใหม่ของ ER (dev-x ตั้งแต่ ~23 ต.ค. 2026) รับปีเกิดเป็น พ.ศ. — newTestPatient() พิมพ์ 1990 จึงได้วันเกิด 1447 (อายุ 579 ปี)
 // → ที่นี่พิมพ์วันเกิดเป็น พ.ศ. แล้วยืนยันจาก API ว่าได้ ค.ศ. ที่ตั้งใจ
 
+// SBH Prod (6 พ.ย. 2026 · ผู้ใช้สั่ง "ทดสอบการ์ด SBH-3181 บน Prod"): ผู้ใช้เลือก "สร้าง 5 ราย แล้วปิด Visit" → เตรียมเฉพาะ A–E
+//   (F ยังไม่คัดกรอง / G ไม่ระบุเพศ ใช้ผู้ป่วยทดสอบที่มีอยู่บน Prod — TC หาจาก API ตอนรัน) · แพทย์ของบัญชีหลักบน Prod = ดร. วิชัย … เอื้อเฟื้อ
+//   TC-007 / 041 / 042 เป็น Canceled ใน Linear แล้ว → ไม่รัน
+const PROD = SYSTEM !== 'dev-x';
 const STATE_DIR = '.cache/SBH-3181';
-const STATE_FILE = `${STATE_DIR}/patients.json`;
+const STATE_FILE = PROD ? `${STATE_DIR}/patients-${SYSTEM}.json` : `${STATE_DIR}/patients.json`;
 const TRIAGE_SAVED = 'กรอกข้อมูล คัดกรอง ER สำเร็จ';
-const CONSULT_DOCTOR = { search: 'มานะ', name: /ทดสอบ มานะ/ };
+/** แพทย์ของบัญชีหลัก (รับ Consult ของผู้ป่วย D · ตัวกรองแพทย์ TC-010) */
+const CONSULT_DOCTOR = PROD ? { search: 'เอื้อเฟื้อ', name: /วิชัย.*เอื้อเฟื้อ/ } : { search: 'มานะ', name: /ทดสอบ มานะ/ };
+/** แพทย์อีกคนของ TC-010 (dev-x ไม่มีผู้ป่วย · Prod = แพทย์ placeholder ของผู้ป่วยอุบัติเหตุหมู่) */
+const OTHER_DOCTOR = PROD ? { search: 'ไม่ระบุแพทย์', name: /ไม่ระบุแพทย์/ } : { search: 'มานะ2', name: /ทดสอบ2 มานะ2/ };
+const PREP_KEYS = PROD ? 'ABCDE' : 'ABCDEF';
+const CANCELED_TC = new Set([7, 41, 42]);
 
 type Key = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
 interface Prep {
@@ -113,12 +125,13 @@ async function triage(page: Page, key: Key, prep: Prep) {
   await page.getByText(TRIAGE_SAVED, { exact: true }).first().waitFor({ timeout: 10_000 }).catch(() => undefined);
 }
 
-test.describe('SBH-3181 ER Patient List — เตรียม / เก็บกวาดข้อมูล (dev-x)', () => {
+test.describe(`SBH-3181 ER Patient List — เตรียม / เก็บกวาดข้อมูล (${SYSTEM})`, () => {
   test.describe.configure({ timeout: 3_600_000 });
 
   test('เตรียมข้อมูล: ผู้ป่วย AUTO A–F (ESI 1 / 4 / 5 · Isolation 1 / 2 · Observation · อายุ 11 เดือน / 1 ปี · Consult แดง / เขียว)', { tag: ['@P3181-prep'] }, async ({ page, browser }) => {
     const auth = trackAuthorization(page);
-    const only = (process.env.SBH3181_PREP ?? 'ABCDEF').split('') as Key[];
+    const only = (process.env.SBH3181_PREP ?? PREP_KEYS).split('') as Key[];
+    if (PROD && only.some((k) => !PREP_KEYS.includes(k))) throw new Error(`บน ${SYSTEM} ผู้ใช้อนุญาตสร้างเฉพาะ ${PREP_KEYS} (5 ราย)`);
     const list = readPrepared().filter((p) => !only.includes(p.key));
     for (const key of only) {
       const prep = PREPS[key];
@@ -176,7 +189,7 @@ test.describe('SBH-3181 ER Patient List — เตรียม / เก็บก
           const problem = `SBH-3181 Consult ผู้ป่วย ${key}`;
           const doctor = await openPatientAs(browser, 'Doctor', visit.hn, visit);
           try {
-            await requestConsult(doctor, problem, { doctor: CONSULT_DOCTOR });
+            await requestConsult(doctor, problem, PROD ? { clinic: 'อายุรกรรม', doctor: CONSULT_DOCTOR } : { doctor: CONSULT_DOCTOR });
           } finally {
             await doctor.context().close();
           }
@@ -188,6 +201,173 @@ test.describe('SBH-3181 ER Patient List — เตรียม / เก็บก
       savePrepared(list);
     }
     test.info().annotations.push({ type: 'ผู้ป่วยที่เตรียม', description: list.map((p) => `${p.key} ${p.name} HN ${p.hn} ${p.vn} ${p.en}`).join(' · ') });
+  });
+
+  // SBH Prod 6 พ.ย. 2026 — ผู้ใช้ตอบหลังเตรียม A–E: TC-044 / 047 / 048 "สั่ง Lab ให้ผู้ป่วย B" (ไม่ส่งตรวจ / ไม่ลงผล)
+  // TC-045: บัญชีหลักตอบ Consult จากหน้าผู้ป่วยไม่ได้ (หน้าต่างไม่มีช่องคำตอบ) → "ให้ใช้ Function ใน OPD ในการตอบกลับ Consult → ผู้ป่วยนอก → รายการปรึกษาแพทย์"
+  //   = ตอบคำขอที่บัญชี Doctor ส่งถึง ดร. วิชัย ของผู้ป่วย D (ค้าง รอตอบกลับ ตั้งแต่เทสเตรียม) ด้วย answerConsultFromList
+  test('เตรียมข้อมูลเพิ่ม (Prod): ผู้ป่วย B สั่ง Lab · ผู้ป่วย D ตอบ Consult ผ่านรายการปรึกษาแพทย์ OPD', { tag: ['@P3181-prep2'] }, async ({ page }) => {
+    test.skip(!PROD, 'เฉพาะ SBH Prod');
+    const P = readPrepared();
+    const get = (key: Key) => P.find((p) => p.key === key) ?? (() => { throw new Error(`ไม่มีผู้ป่วย ${key} ใน ${STATE_FILE}`); })();
+    const steps = (process.env.SBH3181_PREP2 ?? 'BD').split('');
+    if (steps.includes('B')) {
+      await test.step('ผู้ป่วย B: สั่ง Lab LAB0000001 (ไม่ส่งตรวจ)', async () => {
+        await gotoVisit(page, get('B'));
+        await submitOrders(page, ['LAB0000001']);
+      });
+    }
+    if (steps.includes('D')) {
+      await test.step('ผู้ป่วย D: ตอบ Consult ผ่าน ผู้ป่วยนอก › รายการปรึกษาแพทย์', async () => {
+        const d = get('D');
+        // แท็บ "รับ Consult" กรองตามหน่วยบริการ OPD ที่เลือกไว้ (graphql targetLocations) — ค่าตั้งต้นของบัญชีหลักไม่ใช่คลินิกอายุรกรรม → ไม่เห็นคำขอ (Prod 6 พ.ย. 2026)
+        await selectOpdUnit(page, 'แผนกอายุรกรรม', 'ก่อนตรวจ');
+        const { status } = await answerConsultFromList(page, d.hn, `SBH-3181 Consult ผู้ป่วย D`, `ตอบ Consult SBH-3181 ผู้ป่วย D`);
+        console.log(`    ผู้ป่วย D: ตอบ Consult แล้ว สถานะ ${status}`);
+        expect(status).toBe('completed');
+      });
+    }
+    // ผลรอบแรก: คำขอของ D (ระบุคลินิก + แพทย์ → targetType clinic · targetLocation ว่าง) ไม่ขึ้นในแท็บรับ Consult เลย (กรอง targetLocations [37] ตายตัว)
+    // ผู้ใช้ตอบ: "ให้ลองเอา Doctor คนอื่นปรึกษาแพทย์วิชัยรัต แล้วให้แพทย์วิชัยรัต ตอบ Consult โดยไปที่ ผู้ป่วยนอก → รายการแพทย์ปรึกษา → รับ Consult"
+    //   → ผู้ป่วย E (ยังไม่มี Consult — ชิปเขียวไม่ปนกับคำขอที่ค้างของ D): บัญชี Doctor ส่งถึง ดร. วิชัย แบบระบุแพทย์อย่างเดียว (แบบ BizSim APM-OPD-004 ที่ตอบผ่านหน้านี้ได้)
+    if (steps.includes('E')) {
+      const e = get('E');
+      const problem = 'SBH-3181 Consult ผู้ป่วย E';
+      await test.step('ผู้ป่วย E: บัญชี Doctor ส่ง Consult ถึง ดร. วิชัย (ระบุแพทย์อย่างเดียว)', async () => {
+        const doctor = await openPatientAs(page.context().browser()!, 'Doctor', e.hn, e);
+        try {
+          await requestConsult(doctor, problem, { doctor: CONSULT_DOCTOR });
+        } finally {
+          await doctor.context().close();
+        }
+      });
+      await test.step('ผู้ป่วย E: ดร. วิชัย ตอบ Consult ที่ ผู้ป่วยนอก › รายการปรึกษาแพทย์ › รับ Consult', async () => {
+        const { status } = await answerConsultFromList(page, e.hn, problem, `ตอบ Consult SBH-3181 ผู้ป่วย E`);
+        console.log(`    ผู้ป่วย E: ตอบ Consult แล้ว สถานะ ${status}`);
+        expect(status).toBe('completed');
+      });
+    }
+  });
+
+  // SBH Prod 6 พ.ย. 2026 — TC-045 รอบ 2: ผู้ใช้ถาม "ใช้ Order ยา สร้างใบยาได้ไหม" → Claude ตรวจโค้ดหน้า: ชิปยาเขียวเมื่อไม่มีรายการค้างห้องยา
+  //   (WAITING_RECEIVE / WAITING_REVIEW) และ completedItemCount > 0 — ใบยาที่ยังไม่จ่าย = ส้ม → ผู้ใช้ "ทำเลย 1 ราย"
+  //   ผู้ป่วย F (รายที่ 6 · A–E ปิด Visit แล้ว): ลงทะเบียน + Visit ER + คัดกรอง ESI 4 Urgency → One Day Order MED0000619 (ส่งคำสั่ง)
+  //   → ห้องยาชั้น 1 สร้างใบยา → การเงินสร้างใบแจ้งหนี้ / รับชำระ → จัดยา → ยืนยันรอจ่าย → จ่ายยา (ขั้นของ BizSim OPD บน Prod)
+  //   ทำต่อ: SBH3181_F=HN,VN,EN · SBH3181_MED_FROM=order|rx|pay|dispense · SBH3181_RX=<เลขใบยา>
+  test('เตรียมข้อมูล TC-045 (Prod): ผู้ป่วย F สั่งยา → ห้องยาสร้างใบยา → ชำระ → จ่ายยา', { tag: ['@P3181-med'] }, async ({ page }) => {
+    test.skip(!PROD, 'เฉพาะ SBH Prod');
+    test.setTimeout(1_800_000);
+    const MED = 'MED0000619';
+    const steps = ['visit', 'order', 'rx', 'pay', 'dispense', 'handout'];
+    const from = steps.indexOf(process.env.SBH3181_MED_FROM ?? 'visit');
+    const doing = (s: string) => steps.indexOf(s) >= from;
+    const list = readPrepared().filter((p) => p.key !== 'F');
+    let f = readPrepared().find((p) => p.key === 'F');
+    const reuse = process.env.SBH3181_F?.split(',');
+    if (reuse && reuse.length >= 3) f = { key: 'F', hn: reuse[0], vn: reuse[1], en: reuse[2], name: f?.name ?? '', birth: '1990-01-15', level: 4, zone: 'Urgency' };
+    if (doing('visit') && !(reuse && reuse.length >= 3)) {
+      const patient: NewPatient = { ...newTestPatient('Pl3181F'), gender: 'ชาย', birthDate: beInput('1990-01-15') };
+      const visit = await test.step('ผู้ป่วย F: ลงทะเบียน + เปิด Visit ER', async () => {
+        await gotoErDashboard(page);
+        return registerAndOpenErVisit(page, patient);
+      });
+      f = { key: 'F', ...visit, name: `${patient.firstName} ${patient.familyName}`, birth: '1990-01-15', level: 4, zone: 'Urgency' };
+      savePrepared([...list, f]);
+      console.log(`    ผู้ป่วย F: HN ${f.hn} · ${f.vn} · ${f.en}`);
+      await dismissToast(page, 'สร้าง Visit สำเร็จ').catch(() => undefined);
+      await test.step('ผู้ป่วย F: คัดกรอง ESI 4 โซน Urgency', () => triage(page, 'F', { level: 4, zone: 'Urgency', vitals: VITALS_NORMAL }));
+    }
+    if (!f) throw new Error('ไม่มีผู้ป่วย F — ใส่ SBH3181_F=HN,VN,EN');
+    savePrepared([...list, f]);
+    if (doing('order')) {
+      await test.step(`ผู้ป่วย F: One Day Order ${MED} + ส่งคำสั่ง`, async () => {
+        await gotoVisit(page, f!);
+        const search = page.getByRole('combobox', { name: /ค้นหา ยา/ });
+        await expect(async () => {
+          if (!(await search.isVisible())) await careMenu(page, 'One Day Order', page.getByRole('main').getByRole('heading', { name: 'Order', exact: true }));
+          await expect(search).toBeVisible({ timeout: 15_000 });
+          await page.waitForTimeout(3_000);
+          await expect(search).toBeVisible({ timeout: 1_000 });
+        }, 'เปิด One Day Order').toPass({ timeout: 120_000 });
+        await addMedicineToCart(page, MED);
+        await submitOrders(page, []);
+        console.log(`    ผู้ป่วย F: ส่งคำสั่งยา ${MED} แล้ว`);
+      });
+    }
+    let rx = process.env.SBH3181_RX ?? '';
+    if (doing('rx')) {
+      await test.step('ห้องยาชั้น 1: สร้างใบยา', async () => {
+        const res = await createPrescriptionAt(page, f!.hn, MED);
+        if (res.allergyAck) console.log(`    หน้าต่างแพ้ยา: ${res.allergyAck.slice(0, 120)}`);
+        expect(res.error, `สร้างใบยาไม่สำเร็จ: ${res.error}`).toBeUndefined();
+        rx = res.prescriptionId!;
+        console.log(`    ผู้ป่วย F: ใบยา ${rx}`);
+      });
+    }
+    expect(rx, 'ต้องมีเลขใบยา (SBH3181_RX)').toBeTruthy();
+    if (doing('pay')) {
+      await test.step('การเงิน: สร้างใบแจ้งหนี้ / รับชำระค่ายา (ผู้ป่วย Mock)', async () => {
+        const items = await chargeItems(page, f!.hn, f!.vn);
+        console.log(`    รายการค่าใช้จ่าย: ${items.join(' | ').slice(0, 300)}`);
+        if ((await amountDue(page)) > 0) {
+          const paid = await payAllInCash(page);
+          console.log(`    ชำระเงินสด ${paid.amount.toFixed(2)} (${paid.invoiceId} · ${paid.receiptId})`);
+        } else console.log(`    ยอดต้องชำระ 0 → สร้างใบแจ้งหนี้ ${await createInvoicesOnly(page)}`);
+      });
+    }
+    // SBH3181_MED_FROM=handout: จัดยา + ยืนยันรอจ่าย ผ่านแล้ว (Prod 6 พ.ย. 15:53) — แท็บใบรอจ่ายช่องเลขใบยาเป็น "01001" (ไม่มี " - ชื่อ")
+    //   ตัวคลิกของ dispensePrescription หาไม่เจอ → จ่ายยาเองจากแท็บนั้น (คลิกช่องเลขที่ใบยา)
+    if (doing('dispense') && process.env.SBH3181_MED_FROM !== 'handout') {
+      await test.step('ห้องยาชั้น 1: จัดยา → ยืนยันรอจ่าย → จ่ายยา', async () => {
+        for (const n of await dispensePrescription(page, f!.hn, rx)) console.log(`    ${n}`);
+        console.log(`    ผู้ป่วย F: จ่ายยาใบ ${rx} แล้ว`);
+      });
+    }
+    if (process.env.SBH3181_MED_FROM === 'handout') {
+      await test.step('ห้องยาชั้น 1: จัดยาแล้ว → ยืนยันรอจ่าย → จ่ายยา (คลิกช่องเลขที่ใบยา)', async () => {
+        const main = page.getByRole('main');
+        await gotoPharmacy(page);
+        const flow: [RegExp, string, string][] = [
+          [/ใบยารอจัด/, 'จัดยาแล้ว', 'pack'],
+          [/ใบยาจัดแล้ว/, 'ยืนยันรอจ่าย', 'verify'],
+          [/รอจ่าย/, 'จ่ายยา', 'dispense'],
+        ];
+        for (const [tab, button, action] of flow) {
+          if (!/medication-orders|pharmacy/.test(page.url())) await gotoPharmacy(page);
+          await main.getByRole('tab', { name: tab }).first().click();
+          const row = main.getByRole('row').filter({ hasText: `HN ${f!.hn}` }).first();
+          if (!(await row.waitFor({ timeout: 15_000 }).then(() => true, () => false))) {
+            console.log(`    แท็บ ${tab.source}: ไม่มีใบยาของ F (ผ่านขั้นนี้ไปแล้ว)`);
+            continue;
+          }
+          await row.locator('td').nth(1).click();
+          await page.waitForURL(new RegExp(`prescriptionId=${rx}`), { timeout: 90_000 });
+          const btn = page.getByRole('button', { name: button, exact: true }).filter({ visible: true }).first();
+          await expect(btn).toBeVisible({ timeout: 60_000 });
+          if (action === 'dispense') await main.getByRole('checkbox', { name: 'เลือกยาทั้งหมด' }).check();
+          const done = waitForApi(page, 'POST', `/cortex-api/prescriptions/${rx}/${action}`, 60_000);
+          await btn.click();
+          if (action === 'dispense') {
+            const review = page.getByRole('dialog', { name: /ยืนยันการทบทวนก่อนจ่ายยา/ });
+            if (await review.waitFor({ timeout: 20_000 }).then(() => true, () => false)) await review.getByRole('button', { name: /^ยืนยัน/ }).click();
+          }
+          await expectOk(await done, `${button} (${action})`);
+          console.log(`    ผู้ป่วย F: ${button} สำเร็จ`);
+          await gotoPharmacy(page);
+        }
+        await main.getByRole('tab', { name: /จ่ายยาแล้ว/ }).click();
+        await expect(main.getByRole('row').filter({ hasText: `HN ${f!.hn}` }).first(), 'ใบยาต้องอยู่แท็บ จ่ายยาแล้ว').toBeVisible({ timeout: 60_000 });
+        console.log(`    ผู้ป่วย F: จ่ายยาใบ ${rx} แล้ว`);
+      });
+    }
+    await test.step('ตรวจชิปยาในหน้ารายการ (อ่านอย่างเดียว)', async () => {
+      await gotoErPatientList(page);
+      const row = erListRow(page, f!.en);
+      await expect(row).toBeVisible({ timeout: 60_000 });
+      await page.waitForTimeout(5_000);
+      const tone = await row.getByRole('button', { name: 'รายการยาที่ต้องดำเนินการ' }).first().locator('[data-tone]').getAttribute('data-tone');
+      console.log(`    ผู้ป่วย F: ชิปยา tone = ${tone}`);
+    });
   });
 
   test('เก็บกวาด: ปิด Visit ผู้ป่วย AUTO A–F ที่การเงิน', { tag: ['@P3181-cleanup'] }, async ({ page }) => {
@@ -235,6 +415,10 @@ const zoneSelect = (page: Page) => mainOf(page).locator('.ant-select').nth(0);
 const doctorSelect = (page: Page) => mainOf(page).locator('.ant-select').nth(1);
 const dropdownOptions = (page: Page) => page.locator('.ant-select-dropdown:visible .ant-select-item-option');
 const clearAllButton = (page: Page) => mainOf(page).getByRole('button', { name: /ล้าง$/ });
+/** ปุ่ม "ล้าง" — ไม่มีตัวกรองค้าง ปุ่ม disabled = ข้าม (ไม่ให้เทสค้างทั้งชุด) */
+const clearAll = async (page: Page) => {
+  if (await clearAllButton(page).isEnabled()) await clearAllButton(page).click();
+};
 const clearFiltersButton = (page: Page) => mainOf(page).getByRole('button', { name: 'ล้างตัวกรอง' });
 const moreFiltersButton = (page: Page) => mainOf(page).getByRole('button', { name: /ตัวกรองเพิ่มเติม/ });
 const columnsButton = (page: Page) => mainOf(page).getByRole('button', { name: /คอลัมน์$/ });
@@ -259,7 +443,37 @@ interface Row {
   en: string;
   cells: Record<string, string>;
 }
+/**
+ * ทุกแถวของตาราง — ตารางแบ่งหน้าละ 20 (SBH Prod 6 พ.ย. 2026 มี 32 แถว · หน้าจอบอก "แสดง 32 ราย" แต่ DOM มีแค่หน้าปัจจุบัน)
+ * → อ่านหน้าแรก แล้วไล่ปุ่มเลขหน้าจนครบ และกลับไปหน้า 1 (แถวผู้ป่วย A–E อยู่หน้า 1 เพราะเรียงตาม ESI)
+ */
+/** ไปหน้าที่ n ของตาราง (1 = หน้าแรก) — ไม่มีเลขหน้า / อยู่หน้านั้นแล้ว = ไม่ทำอะไร */
+async function gotoTablePage(page: Page, n: number) {
+  const item = tableWrap(page).locator('.ant-pagination .ant-pagination-item').nth(Math.max(0, n - 1));
+  if (!(await item.count()) || /ant-pagination-item-active/.test((await item.getAttribute('class')) ?? '')) return;
+  await item.click();
+  await expect(item).toHaveClass(/ant-pagination-item-active/);
+  await page.waitForTimeout(400);
+}
 async function readTable(page: Page): Promise<{ headers: string[]; rows: Row[] }> {
+  const items = tableWrap(page).locator('.ant-pagination .ant-pagination-item');
+  const n = await items.count();
+  if (n > 1) await gotoTablePage(page, 1);
+  const first = await readTablePage(page);
+  if (n <= 1) return first;
+  const rows = [...first.rows];
+  for (let i = 1; i < n; i++) {
+    await items.nth(i).click();
+    await expect(items.nth(i)).toHaveClass(/ant-pagination-item-active/);
+    await page.waitForTimeout(400);
+    rows.push(...(await readTablePage(page)).rows);
+  }
+  await items.nth(0).click();
+  await expect(items.nth(0)).toHaveClass(/ant-pagination-item-active/);
+  await page.waitForTimeout(400);
+  return { headers: first.headers, rows };
+}
+async function readTablePage(page: Page): Promise<{ headers: string[]; rows: Row[] }> {
   return tableWrap(page).evaluate((wrap) => {
     const shown = (el: Element) => (el as HTMLElement).offsetHeight > 0;
     const thead = [...wrap.querySelectorAll('thead')].find(shown);
@@ -412,7 +626,7 @@ async function login(page: Page, role: string) {
   await page.waitForURL(/\/cortex\//, { timeout: 60_000 });
 }
 
-test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
+test.describe(`SBH-3181 ER Patient List — TC (${SYSTEM})`, () => {
   test.describe.configure({ timeout: 1_800_000 });
   let P: PreparedPatient[] = [];
   const pat = (key: Key) => {
@@ -423,13 +637,14 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
 
   test.beforeEach(async () => {
     P = readPrepared();
-    test.skip(P.length < 6, `ยังไม่ได้เตรียมผู้ป่วย A–F (${STATE_FILE}) — รัน --grep @P3181-prep ก่อน`);
+    test.skip(P.length < PREP_KEYS.length, `ยังไม่ได้เตรียมผู้ป่วย ${PREP_KEYS} (${STATE_FILE}) — รัน --grep @P3181-prep ก่อน`);
   });
 
   /** เปิดหน้ารายการ + รอแถวผู้ป่วย A */
   async function openList(page: Page) {
     await gotoErPatientList(page);
-    await expect(erListRow(page, pat('A').en)).toBeVisible({ timeout: 60_000 });
+    // SBH3181_ANCHOR=F: ผู้ป่วย A–E ปิด Visit แล้ว (Prod 6 พ.ย. — รันซ้ำเฉพาะ TC-045 กับผู้ป่วย F)
+    await expect(erListRow(page, pat((process.env.SBH3181_ANCHOR as Key) ?? 'A').en)).toBeVisible({ timeout: 60_000 });
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -438,10 +653,11 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
     const auth = trackAuthorization(page);
     await openList(page);
     const queue = await fetchQueue(page, auth());
-    const esi2 = queue.find((e) => e.triageLevel === 2 && e.patientStatus === 'current_in_er');
-    const esiSet = [
+    // ESI 2 ไม่ได้สร้างเอง — ใช้ผู้ป่วยในคิว (Prod 6 พ.ย. มีเฉพาะในแท็บรอเตียง → อ่านแถวในแท็บของรายนั้น)
+    const esi2 = queue.find((e) => e.triageLevel === 2 && e.patientStatus === 'current_in_er') ?? queue.find((e) => e.triageLevel === 2 && STATUS_TAB[e.patientStatus]);
+    const esiSet: { hn: string; en: string; level: number; tab?: ErListTabKey }[] = [
       { hn: pat('A').hn, en: pat('A').en, level: 1 },
-      ...(esi2 ? [{ hn: esi2.hn, en: esi2.en, level: 2 }] : []),
+      ...(esi2 ? [{ hn: esi2.hn, en: esi2.en, level: 2, tab: STATUS_TAB[esi2.patientStatus] }] : []),
       { hn: pat('D').hn, en: pat('D').en, level: 3 },
       { hn: pat('B').hn, en: pat('B').en, level: 4 },
       { hn: pat('C').hn, en: pat('C').en, level: 5 },
@@ -465,7 +681,7 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       await switchView(page, 'รายการ');
       const rows: CompareRow[] = [];
       const marks = [];
-      for (const p of esiSet) {
+      for (const p of esiSet.filter((x) => !x.tab || x.tab === 'current')) {
         const badge = erListRow(page, p.en).locator('[class*="_esi-badge_"]').first();
         await expect(badge).toBeVisible();
         const bg = await css(badge, 'background-color');
@@ -479,6 +695,22 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       expect(rows.filter((r) => !r.same).map((r) => r.label), 'ป้าย ESI ทุกระดับต้องเป็นสีเดียวกับบอร์ดและตาม AC').toEqual([]);
     });
     await hideCompareTable(page);
+    for (const p of esiSet.filter((x) => x.tab && x.tab !== 'current')) {
+      await soft(`${T(1)} ขั้น 3–4 รายการ แท็บ ${ER_LIST_TABS[p.tab!]}: ESI ${p.level} ป้ายสีตรงกับบอร์ด`, async () => {
+        await openErListTab(page, p.tab!);
+        const badge = erListRow(page, p.en).locator('[class*="_esi-badge_"]').first();
+        await expect(badge).toBeVisible({ timeout: 30_000 });
+        const bg = await css(badge, 'background-color');
+        const text = (await badge.innerText()).trim();
+        const board = boardColor.get(p.hn) ?? '-';
+        const same = bg === board && colorName(bg) === ESI_COLOR[p.level] && text === String(p.level);
+        await showCompareTable(page, `TC-001 ป้าย ESI ${p.level} (แท็บ ${ER_LIST_TABS[p.tab!]})`, ['ระดับ', 'สีบนบอร์ด', 'สีในรายการ', 'สีตาม AC'], [{ label: `HN ${p.hn}`, values: [`ESI ${text}`, colorName(board), `${colorName(bg)} (${bg})`, ESI_COLOR[p.level]], same }], LIST_TABLE);
+        await markEvidence(expected(badge, `ป้าย ESI ${p.level} ${ESI_COLOR[p.level]}`));
+        expect(same, `ป้าย ESI ${p.level} ต้องเป็นสีเดียวกับบอร์ดและตาม AC`).toBe(true);
+      });
+      await hideCompareTable(page);
+      await openErListTab(page, 'current');
+    }
 
     // TC-002
     await clip(page, 2);
@@ -568,7 +800,8 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       await switchView(page, 'รายการ');
     }
 
-    // TC-007 — ยังไม่มีแพทย์ (practitioner ว่าง) + แถวที่แพทย์ชื่อ "ไม่ระบุแพทย์ ไม่ระบุแพทย์"
+    // TC-007 — ยังไม่มีแพทย์ (practitioner ว่าง) + แถวที่แพทย์ชื่อ "ไม่ระบุแพทย์ ไม่ระบุแพทย์" (Canceled ใน Linear แล้ว → ข้าม)
+    if (!CANCELED_TC.has(7)) {
     await clip(page, 7);
     const noDoctor = queue.filter((e) => !e.practitioner?.display?.trim() && STATUS_TAB[e.patientStatus]);
     const placeholderDoctor = queue.filter((e) => /ไม่ระบุแพทย์/.test(e.practitioner?.display ?? '') && STATUS_TAB[e.patientStatus]);
@@ -585,6 +818,7 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       });
     }
     if (!noDoctor.length && !placeholderDoctor.length) note('TC-007', 'ตรวจไม่ได้ — ไม่มีผู้ป่วยที่ยังไม่มีแพทย์');
+    }
 
     // TC-008
     await clip(page, 8);
@@ -781,9 +1015,10 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
     await clip(page, 10);
     await soft(`${T(10)} ตัวกรองแพทย์ → ตัวนับเปลี่ยนตาม`, async () => {
       await doctorSelect(page).click();
-      await page.keyboard.type('มานะ');
-      const option = dropdownOptions(page).filter({ hasText: /ทดสอบ มานะ/ }).first();
+      await page.keyboard.type(CONSULT_DOCTOR.search);
+      const option = dropdownOptions(page).filter({ hasText: CONSULT_DOCTOR.name }).first();
       await expect(option).toBeVisible({ timeout: 20_000 });
+      const doctorName = (await option.innerText()).trim();
       await option.click();
       await closeDropdown(page);
       await page.waitForTimeout(1_000);
@@ -795,23 +1030,30 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
         const c = chips.find((x) => x.label === l)?.count;
         compare.push({ label: l, values: [String(c), String(n)], same: c === n });
       }
-      const otherDoctor = rows.filter((r) => !/มานะ/.test(r.cells['แพทย์']));
-      compare.push({ label: 'แพทย์ในตาราง', values: ['นาย ทดสอบ มานะ', otherDoctor.length ? `แพทย์อื่น ${otherDoctor.length} แถว` : 'ทุกแถว'], same: otherDoctor.length === 0 });
-      await showCompareTable(page, 'TC-010 ตัวกรองแพทย์ "นาย ทดสอบ มานะ"', ['ตัวนับ', 'แถวในตาราง'], compare, { side: 'bottom' });
-      await markEvidence(filled(doctorSelect(page), 'นาย ทดสอบ มานะ'), expected(summaryButtons(page).first().locator('xpath=..'), 'ตัวนับตามแพทย์'));
+      const otherDoctor = rows.filter((r) => !CONSULT_DOCTOR.name.test(r.cells['แพทย์']));
+      compare.push({ label: 'แพทย์ในตาราง', values: [doctorName, otherDoctor.length ? `แพทย์อื่น ${otherDoctor.length} แถว` : 'ทุกแถว'], same: otherDoctor.length === 0 });
+      await showCompareTable(page, `TC-010 ตัวกรองแพทย์ "${doctorName}"`, ['ตัวนับ', 'แถวในตาราง'], compare, { side: 'bottom' });
+      await markEvidence(filled(doctorSelect(page), doctorName), expected(summaryButtons(page).first().locator('xpath=..'), 'ตัวนับตามแพทย์'));
       expect(compare.filter((r) => !r.same).map((r) => r.label)).toEqual([]);
     });
     await hideCompareTable(page);
-    await clearAllButton(page).click();
+    await clearAll(page);
     // ผู้ป่วยทุกรายบน dev-x ตอนรันเป็นของแพทย์คนเดียว → เลือกแพทย์อีกคน (ไม่มีผู้ป่วย) ให้เห็นว่าตัวนับเปลี่ยนตามจริง
     await soft(`${T(10)} ตัวกรองแพทย์คนอื่น → ตัวนับเป็น 0 ตามตาราง`, async () => {
       const before = await chipCount(page, 'ทั้งหมด');
       await doctorSelect(page).click();
-      const other = dropdownOptions(page).filter({ hasText: /ทดสอบ2 มานะ2/ }).first();
+      if (PROD) {
+        // ช่องแพทย์จำคำค้นของขั้นก่อน ("เอื้อเฟื้อ") — ล้างก่อนพิมพ์ ไม่งั้นคำค้นต่อกันแล้วไม่เจอใคร (Prod 6 พ.ย. 2026 เลือกไม่ติด)
+        await page.keyboard.press('Control+A');
+        await page.keyboard.press('Backspace');
+        await page.keyboard.type(OTHER_DOCTOR.search); // virtual list ~250 คน — พิมพ์ค้นก่อน
+      }
+      const other = dropdownOptions(page).filter({ hasText: OTHER_DOCTOR.name }).first();
       await expect(other).toBeVisible({ timeout: 20_000 });
       const name = (await other.innerText()).trim();
       await other.click();
       await closeDropdown(page);
+      await expect(doctorSelect(page), `ตัวกรองแพทย์ต้องเลือก "${name}" ติด`).toContainText(name.split(' ').pop()!);
       await page.waitForTimeout(1_000);
       const { rows } = await readTable(page);
       const total = await chipCount(page, 'ทั้งหมด');
@@ -821,7 +1063,7 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       expect(total).not.toBe(before);
     });
     await hideCompareTable(page);
-    await clearAllButton(page).click();
+    await clearAll(page);
 
     await clip(page, 60);
     await soft(`${T(60)} ตัวเลขแท็บ 0 ราย สีเทา · มีผู้ป่วยตัวเลขเด่น`, async () => {
@@ -884,7 +1126,7 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       await markEvidence(expected(zoneSelect(page), `โซน (${selected.length})`), expected(zoneChip(page, 'Urgency'), 'Urgency'), expected(zoneChip(page, 'Observation'), 'Observation'));
       expect(selected).toEqual(expect.arrayContaining(['Urgency', 'Observation']));
     });
-    await clearAllButton(page).click();
+    await clearAll(page);
     await expect.poll(() => selectedZones(page)).toEqual([]);
 
     await clip(page, 17);
@@ -1112,7 +1354,8 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
     const sorters: [number, string, (r: Row) => number | string | null, (a: never, b: never) => number][] = [
       [54, 'ESI', (r) => (r.cells['ESI'] ? Number(r.cells['ESI']) : null), ((a: number, b: number) => a - b) as never],
       [55, 'ชื่อ-สกุล', (r) => r.cells['ชื่อ-สกุล'], ((a: string, b: string) => a.localeCompare(b, 'th')) as never],
-      [56, 'อายุ', (r) => ageMonths(r.cells['อายุ']), ((a: number, b: number) => a - b) as never],
+      // Prod: อายุต่ำกว่า 1 ปีแสดง "-" อยู่ท้ายทั้ง 2 ทิศ — BA ยืนยัน 4/11/2569 ให้แสดงได้ (ผู้ใช้ให้ลงผ่านตาม dev-x) → ไม่นับแถว "-" ในการเช็คลำดับ
+      [56, 'อายุ', (r) => (PROD && r.cells['อายุ'].trim() === '-' ? null : ageMonths(r.cells['อายุ'])), ((a: number, b: number) => a - b) as never],
       [57, 'MEWS', (r) => (r.cells['MEWS'] ? Number(r.cells['MEWS']) : null), ((a: number, b: number) => a - b) as never],
       [58, 'โซน', (r) => r.cells['โซน'], ((a: string, b: string) => ZONES.indexOf(a) - ZONES.indexOf(b)) as never],
     ];
@@ -1140,6 +1383,8 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
           const okMain = isSorted(vals, (a, b) => dir * cmp(a, b));
           const okAlt = alt ? isSorted(vals as string[], (a, b) => dir * alt(a, b)) : false;
           seen.push(sort);
+          // TC-056: ไปหน้าที่มีผู้ป่วย D ก่อนขึ้นตารางเทียบ (ตารางเทียบล่างจอบังปุ่มเลขหน้า — Prod 6 พ.ย.)
+          if (column === 'อายุ') await gotoTablePage(page, Math.ceil((rows.findIndex((r) => r.en === pat('D').en) + 1) / 20));
           await showCompareTable(page, `TC-${pad(n)} เรียงตาม ${column} (aria-sort ${sort})`, ['ค่าตามลำดับแถว'], [{ label: `ครั้งที่ ${i}`, values: [rows.map((r) => r.cells[column] || '-').join(' · ')], same: (okMain || okAlt) && sort !== 'none' }], { side: 'bottom' });
           const marks = [expected(head, `เรียง ${sort === 'descending' ? 'มาก → น้อย' : 'น้อย → มาก'}`)];
           // TC-056: ชี้แถวผู้ป่วยอายุ 11 เดือน (D) ว่าอยู่ตรงไหนของลำดับ
@@ -1194,8 +1439,10 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       });
       return { button, ...info };
     }
-    const { rows } = await readTable(page);
+    const { rows } = await readTablePage(page); // แถวที่อยู่บนจอ (หน้า 1) — ชิปของแถวหน้าอื่นไม่อยู่ใน DOM
 
+    // TC-041 / 042 Canceled ใน Linear แล้ว → ข้าม
+    if (!CANCELED_TC.has(41)) {
     await clip(page, 41);
     await soft(`${T(41)} ทุกแถวมีชิป Order 5 ชนิด`, async () => {
       const compare: CompareRow[] = [];
@@ -1210,7 +1457,9 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
     });
     await hideCompareTable(page);
     note('TC-041 ข้อสังเกต', `ชิป Order บนจอเป็นไอคอน ตัวอักษรในเซลล์ Order: "${rows[0]?.cells['Order'] ?? ''}"`);
+    }
 
+    if (!CANCELED_TC.has(42)) {
     await clip(page, 42);
     await soft(`${T(42)} มีคำอธิบายสี (legend) ใต้ตาราง`, async () => {
       const text = await mainOf(page).evaluate((el) => {
@@ -1223,6 +1472,7 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       await markEvidence(expected(mainOf(page).locator('.ant-pagination').first(), `ต้องมี legend ใต้ตาราง · จริง: ${missing.length ? 'ไม่มี' : 'มี'}`));
       expect(missing, 'ใต้ตารางต้องมีคำอธิบายสีชิป Order').toEqual([]);
     });
+    }
 
     // หาแถวตามสถานะชิป
     const findChip = async (aria: string, tone: string) => {
@@ -1258,9 +1508,16 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
     await clip(page, 45);
     await page.mouse.move(960, 1050); // ให้ tooltip ของขั้นก่อนหาย
     await page.waitForTimeout(500);
-    await soft(`${T(45)} ชิป Consult ที่ตอบแล้วเป็นสีเขียว (ผู้ป่วย D)`, async () => {
-      const c = await chip(pat('D').en, 'รายการ Consult');
-      await markEvidence(expected(c.button, `Consult เสร็จแล้ว · ${colorName(c.bg)} (${c.bg})`));
+    // Prod: Consult ตอบไม่ได้ (SBH-3914) → ใช้ชิปยาของผู้ป่วย F ที่ห้องยาจ่ายยาแล้ว (@P3181-med) · dev-x: Consult ที่ตอบแล้วของ D
+    const greenKey: Key = PROD ? 'F' : 'D';
+    const greenChip = PROD ? { aria: 'รายการยาที่ต้องดำเนินการ', what: 'ยา (ห้องยาจ่ายแล้ว)' } : { aria: 'รายการ Consult', what: 'Consult ตอบแล้ว' };
+    await soft(`${T(45)} ชิป ${greenChip.what} เป็นสีเขียว (ผู้ป่วย ${greenKey})`, async () => {
+      const c = await chip(pat(greenKey).en, greenChip.aria);
+      await c.button.hover();
+      const tip = page.locator('.ant-tooltip:visible').last();
+      await tip.waitFor({ timeout: 5_000 }).catch(() => undefined);
+      note('TC-045 ค่าจริง', `ผู้ป่วย ${greenKey} · ${greenChip.aria} · tone ${c.tone} · พื้น ${c.bg} · tooltip "${(await tip.innerText().catch(() => '')).replace(/\s+/g, ' ')}"`);
+      await markEvidence(expected(c.button, `${greenChip.what} · ${colorName(c.bg)}`));
       expect(c.tone).toBe('done');
       expect(colorName(c.bg)).toBe('เขียว');
     });
@@ -1313,7 +1570,7 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
   test('ตั้งค่าคอลัมน์ + 1366 px + หัวตาราง / คอลัมน์ค้าง + บันทึกต่อผู้ใช้', { tag: tags(23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 35, 38, 39, 40) }, async ({ page }) => {
     const { note, soft, finish } = makeRunner(page);
     await openList(page);
-    const headers = async () => (await readTable(page)).headers.filter(Boolean);
+    const headers = async () => (await readTablePage(page)).headers.filter(Boolean); // หัวตารางอย่างเดียว — อ่านทุกหน้า (กดเลขหน้า) จะปิดแผงคอลัมน์ที่เปิดอยู่
     const openPanel = async () => {
       if (!(await columnsPanel(page).isVisible().catch(() => false))) await columnsButton(page).click();
       await expect(columnsPanel(page)).toBeVisible();
@@ -1380,7 +1637,7 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       const names = await panelNames();
       const heads = await headers();
       const bad = [...names, ...heads].filter((n) => /เวลารอ|เวลารับเข้า/.test(n));
-      await markEvidence(expected(columnsPanel(page), 'ไม่มีเวลารอ / เวลารับเข้า'), expected(tableWrap(page).locator('thead').filter({ visible: true }).first(), 'หัวตาราง'));
+      await markEvidence(expected(columnsPanel(page), 'ไม่มีเวลารอ / เวลารับเข้า'), tableWrap(page).locator('thead').filter({ visible: true }).first() /* หัวตาราง: กรอบไม่มีป้าย — ป้าย 2 อันทับกัน (Prod 6 พ.ย.) */);
       expect(bad).toEqual([]);
     });
     await closePanel();
@@ -1571,6 +1828,8 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       await logout(page);
       await login(page, 'Super_User');
       await gotoErPatientList(page);
+      await expect(erListRow(page, pat('A').en)).toBeVisible({ timeout: 60_000 }); // หลัง Login แอปโหลดใหม่ ~20 วิ — รอตารางขึ้นก่อนตีกรอบ (Prod 6 พ.ย. ภาพจอขาว)
+      await page.waitForTimeout(1_500);
       const heads = await headers();
       await markEvidence(expected(tableWrap(page).locator('thead').filter({ visible: true }).first(), 'หลัง Login ใหม่: มี Diagnosis · ไม่มี GCS'));
       expect(heads).toContain('Diagnosis');
@@ -1582,6 +1841,8 @@ test.describe('SBH-3181 ER Patient List — TC (dev-x)', () => {
       await logout(page);
       await login(page, 'Doctor');
       await gotoErPatientList(page);
+      await expect(erListRow(page, pat('A').en)).toBeVisible({ timeout: 60_000 });
+      await page.waitForTimeout(1_500);
       const user = (await page.getByRole('banner').getByRole('button', { name: /^user / }).innerText()).replace(/\s+/g, ' ').trim();
       const heads = await headers();
       await markEvidence(expected(page.getByRole('banner').getByRole('button', { name: /^user / }), `ผู้ใช้ B: ${user}`), expected(tableWrap(page).locator('thead').filter({ visible: true }).first(), 'คอลัมน์เริ่มต้น'));

@@ -226,7 +226,9 @@ export async function showPdf(page: Page, pdf: Buffer, caption: string, pageNo =
         const box = document.createElement('span');
         box.setAttribute('data-pdf-line', String(i));
         box.title = l.text.replace(/\s+/g, ' ').trim();
-        Object.assign(box.style, { position: 'absolute', left: `${l.x * scale - 2}px`, top: `${(l.base - l.size * 0.85) * scale}px`, width: `${l.width * scale + 4}px`, height: `${l.size * 1.15 * scale}px` });
+        // บรรทัดที่มีสระบน / วรรณยุกต์ไทย: กรอบเดิมไม่รวมส่วนที่ลอยเหนือตัวอักษร (กรอบแดงแตะไม้โท — SBH-2785 Prod) → ยกขอบบนเพิ่ม
+        const lift = /[ัิ-ื็-๎]/.test(l.text) ? l.size * 0.25 : 0;
+        Object.assign(box.style, { position: 'absolute', boxSizing: 'border-box', paddingTop: `${lift * scale}px`, left: `${l.x * scale - 2}px`, top: `${(l.base - l.size * 0.85 - lift) * scale}px`, width: `${l.width * scale + 4}px`, height: `${(l.size * 1.15 + lift) * scale}px` });
         if (textLayer) {
           box.textContent = box.title;
           Object.assign(box.style, { color: 'transparent', fontSize: `${l.size * scale * 0.9}px`, lineHeight: `${l.size * 1.15 * scale}px`, whiteSpace: 'nowrap', overflow: 'hidden', userSelect: 'none' });

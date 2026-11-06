@@ -86,7 +86,8 @@ async function scrollPanel(page: Page, over: Locator, to: 'bottom' | 'top') {
 }
 
 test.describe(`SBH-2436 แจ้งเตือนบันทึกคัดกรอง ER + หัวข้อ / ปุ่มบันทึก fixed บนหน้า Overview (${SYSTEM})`, () => {
-  test.skip(SYSTEM !== 'dev-x', 'ผู้ใช้สั่งทดสอบบน Dev-X — SBH Prod ต้องได้รับอนุญาตเป็นรายการ์ด (R40)');
+  // SBH Prod: ผู้ใช้อนุญาต 6 พ.ย. 2026 ("สร้างคนไข้ตามที่ต้องใช้งานได้เลย") — ผู้ป่วย AUTO 1 ราย แล้วปิด Visit ที่การเงิน
+  test.skip(SYSTEM !== 'dev-x' && SYSTEM !== 'sbh-prod', 'รันได้เฉพาะ Dev-X และ SBH Prod (อนุญาตรายการ์ด R40)');
   test.describe.configure({ timeout: 1_200_000 });
 
   let opened: Map<string, ErVisit>;
@@ -97,6 +98,11 @@ test.describe(`SBH-2436 แจ้งเตือนบันทึกคัด�
     await context.setOffline(false);
     await startClip(page, 'after');
     await hideCompareTable(page);
+    // SBH2436_KEEP=1 = ไม่ปิด Visit (ล้มกลางทางแล้วรันต่อด้วย SBH2436_VISIT ได้) → ปิดด้วย --grep "@SBH-2436-CLOSE"
+    if (process.env.SBH2436_KEEP) {
+      for (const visit of opened.values()) console.log(`    หลังเทส: เก็บ Visit ไว้ (SBH2436_KEEP) — SBH2436_VISIT=${visit.hn},${visit.vn},${visit.en}`);
+      return;
+    }
     for (const visit of opened.values()) {
       const result = await closeVisitAtCashier(page, visit.hn, visit.vn).then(
         (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
@@ -232,7 +238,7 @@ test.describe(`SBH-2436 แจ้งเตือนบันทึกคัด�
           await saveErTriageForm(page, `บันทึกคัดกรองครั้งแรก ${visit.en}`);
           await expectOk(await zoned, `ส่งเข้าโซน ${visit.en}`);
           await expect(main.getByText('Clinical Summary', { exact: true }).first(), 'บันทึกคัดกรองแล้วหน้าต้องเปลี่ยนเป็น Overview').toBeVisible({ timeout: 60_000 });
-          await dismissToast(page, TRIAGE_SAVED);
+          await closeNotices(page); // SBH Prod 6 พ.ย.: บันทึก 1 ครั้งขึ้นแจ้งเตือนสำเร็จ 2 อัน → dismissToast (getByText) ชน strict mode
         });
       }
       await expect(triageTitle, 'หน้า Overview ต้องมีฟอร์ม คัดกรอง ER').toBeVisible({ timeout: 60_000 });
@@ -274,7 +280,7 @@ test.describe(`SBH-2436 แจ้งเตือนบันทึกคัด�
         expect(shown, `Expected: แสดงแจ้งเตือน "${TRIAGE_SAVED}"`).toBe(true);
         await markEvidence(alerted(toast, TRIAGE_SAVED));
       });
-      await dismissToast(page, TRIAGE_SAVED);
+      await closeNotices(page); // SBH Prod 6 พ.ย.: บันทึก 1 ครั้งขึ้นแจ้งเตือนสำเร็จ 2 อัน → dismissToast (getByText) ชน strict mode
 
       // ---------- TC-003 เทียบแจ้งเตือนกับ ER Physician Note ----------
       await startClip(page, 'TC-003');
@@ -393,7 +399,7 @@ test.describe(`SBH-2436 แจ้งเตือนบันทึกคัด�
         expect(shown, `Expected: แสดงแจ้งเตือน "${TRIAGE_SAVED}" แม้กดจากตำแหน่งที่เลื่อนลงแล้ว`).toBe(true);
         await markEvidence(alerted(toast, TRIAGE_SAVED));
       });
-      await dismissToast(page, TRIAGE_SAVED);
+      await closeNotices(page); // SBH Prod 6 พ.ย.: บันทึก 1 ครั้งขึ้นแจ้งเตือนสำเร็จ 2 อัน → dismissToast (getByText) ชน strict mode
 
       // ---------- TC-008 เลื่อนกลับขึ้นบนสุด หัวแผงไม่ทับช่องแรก ----------
       await startClip(page, 'TC-008');
@@ -459,7 +465,7 @@ test.describe(`SBH-2436 แจ้งเตือนบันทึกคัด�
         expect(historyAfter - historyBefore, 'Expected: ไม่เกิดรายการคัดกรองซ้ำซ้อน').toBe(single.history);
       });
       await hideCompareTable(page);
-      await dismissToast(page, TRIAGE_SAVED);
+      await closeNotices(page); // SBH Prod 6 พ.ย.: บันทึก 1 ครั้งขึ้นแจ้งเตือนสำเร็จ 2 อัน → dismissToast (getByText) ชน strict mode
 
       // ---------- TC-009 บันทึกไม่สำเร็จ (offline) ----------
       await scrollPanel(page, form, 'top');
@@ -521,4 +527,11 @@ test.describe(`SBH-2436 แจ้งเตือนบันทึกคัด�
       expect(failures, 'ขั้นที่ไม่ผ่าน').toEqual([]);
     },
   );
+
+  test('ปิด Visit ของผู้ป่วยใน SBH2436_VISIT ที่การเงิน (หลังรันด้วย SBH2436_KEEP)', { tag: ['@SBH-2436-CLOSE'] }, async ({ page }) => {
+    const [hn, vn, en] = (process.env.SBH2436_VISIT ?? '').split(',');
+    test.skip(!hn || !vn, 'ต้องใส่ SBH2436_VISIT=<HN>,<VN>,<EN>');
+    const closed = await closeVisitAtCashier(page, hn, vn);
+    console.log(`    ปิด Visit HN ${hn} · ${vn} · ${en ?? '-'}: ${closed.result}`);
+  });
 });

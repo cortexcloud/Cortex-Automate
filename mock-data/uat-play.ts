@@ -593,6 +593,8 @@ export async function replyConsult(page: Page, problem: string, answer: string) 
   await recordMenu(page, 'ประวัติ Consult');
   // คำขอที่ยังรอตอบ (เล่นซ้ำกับผู้ป่วยรายเดิมจะมีคำขอข้อความเดียวกันที่ตอบไปแล้วปนอยู่)
   const pending = main.getByRole('row').filter({ hasText: problem }).filter({ hasText: 'รอตอบกลับ' });
+  // dev-x 6 พ.ย. 2026 (SBH-3182 Retest): นับก่อนรายการโหลดเสร็จได้ 0 → คาด -1 ทั้งที่ตอบสำเร็จ → รอแถวแรกขึ้นก่อนนับ
+  await pending.first().waitFor({ timeout: 30_000 });
   const pendingBefore = await pending.count();
   await pending.first().getByRole('button', { name: 'ตอบกลับ consult' }).click();
   const dialog = page.getByRole('dialog', { name: /Consult/ });

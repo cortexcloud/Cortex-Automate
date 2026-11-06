@@ -21,6 +21,11 @@ import { VITALS_NORMAL } from '../../../mock-data/uat-play';
 // หน้าต่าง: เจ้าหน้าที่ (Super_User — R6) + จอ TV แยก (ไม่มี session = หน้าสาธารณะ) · คลิป: clip-TC-00x-staff.webm (เจ้าหน้าที่) + clip-TC-00x.webm (จอ TV)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-1026
 // SBH1026_VISITS=<HN>,<VN>,<EN>;<HN>,<VN>,<EN> = ใช้ผู้ป่วย A;B เดิม (คัดกรองแล้ว) · SBH1026_KEEP=1 = ไม่ปิด Visit ท้ายเทส
+// SBH Prod (ผู้ใช้สั่ง 6 พ.ย. 2026 "ทดสอบการ์ด SBH-1026 บน Prod … สร้างคนไข้ตามที่ต้องใช้งานได้เลย"): ผู้ป่วย AUTO 2 ราย
+//   รอบแรก: SBH1026_KEEP=1 npm run card:prod -- --headed --grep "@SBH-1026( |$)"  (ล้มกลางทาง = ทำต่อด้วย SBH1026_VISITS ไม่สร้างรายใหม่)
+//   → ปิด Visit: SBH1026_VISITS=… npm run card:prod -- --headed --grep "@SBH-1026-CLOSE"
+//   จอ TV ของ Prod เป็นจอจริงของ ER — ท้ายเทสจบคิวผู้ป่วย AUTO ที่เทสเรียก (ไม่ให้คิวทดสอบค้าง "กำลังเรียก" แบบ SBH-3117 Prod)
+//   ห้ามรันพร้อมเทสอื่นที่เรียกคิว / นับรายการผู้ป่วย ER (SBH-3117 · SBH-3181) — คิวที่คนอื่นเรียกแทรกทำให้ TC-003 ขั้น 1 ไม่ผ่าน
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const ISSUE = { 1: 'SBH-3026', 2: 'SBH-3027', 3: 'SBH-3028' } as const;
@@ -29,7 +34,7 @@ const TC = (n: 1 | 2 | 3) => `TC-00${n} (${ISSUE[n]})`;
 type Patient = { key: 'A' | 'B'; level: 3 | 4; visit?: ErVisit; fullName?: string; queue?: string; boardLevel?: number | null };
 type BoardRow = ErBoardEncounter & { queueExam?: { qDisplay?: string } | null };
 
-test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด ER เรียกคิวขึ้นจอ ER TV (dev-x)', () => {
+test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด ER เรียกคิวขึ้นจอ ER TV (dev-x / SBH Prod)', () => {
   test.describe.configure({ timeout: 1_200_000 });
 
   let opened: Map<string, ErVisit>;
@@ -106,6 +111,8 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
       // ช่องคิวรุ่น 3 พ.ย. 2026 มีปุ่ม ✓ "จบคิว" (SBH-3117) อยู่ด้วย → หาปุ่มเรียกคิวตามชื่อ (ผู้ใช้อนุมัติ 3 พ.ย.)
       const CALL = { name: /^เรียกคิว / };
       const callButton = async (row: Locator): Promise<Locator> => (await erListCell(page, row, 'คิว')).getByRole('button', CALL);
+      /** ผู้ป่วยที่เทสกดเรียกคิวสำเร็จ — ท้ายเทสจบคิวให้ทุกราย */
+      const calledByTest: Patient[] = [];
 
       /** กรองรายการด้วย HN ของผู้ป่วย (แท็บผู้ป่วยปัจจุบันใน ER) แล้วคืนแถว */
       const rowOf = async (p: Patient) => {
@@ -129,6 +136,7 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
           await button.click();
           const res = await called;
           await expectOk(res, `เรียกคิว ${p.queue}`);
+          if (!calledByTest.includes(p)) calledByTest.push(p);
           expect(new URL(res.url()).pathname, 'เรียกคิวของ Encounter ผู้ป่วยรายนี้').toContain(`/er/encounters/${p.visit!.en}/queue-call`);
           const toast = page.getByText(`ส่งคิว ${p.queue} ไปยังจอ ER แล้ว`, { exact: true }).first();
           // dev-x ช้าบางรอบ toast ขึ้นเกิน 10 วินาทีหลัง API ตอบ (รอบ 3 · 29 ต.ค. 2026 — ผู้ใช้อนุมัติให้รอ 30 วินาที)
@@ -356,7 +364,38 @@ test.describe('SBH-1026 ปุ่ม Call QUEUE บนแดชบอร์ด E
         await hideCompareTable(tv).catch(() => undefined);
         await finishVideo(tv);
         await tv.context().close();
+        // จบคิวผู้ป่วย AUTO ที่เทสเรียกทุกราย — ไม่ให้คิวทดสอบค้าง "กำลังเรียก / เรียกแล้ว" บนจอ TV จริง (SBH Prod 6 พ.ย. 2026 · แบบ SBH-3117)
+        await hideCompareTable(page).catch(() => undefined);
+        for (const p of calledByTest) {
+          const result = await (async () => {
+            const cell = await erListCell(page, await rowOf(p), 'คิว');
+            const button = cell.getByRole('button', { name: `จบคิว ${p.queue}`, exact: true });
+            if (!(await button.isVisible().catch(() => false))) return `ไม่มีปุ่มจบคิว (${((await cell.innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim()})`;
+            const done = waitForApi(page, 'POST', /\/cortex-api\/er\/encounters\/[^/]+\/queue-complete$/, 30_000);
+            await button.click();
+            const confirm = page.locator('.ant-popconfirm-buttons .ant-btn-primary, .ant-modal-confirm-btns .ant-btn-primary').filter({ visible: true }).first();
+            if (await confirm.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)) await confirm.click();
+            await expectOk(await done, `จบคิว ${p.queue}`);
+            return 'จบคิวแล้ว';
+          })().catch((error: Error) => `จบคิวไม่สำเร็จ — ${error.message.split('\n')[0]}`);
+          note(`หลังเทส: ผู้ป่วย ${p.key} คิว ${p.queue}`, result);
+          console.log(`    หลังเทส: ผู้ป่วย ${p.key} คิว ${p.queue}: ${result}`);
+        }
       }
     },
   );
+
+  // ปิด Visit ผู้ป่วยที่รันด้วย SBH1026_KEEP=1 (SBH Prod รอบแรก — กันเสียผู้ป่วยถ้าเทสล้มกลางทาง)
+  test('ปิด Visit ผู้ป่วย AUTO ของ SBH-1026 ที่การเงิน (SBH1026_VISITS)', { tag: ['@SBH-1026-CLOSE'] }, async ({ page }) => {
+    const visits = (process.env.SBH1026_VISITS ?? '').split(';').filter(Boolean).map((v) => v.split(','));
+    test.skip(!visits.length, 'ต้องใส่ SBH1026_VISITS=<HN>,<VN>,<EN>;…');
+    for (const [hn, vn, en] of visits) {
+      const result = await closeVisitAtCashier(page, hn, vn).then(
+        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+        (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+      );
+      test.info().annotations.push({ type: 'ปิด Visit', description: `HN ${hn} · ${vn} · ${en}: ${result}` });
+      console.log(`    HN ${hn} · ${vn} · ${en}: ${result}`);
+    }
+  });
 });

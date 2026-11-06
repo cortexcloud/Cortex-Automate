@@ -6,7 +6,7 @@ import { alerted, clearEvidenceMarks, clicked, expected, filled, hideCompareTabl
 import { finishVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
-import { registerAndOpenErVisit } from '../../../mock-data/uat-er';
+import { recordMockPatient, registerAndOpenErVisit } from '../../../mock-data/uat-er';
 import { careMenu, gotoVisit, options, recordMenu } from '../../../mock-data/uat-play';
 import { authFile } from '../../../utils/env';
 
@@ -19,8 +19,10 @@ import { authFile } from '../../../utils/env';
 // หน้าจอ (dev-x 31 ต.ค. 2026 · index-DJaj9lPY.js · concept er-trauma-detail-pher-plus · allowMultiplePerEncounter false):
 //   ฟอร์มเป็น web component er-trauma-detail-pher-plus-v1 (shadow DOM — getByRole / CSS ทะลุได้) · dropdown = input role=combobox + listbox ตาม aria-controls ·
 //   แก้ฟอร์มแล้วระบบเก็บร่างเอง (PUT /clinical-form-groups/<id>/draft) · กด บันทึก = POST …/saves · ข้อมูลที่บันทึกแสดงใน ER Summary (er-trauma-detail-pher-plus-v1-viewer)
-// หลังเทส: ปิด Visit ที่การเงิน (afterEach) · SBH2952_KEEP=1 = ไม่ปิด
-// รัน (dev-x): npx playwright test --headed --grep @SBH-2952
+// หลังเทส: ปิด Visit ที่การเงิน (afterEach) · SBH2952_KEEP=1 = ไม่ปิด → ปิดด้วย --grep "@SBH-2952-CLOSE" + SBH2952_VISIT=<HN>,<VN>,<EN>
+// รัน (dev-x): npx playwright test --headed --grep "@SBH-2952( |$)"
+// SBH Prod (ผู้ใช้อนุญาต 6 พ.ย. 2026 "สามารถสร้างคนไข้ตามที่ต้องใช้งานได้เลย" · Prod มี concept er-trauma-detail-pher-plus id 73 · ไฟล์แอป index-B30_rCX7.js):
+//   SBH2952_KEEP=1 npx playwright test -c playwright.sbh-prod.cards.config.ts --headed --grep "@SBH-2952( |$)" แล้วปิด Visit ด้วย @SBH-2952-CLOSE
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const ISSUE: Record<number, string> = {
@@ -160,7 +162,7 @@ async function openNurseWindow(browser: Browser, visit: ErVisit): Promise<Page> 
   return nurse;
 }
 
-test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
+test.describe('SBH-2952 Trauma Detail Form', () => {
   test.describe.configure({ timeout: 2_400_000 });
 
   let opened: Map<string, ErVisit>;
@@ -170,7 +172,10 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
   });
 
   test.afterEach(async ({ page }) => {
-    if (process.env.SBH2952_KEEP) return;
+    if (process.env.SBH2952_KEEP) {
+      for (const visit of opened.values()) console.log(`    หลังเทส: เก็บ Visit ไว้ (SBH2952_KEEP) — SBH2952_VISIT=${visit.hn},${visit.vn},${visit.en}`);
+      return;
+    }
     for (const visit of opened.values()) {
       const result = await closeVisitAtCashier(page, visit.hn, visit.vn).then(
         (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
@@ -188,11 +193,17 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
       // ---------- เตรียมข้อมูล: ผู้ป่วย AUTO ใหม่ + Visit ER + คัดกรอง Trauma (Super_User) ----------
       const setup = makeRunner(page);
       let visit: ErVisit | undefined;
-      await setup.soft('เตรียมข้อมูล: ผู้ป่วย AUTO ใหม่ + เปิด Visit ER + คัดกรอง Trauma', async () => {
+      // ทำต่อกับผู้ป่วยเดิม (SBH Prod 6 พ.ย.: TC-015 บันทึกได้ 503 → รันซ้ำเฉพาะ TC-015 / 016): SBH2952_VISIT=<HN>,<VN>,<EN> + SBH2952_ONLY=015,016
+      const resume = process.env.SBH2952_ONLY && process.env.SBH2952_VISIT ? process.env.SBH2952_VISIT.split(',') : undefined;
+      if (resume) {
+        visit = { hn: resume[0], vn: resume[1], en: resume[2] } as ErVisit;
+        setup.note('ผู้ป่วย (ทำต่อ)', `HN ${visit.hn} · ${visit.vn} · ${visit.en} — ไม่สร้างผู้ป่วยใหม่`);
+      } else await setup.soft('เตรียมข้อมูล: ผู้ป่วย AUTO ใหม่ + เปิด Visit ER + คัดกรอง Trauma', async () => {
         await gotoErDashboard(page);
         const patient = newTestPatient('Trauma2952');
         const v = await registerAndOpenErVisit(page, patient);
         visit = v;
+        recordMockPatient('SBH-2952', patient, v, 'SBH-2952 · ผู้ป่วย AUTO · Visit ER + คัดกรอง Trauma ESI 3 + ฟอร์ม Trauma Detail For Pher Plus (Nurse)');
         setup.note('ผู้ป่วย', `${patient.firstName} ${patient.familyName} · HN ${v.hn} · ${v.vn} · ${v.en}`);
         const panel = erTriagePanel(page);
         await expect(panel.getByRole('combobox', { name: 'Eye Opening (E)' }).first()).toBeVisible({ timeout: 90_000 });
@@ -211,7 +222,12 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
       if (!visit) return;
 
       const nurse = await openNurseWindow(browser, visit);
-      const { note, soft, finish } = makeRunner(nurse);
+      const runner = makeRunner(nurse);
+      const { note, finish } = runner;
+      // SBH2952_ONLY=015,016 → เล่นเฉพาะ TC ที่ระบุ (TC-001 / 002 เล่นเสมอเพื่อเปิดฟอร์ม)
+      const only = process.env.SBH2952_ONLY?.split(',').map((s) => s.trim().padStart(3, '0'));
+      const soft = (title: string, body: () => Promise<void>) =>
+        only && !/^TC-00[12] /.test(title) && !only.some((o) => title.startsWith(`TC-${o} `)) ? Promise.resolve(false) : runner.soft(title, body);
       note('ผู้ป่วยที่ใช้', `HN ${visit.hn} · ${visit.vn} · ${visit.en} (คัดกรอง Trauma) · หน้าต่าง TC = บัญชี Nurse`);
       const main = nurse.getByRole('main');
       const f = traumaForm(nurse);
@@ -352,13 +368,13 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
           }
           await f.summary('trauma').scrollIntoViewIfNeeded();
           await f.summary('trauma').evaluate((el) => el.scrollIntoView({ block: 'start' }));
-          await markEvidence(expected(f.trauma.locator('.pher__grid').first(), 'ฟิลด์ส่วนบน'));
-          await snapEvidence(nurse, 'ส่วน Trauma Detail — ครึ่งบน');
+          // SBH Prod 6 พ.ย.: ภาพเดิมตารางเทียบ bottom บังแถวล่าง (หน้าเลื่อนสุดแล้ว) + ป้ายทับชื่อช่อง (ฟอร์มอยู่ใน shadow DOM ตัววางป้ายมองไม่เห็นชื่อช่อง)
+          // → ภาพทั้งส่วนก่อนขึ้นตาราง: ป้ายเดียวที่หัวส่วน · ปุ่มประวัติสลบ / ชั่วโมง / นาที เป็นกรอบไม่มีป้าย
+          await markEvidence(expected(f.summary('trauma'), 'ส่วน Trauma Detail มีฟิลด์ครบ 8 กลุ่ม (ดูตารางเทียบภาพถัดไป)'), f.group('ประวัติสลบตั้งแต่เกิดเหตุ'), f.hours, f.minutes);
+          await snapEvidence(nurse, 'ส่วน Trauma Detail — ทั้งส่วน');
           await clearEvidenceMarks(nurse);
-          // แถวล่างของส่วน (ลักษณะการบาดเจ็บ · ประวัติสลบ · ชั่วโมง / นาที) ชิดบน ให้พ้นตารางเทียบด้านล่าง
-          await f.root.getByText('กลไกการบาดเจ็บ', { exact: true }).first().evaluate((el) => el.scrollIntoView({ block: 'start' }));
           await compare(6, rows, 'bottom');
-          await markEvidence(expected(f.group('ประวัติสลบตั้งแต่เกิดเหตุ'), 'ไม่สลบ / สลบ / ไม่ทราบ'), expected(f.hours, 'ชั่วโมง'), expected(f.minutes, 'นาที'));
+          await markEvidence(expected(f.summary('trauma'), 'ฟิลด์ครบ 8 กลุ่มตามตารางเทียบ'));
           expect(bad(rows)).toEqual([]);
         });
         await hideCompareTable(nurse);
@@ -371,9 +387,10 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
             const got = norm(await f.checkedLabel(group).innerText().catch(() => '(ไม่ได้เลือก)'));
             rows.push({ label: group, values: [want, got], same: got === want });
           }
-          await f.group('บาดเจ็บจากการทำงาน').scrollIntoViewIfNeeded();
+          await f.summary('trauma').evaluate((el) => el.scrollIntoView({ block: 'start' }));
           await compare(7, rows, 'bottom');
-          await markEvidence(...DEFAULT_CHOICES.map(([group, want]) => expected(f.checkedLabel(group), want)));
+          // ป้ายต่อปุ่มทับชื่อช่อง (shadow DOM) → ป้ายเดียวที่หัวส่วน + กรอบไม่มีป้ายรอบปุ่มที่ถูกเลือก
+          await markEvidence(expected(f.summary('trauma'), 'ค่าเริ่มต้น ไม่ทราบ ×5 · ประวัติสลบ = ไม่สลบ (กรอบในฟอร์ม)'), ...DEFAULT_CHOICES.map(([group]) => f.checkedLabel(group)));
           expect(bad(rows)).toEqual([]);
         });
         await hideCompareTable(nurse);
@@ -636,6 +653,18 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
         // ---------- TC-015 กรอกครบทุกส่วน + บันทึก ----------
         await startClip(nurse, tcId(15));
         const saved = await soft(`${TC(15)} ขั้น 3–4 กรอกครบทุกส่วน → บันทึก สำเร็จ`, async () => {
+          // SBH Prod 6 พ.ย.: บันทึกรอบก่อนได้ 503 → หน้าจอค้าง "ยังไม่ทราบผลการบันทึก" + ปุ่ม ตรวจสอบผลการบันทึก (ระบบห้ามส่งซ้ำก่อนตรวจ)
+          const unknown = main.getByText(/ยังไม่ทราบผลการบันทึก/).first();
+          if (await unknown.isVisible().catch(() => false)) {
+            const check = main.getByRole('button', { name: 'ตรวจสอบผลการบันทึก', exact: true }).first();
+            await markEvidence(alerted(unknown, 'ค้างจากบันทึกรอบก่อน (503)'), clicked(check, 'ตรวจสอบผลการบันทึก'));
+            await snapEvidence(nurse, 'ก่อนกด — ตรวจสอบผลการบันทึก');
+            await clearEvidenceMarks(nurse);
+            await check.click();
+            await nurse.waitForTimeout(3_000);
+            note(`${TC(15)} ตรวจผลบันทึกรอบก่อน`, norm(await main.locator('.ant-alert, [role="alert"]').allInnerTexts().then((t) => t.join(' | '))).slice(0, 400));
+            await snapEvidence(nurse, 'หลังกด — ตรวจสอบผลการบันทึก');
+          }
           // การดูแลระหว่างนำส่ง
           const care: [string, string][] = [['ดูแลการหายใจ', '1 - '], ['ห้ามเลือด', '2 - '], ['Splint/Slap C-Spine', '0 - '], ['Splint/Slap อื่นๆ', '3 - '], ['IV Fluid', 'N - ']];
           for (const [name, prefix] of care) await choose(nurse, f, f.combo(name), prefix);
@@ -697,7 +726,8 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
           const response = nurse.waitForResponse((r) => r.request().method() === 'POST' && /\/clinical-form-groups\/[^/]+\/saves$/.test(r.url()), { timeout: 60_000 });
           await save.click();
           const res = await response;
-          note(`${TC(15)} คำสั่งบันทึก`, `POST …/clinical-form-groups/…/saves → ${res.status()}`);
+          note(`${TC(15)} คำสั่งบันทึก`, `POST …/clinical-form-groups/…/saves → ${res.status()} · x-request-id ${res.headers()['x-request-id'] ?? '-'}`);
+          if (res.status() !== 200) note(`${TC(15)} คำตอบของคำสั่งบันทึก`, (await res.text().catch((e: Error) => `(อ่านไม่ได้: ${e.message.split('\n')[0]})`)).slice(0, 600));
           expect(res.status(), 'คำสั่งบันทึกต้องสำเร็จ').toBe(200);
           const banner = main.getByText(SAVED_BANNER, { exact: true }).first();
           await expect(banner, `ต้องขึ้น "${SAVED_BANNER}"`).toBeVisible({ timeout: 30_000 });
@@ -793,4 +823,11 @@ test.describe('SBH-2952 Trauma Detail Form (dev-x)', () => {
       finish();
     },
   );
+
+  test('ปิด Visit ของผู้ป่วยใน SBH2952_VISIT ที่การเงิน (หลังรันด้วย SBH2952_KEEP)', { tag: ['@SBH-2952-CLOSE'] }, async ({ page }) => {
+    const [hn, vn, en] = (process.env.SBH2952_VISIT ?? '').split(',');
+    test.skip(!hn || !vn, 'ต้องใส่ SBH2952_VISIT=<HN>,<VN>,<EN>');
+    const closed = await closeVisitAtCashier(page, hn, vn);
+    console.log(`    ปิด Visit HN ${hn} · ${vn} · ${en ?? '-'}: ${closed.result}`);
+  });
 });

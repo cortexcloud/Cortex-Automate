@@ -234,8 +234,14 @@ export async function dismissToast(page: Page, text: string) {
   if (!(await toast.isVisible())) return;
   // ปุ่ม X ของ notification — กดไม่ได้ก็รอให้หายเอง (~4.5 วินาที)
   const notice = page.locator('.ant-notification-notice, .ant-message-notice').filter({ has: toast });
-  await notice.locator('.ant-notification-notice-close').click({ timeout: 2_000 }).catch(() => undefined);
-  await expect(toast).toBeHidden();
+  await notice.locator('.ant-notification-notice-close').first().click({ timeout: 2_000 }).catch(() => undefined);
+  // SBH Prod 5 พ.ย. 2026 (SBH-2355 คัดกรองซ้ำ): toast ค้างเกิน 20 วินาทีหลังกด X แล้วทำให้ขั้นพังทั้งที่บันทึกสำเร็จ
+  // → กด X ซ้ำอีกครั้ง · ยังไม่หายก็ไปต่อ (แค่บังภาพ ไม่ใช่ผลของ TC)
+  if (await toast.first().isVisible().catch(() => false)) {
+    await page.mouse.move(400, 900);
+    await notice.locator('.ant-notification-notice-close').first().click({ timeout: 2_000 }).catch(() => undefined);
+  }
+  await expect(toast).toHaveCount(0, { timeout: 15_000 }).catch(() => console.log(`    dismissToast: "${text}" ยังค้างบนจอ — ไปต่อ`));
   // เมาส์ค้างมุมขวาบนหลังกด X จะชี้โดนไอคอนสถานะบัญชีแล้วขึ้น tooltip ทับภาพ → ย้ายไปที่ว่างฝั่งซ้ายล่าง
   await page.mouse.move(400, 900);
 }

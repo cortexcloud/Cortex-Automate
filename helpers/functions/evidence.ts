@@ -312,6 +312,8 @@ export interface CompareRow {
   label: string;
   values: string[];
   same: boolean;
+  /** ข้อความช่อง "ผล" ตอน same = true แทน "✓ ตรง" — แถวที่ค่าต่างกันโดยธรรมชาติ (เลขคิว / วันเวลา ต่างตาม Visit) และเช็คแค่ว่ามีบรรทัด ใช้ "มีบรรทัดนี้" (SBH-2785 Prod) */
+  result?: string;
 }
 
 /**
@@ -367,7 +369,7 @@ export async function showCompareTable(page: Page, title: string, columns: strin
         if (!header && !same) tr.style.background = '#fff1f0';
       };
       addRow(['ช่อง', ...columns, 'ผล'], true);
-      for (const row of rows) addRow([row.label || '(ทั้งส่วน)', ...row.values, row.same ? '✓ ตรง' : '✗ ไม่ตรง'], false, row.same);
+      for (const row of rows) addRow([row.label || '(ทั้งส่วน)', ...row.values, row.same ? (row.result ?? '✓ ตรง') : '✗ ไม่ตรง'], false, row.same);
       overlay.append(head, caption, table);
       document.body.appendChild(overlay);
     },

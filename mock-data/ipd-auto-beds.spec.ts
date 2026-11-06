@@ -60,7 +60,8 @@ async function choose(page: Page, sel: Locator, text: string) {
 }
 
 test(`สร้างเตียง IPD ${PREFIX}${String(FROM).padStart(2, '0')}–${String(TO).padStart(2, '0')} สำหรับผู้ป่วย AUTO (${SYSTEM})`, async ({ page }) => {
-  test.skip(SYSTEM !== 'dev-x', 'สร้างเตียงได้เฉพาะ dev-x (ผู้ใช้สั่ง 3 พ.ย. 2026) — ห้ามรันบน SBH Prod / SBH Dev');
+  // SBH Prod: ผู้ใช้สั่ง 6 พ.ย. 2026 "สร้างเตียงเพิ่ม แล้วนำคนไข้เข้าเตียง" (SBH-2593 · หออายุรกรรม ชาย มีเตียงเดียวที่ไม่ว่าง) → รันได้เมื่อตั้ง BED_ALLOW_PROD=1 เท่านั้น
+  test.skip(SYSTEM !== 'dev-x' && !(SYSTEM === 'sbh-prod' && process.env.BED_ALLOW_PROD === '1'), 'สร้างเตียงได้เฉพาะ dev-x (ผู้ใช้สั่ง 3 พ.ย. 2026) — SBH Prod ต้องตั้ง BED_ALLOW_PROD=1 ตามที่ผู้ใช้สั่ง');
   test.setTimeout(20 * 60_000);
   const auth = trackAuthorization(page);
   const names = Array.from({ length: TO - FROM + 1 }, (_, i) => `${PREFIX}${String(FROM + i).padStart(2, '0')}`);
@@ -92,7 +93,7 @@ test(`สร้างเตียง IPD ${PREFIX}${String(FROM).padStart(2, '0'
       await dlg.locator('#name').fill(name);
       await choose(page, selectOf(dlg, 'bedTypeId'), BED.bedType);
       const price = dlg.locator('#price');
-      if ((await price.inputValue()).replace(/,/g, '') !== BED.price) await price.fill(BED.price);
+      if ((await price.isEditable().catch(() => false)) && (await price.inputValue()).replace(/,/g, '') !== BED.price) await price.fill(BED.price); // ห้องที่กำหนดประเภทเตียงไว้ ราคาเติมเอง แก้ไม่ได้
       await choose(page, selectOf(dlg, 'status'), BED.status);
       const enabled = dlg.locator('#enabled');
       if ((await enabled.getAttribute('aria-checked')) !== 'true') await enabled.click();

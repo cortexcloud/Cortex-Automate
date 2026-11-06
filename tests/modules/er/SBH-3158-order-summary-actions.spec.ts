@@ -3,11 +3,11 @@ import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { dismissToast, gotoErDashboard, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { erTriagePanel, fillErTriageForm, saveErTriageForm } from '../../../helpers/functions/er-triage';
-import { alerted, clicked, expected, filled, holdForClip, makeRunner, markEvidence, snapEvidence } from '../../../helpers/functions/evidence';
+import { alerted, clearEvidenceMarks, clicked, expected, filled, holdForClip, makeRunner, markEvidence, snapEvidence } from '../../../helpers/functions/evidence';
 import { finishVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { cacheAppAssets, expect, test } from '../../../mock-data/fixtures';
-import { fetchNurseTasks, orderAlert, confirmOrderAlert, registerAndOpenErVisit, submitOrders } from '../../../mock-data/uat-er';
+import { fetchNurseTasks, orderAlert, confirmOrderAlert, registerAndOpenErVisit, submitOrders, SYSTEM } from '../../../mock-data/uat-er';
 import { VITALS_NORMAL, careMenu, gotoVisit } from '../../../mock-data/uat-play';
 import { authFile } from '../../../utils/env';
 
@@ -21,9 +21,11 @@ import { authFile } from '../../../utils/env';
 //   เวชภัณฑ์: ต้องกรอก "จำนวนที่จ่าย" ก่อนเพิ่มลงตะกร้า · ที่มีราคา: NUH-OS-MDS-125 / 116 / 104 / 123 (ตัวอื่นขึ้น "ไม่พบราคาต่อหน่วย")
 //   Lab: 29 ต.ค. สั่งได้แต่ไม่เกิดงานพยาบาล → แถว Lab ไม่มีปุ่ม (ผู้ใช้ให้ "เล่นเก็บหลักฐาน + Fail + Failed") ·
 //        แก้แล้ว (SBH-3454 · PR cortex-api "add request ids to er nurse task source ref") — 4 พ.ย. API มีงาน source LAB · Retest รอบ 4 พ.ย.
+//        6 พ.ย. (Retest รอบ 3): ใช้ Lab หมวด LCH ตาม Comment dev ใน SBH-3886 (ดู LAB ด้านล่าง) → ผ่านครบ 32 TC
 //   ER Nurse Task List: รับงานแล้วสถานะ "กำลังทำ" — ผู้ใช้ให้ถือว่าตรงกับ Expected "สถานะรับ Order แล้ว" (เขียนในผลว่าเห็นอะไร)
 // ไม่ได้บันทึก ER Physician Note (ไม่จำเป็นต่อการส่งคำสั่ง One Day Order — เขียนในผล)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-3158   ·  เฉพาะผู้ป่วย: --grep "@SBH-3158-A" / B / C
+// รัน (SBH Prod · R156): SBH3158_KEEP=1 npm run card:prod -- --headed --grep "@SBH-3158-A( |$)" (ทีละราย A / B / C) · ท้ายงาน SBH3158_CLOSE="HN,VN;…" --grep "@SBH-3158-CLOSE"
 // SBH3158_KEEP=1 = ไม่ปิด Visit ท้ายเทส
 
 const ISSUE: Record<number, string> = {};
@@ -42,7 +44,23 @@ const KIND: Record<Kind, { label: string; title: RegExp }> = {
   lab: { label: 'Lab', title: /^ห้องปฏิบัติการ - / },
   supply: { label: 'เวชภัณฑ์', title: /^เวชภัณฑ์$/ },
 };
-const ECG = '89.52';
+/**
+ * SBH Prod (6 พ.ย. 2026 ดึก · index-BkJczri0.js · ค้นด้วย graphql SearchOrderItems แบบอ่านอย่างเดียว):
+ *   หัตถการ ACT0005224 ECG (ชุดเดียวกับ SBH-2079 / 3182 Prod) · รังสี IMG0000012 CHEST / IMG0000021 PLAIN KUB / IMG0000101 LEFT ELBOW ·
+ *   Lab หมวด Chemistry ทั้งหมด LAB0000001 Glucose / LAB0000002 Urine Creatinine / LAB0000007 Arterial blood gas
+ *   (รอบแรก 7 พ.ย. 00:05 ใช้ CBC LAB0000399 → Order Summary แยกการ์ด Lab ตามหมวด Chemistry / Hematology การ์ดละ 1 แถว ตาราง Lab ไม่ครบ 2 แถว) · เวชภัณฑ์ที่มีราคา: Syringe MSP0001892 / 1897 / 1894 / 1900
+ */
+const PROD = SYSTEM !== 'dev-x';
+const ECG = PROD ? 'ACT0005224' : '89.52';
+const IMG = PROD ? ['IMG0000012', 'IMG0000021', 'IMG0000101'] : ['SBHIMG1', 'SBHIMG21', 'SBHIMG101'];
+const SUP = PROD ? ['MSP0001892', 'MSP0001897', 'MSP0001894', 'MSP0001900'] : ['NUH-OS-MDS-125', 'NUH-OS-MDS-116', 'NUH-OS-MDS-104', 'NUH-OS-MDS-123'];
+/**
+ * Lab ที่สั่ง (ผู้ป่วย A / C ใช้ 2 ตัวแรก · B ใช้ 3 ตัว) — Retest 6 พ.ย. 2026 ตาม Comment ของ dev ใน SBH-3886:
+ * SBHLAB2 / 5 / 1070 (หมวด chemistry) ไม่ได้ตั้ง Override LIS container → ไม่มีหลอด → ไม่เกิดงานพยาบาล (ปัญหาตั้งค่า product ของ dev-x)
+ * → ใช้หมวด LCH ที่ตั้ง container แล้ว · เลือกหลอดคนละชนิด (Heparin / Urine / NaF) ให้ 1 แถว = 1 งานพยาบาล
+ * รหัสเดิม: SBH3158_LAB=SBHLAB2,SBHLAB5,SBHLAB1070
+ */
+const LAB = (process.env.SBH3158_LAB ?? (PROD ? 'LAB0000001,LAB0000002,LAB0000007' : '318011209535091401,317122911512653001,219010415182119301')).split(',').filter(Boolean);
 /** SBH3158_KINDS=lab (คั่นด้วย ,) = เล่นเฉพาะ TC ของประเภทนั้น (Retest 4 พ.ย.: ถ่ายภาพ Lab ใหม่หลังแก้ป้าย) — ว่าง = ทุกประเภท */
 const ONLY = (process.env.SBH3158_KINDS ?? '').split(',').filter(Boolean);
 const wanted = (kind: Kind) => !ONLY.length || ONLY.includes(kind);
@@ -261,7 +279,7 @@ async function closeVisits(page: Page, opened: Map<string, ErVisit>) {
   }
 }
 
-test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบาลของ หัตถการ / รังสี / Lab / เวชภัณฑ์ (dev-x)', () => {
+test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบาลของ หัตถการ / รังสี / Lab / เวชภัณฑ์', () => {
   test.describe.configure({ timeout: 2_400_000 });
 
   let opened: Map<string, ErVisit>;
@@ -287,7 +305,7 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
     async ({ page, browser }) => {
       const { note, soft, finish } = makeRunner(page);
       const authorization = trackAuthorization(page);
-      const visit = await preparePatient(page, 'Os3158A', [ECG, ECG, 'SBHIMG1', 'SBHIMG21', 'SBHLAB2', 'SBHLAB5'], ['NUH-OS-MDS-125', 'NUH-OS-MDS-116'], note);
+      const visit = await preparePatient(page, 'Os3158A', [ECG, ECG, IMG[0], IMG[1], ...LAB.slice(0, 2)], [SUP[0], SUP[1]], note);
       nurse = await openNurseWindow(browser, visit);
       const n = nurse;
       const run = makeRunner(n);
@@ -404,8 +422,8 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
       const visit = await preparePatient(
         page,
         'Os3158B',
-        [ECG, ECG, ECG, 'SBHIMG1', 'SBHIMG21', 'SBHIMG101', 'SBHLAB2', 'SBHLAB5', 'SBHLAB1070'],
-        ['NUH-OS-MDS-125', 'NUH-OS-MDS-116', 'NUH-OS-MDS-104'],
+        [ECG, ECG, ECG, ...IMG, ...LAB.slice(0, 3)],
+        SUP.slice(0, 3),
         note,
       );
       nurse = await openNurseWindow(browser, visit);
@@ -484,16 +502,26 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
             await expect(toast(n, 'รับ Order แล้ว 1 รายการ')).toBeVisible({ timeout: 15_000 });
             await expect(accept).toBeHidden({ timeout: 20_000 });
           }
+          await showCard(n, kind);
           await markEvidence(expected(card(n, kind).locator('tbody'), 'รับ Order ครบ 3 แถว'));
-          await holdForClip(n);
+          await snapEvidence(n, `หลังกด — รับ Order ${label} ครบ 3 แถว`);
+          // Prod 7 พ.ย.: แถบ "เลือก N รายการ" แทรกเข้ามาแล้วหน้าเลื่อน → กรอบที่ตีไว้ก่อนติ๊กค้างพิกัดเก่า (Sub Agent ทัก B-14/19/24/29) → ล้างกรอบก่อนติ๊ก
+          await clearEvidenceMarks(n);
           for (let r = 0; r < 2; r++) await rowCheckbox(rows.nth(r)).click({ force: true });
           const bar = bulkBar(n);
           const bulkDone = bar.getByRole('button', { name: /^เสร็จสิ้น \(\d+\)$/ });
           await expect(bar.getByText('เลือก 2 รายการ', { exact: true })).toBeVisible({ timeout: 10_000 });
           const bulkText = (await bulkDone.innerText()).trim();
           note(`${TC(no)} แถบ`, `${(await bar.innerText()).replace(/\s+/g, ' ')}`);
+          await showCard(n, kind);
           await bar.scrollIntoViewIfNeeded();
-          await markEvidence(expected(bar.getByText('เลือก 2 รายการ', { exact: true }), 'เลือก 2 รายการ'), clicked(bulkDone, bulkText));
+          await n.waitForTimeout(800); // รอแถบ / หน้าเลื่อนนิ่งก่อนวัดตำแหน่งกรอบ
+          await markEvidence(
+            expected(bar.getByText('เลือก 2 รายการ', { exact: true }), 'เลือก 2 รายการ'),
+            clicked(bulkDone, bulkText),
+            rowCheckbox(rows.nth(0)).locator('xpath=ancestor::td[1]'),
+            rowCheckbox(rows.nth(1)).locator('xpath=ancestor::td[1]'),
+          );
           await snapEvidence(n, `ก่อนกด — ${bulkText} ในแถบ`);
           expect(bulkText, 'ปุ่มในแถบต้องเป็น เสร็จสิ้น (2)').toBe('เสร็จสิ้น (2)');
           await bulkDone.click();
@@ -522,7 +550,7 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
     async ({ page, browser }) => {
       const { note, finish } = makeRunner(page);
       const authorization = trackAuthorization(page);
-      const visit = await preparePatient(page, 'Os3158C', [ECG, ECG, 'SBHIMG1', 'SBHIMG21', 'SBHLAB2', 'SBHLAB5'], ['NUH-OS-MDS-104', 'NUH-OS-MDS-123'], note);
+      const visit = await preparePatient(page, 'Os3158C', [ECG, ECG, IMG[0], IMG[1], ...LAB.slice(0, 2)], [SUP[2], SUP[3]], note);
       nurse = await openNurseWindow(browser, visit);
       const n = nurse;
       const run = makeRunner(n);
@@ -613,4 +641,20 @@ test.describe('SBH-3158 Order Summary ER: ปุ่มงานพยาบา�
       finish();
     },
   );
+});
+
+// ================= ท้ายงาน (SBH Prod): ปิด Visit ที่การเงินของผู้ป่วยที่รันด้วย SBH3158_KEEP=1 =================
+// SBH3158_CLOSE="HN,VN;HN,VN;…" · รัน: npm run card:prod -- --headed --grep "@SBH-3158-CLOSE"
+test('SBH-3158 ท้ายงาน: ปิด Visit ผู้ป่วย AUTO ที่การเงิน', { tag: ['@SBH-3158-CLOSE'] }, async ({ page }) => {
+  test.setTimeout(900_000);
+  const list = (process.env.SBH3158_CLOSE ?? '').split(';').map((s) => s.split(',').map((x) => x.trim())).filter((x) => x.length === 2 && x[0] && x[1]);
+  test.skip(!list.length, 'ไม่ได้ระบุ SBH3158_CLOSE');
+  for (const [hn, vn] of list) {
+    const result = await closeVisitAtCashier(page, hn, vn).then(
+      (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+      (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+    );
+    test.info().annotations.push({ type: 'ปิด Visit', description: `HN ${hn} · ${vn}: ${result}` });
+    console.log(`    HN ${hn} · ${vn}: ${result}`);
+  }
 });

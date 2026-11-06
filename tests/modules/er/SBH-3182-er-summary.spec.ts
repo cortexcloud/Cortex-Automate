@@ -28,7 +28,9 @@ import { alerted, clearEvidenceMarks, clicked, expected, filled, hideCompareTabl
 import { startClip } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
-import { SYSTEM, recordDrugAllergy, registerAndOpenErVisit, submitOrders } from '../../../mock-data/uat-er';
+import { SYSTEM, recordDrugAllergy, recordMockPatient, registerAndOpenErVisit, submitOrders } from '../../../mock-data/uat-er';
+import { ipdDischarge, putToBed } from '../../../helpers/functions/ipd-admit';
+import { gotoCashierAccount, payAllInCash } from '../../../helpers/functions/cashier';
 import { VITALS_NORMAL, addMedicineToCart, careMenu, gotoVisit, openPatientAs, recordMenu, replyConsult, requestConsult } from '../../../mock-data/uat-play';
 
 // SBH-3182 [ER][ER Summary] Created ER Summary Trauma/Non-Trauma — ประวัติการรักษา > แท็บ ER Summary
@@ -60,7 +62,49 @@ const meta = (key: string, ...tcs: number[]) => ({
 });
 
 const CACHE = path.join(__dirname, '..', '..', '..', '.cache', 'SBH-3182');
-const STATE_FILE = path.join(CACHE, 'state.json');
+const PROD = SYSTEM !== 'dev-x';
+const STATE_FILE = path.join(CACHE, PROD ? `state-${SYSTEM}.json` : 'state.json');
+// SBH Prod (6 พ.ย. 2026 ค่ำ · ผู้ใช้สั่ง "Retest … บน SBH Prod … สร้างคนไข้ตามที่ต้องใช้งานได้เลย" → "ทั้งชุด 58 TC คืนนี้" + "คืนเตียง + ปิด Visit ทุกราย"):
+// ขั้นเตรียมทำต่อได้ทีละขั้น (กันสร้างผู้ป่วยเกินเมื่อเทสล้มกลางทาง — traps "เทสที่สร้างข้อมูลบน Prod รอบแรก") — progress-<ระบบ>.json จดผลของแต่ละขั้นต่อผู้ป่วย ·
+// รันซ้ำ = ข้ามขั้นที่ทำแล้ว (เริ่มรายใหม่: ลบ key ของผู้ป่วยนั้นในไฟล์) · เตรียมครบแล้วย้ายไป state แล้วลบ progress ของรายนั้น · dev-x เปิดด้วย SBH3182_RESUME=1
+const RESUMABLE = PROD || process.env.SBH3182_RESUME === '1';
+const PROGRESS_FILE = path.join(CACHE, `progress-${SYSTEM}.json`);
+const readProgress = (): Record<string, Record<string, unknown>> => (fs.existsSync(PROGRESS_FILE) ? JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf8')) : {});
+function writeProgress(all: Record<string, Record<string, unknown>>) {
+  fs.mkdirSync(CACHE, { recursive: true });
+  fs.writeFileSync(PROGRESS_FILE, JSON.stringify(all, null, 2));
+}
+function clearProgress(key: string) {
+  const all = readProgress();
+  delete all[key];
+  writeProgress(all);
+}
+/** ขั้นเตรียมที่ทำต่อได้: ทำแล้ว (จดใน progress) = คืนค่าเดิมไม่ทำซ้ำ · ขั้นแรกที่ทำจริงหลังข้าม = เปิดหน้า Visit ก่อน */
+function resumable(page: Page, key: string) {
+  let skipped = false;
+  let visit: ErVisit | undefined;
+  return async function step<T>(name: string, fn: () => Promise<T>): Promise<T> {
+    const p = readProgress()[key] ?? {};
+    if (RESUMABLE && name in p) {
+      skipped = true;
+      if (name === 'visit') visit = p[name] as ErVisit;
+      console.log(`    ↻ ผู้ป่วย ${key}: ข้ามขั้น "${name}" (ทำแล้วในรอบก่อน)`);
+      return p[name] as T;
+    }
+    if (skipped && visit) {
+      await gotoVisit(page, visit);
+      skipped = false;
+    }
+    const value = await fn();
+    if (name === 'visit') visit = value as ErVisit;
+    if (RESUMABLE) {
+      const all = readProgress();
+      all[key] = { ...(all[key] ?? {}), [name]: value ?? null };
+      writeProgress(all);
+    }
+    return value;
+  };
+}
 type Saved = ErVisit & { name: string; arrivedAt?: string; preparedAt: string; info?: Record<string, string> };
 const readState = (): Record<string, Saved> => (fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : {});
 function saveState(key: string, value: Saved) {
@@ -72,12 +116,18 @@ const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').tr
 const bad = (rows: CompareRow[]) => rows.filter((r) => !r.same).map((r) => `${r.label}: Expected ${r.values[0]} · จริง ${r.values[1]}`);
 const row = (label: string, want: string, got: string, same = want === got): CompareRow => ({ label, values: [want, got || '(ว่าง)'], same });
 
-const LAB = 'SBHLAB399';
-const IMAGING = 'SBHIMG1';
-const PROCEDURE = '89.52';
-const MEDS = ['med0000006', 'med0000007', 'med0000008'];
-const CANCEL_MED = 'med0000008';
-const CONSULT_DOCTOR = { search: 'มานะ', name: /ทดสอบ มานะ/ };
+const SKIP_NOTE = process.env.SBH3182_SKIP_NOTE === '1';
+const SKIP_NOTE_INFO = 'ไม่ได้บันทึกฟอร์มแพทย์ (dev-x ฟอร์มไม่โหลดส่วน Diagnosis — diagnosis-onset-general-v2.js 404) — เลือก K30 ในฟอร์ม Disposition';
+// SBH Prod: รหัสชุดเดียวกับที่ spec SBH-2079 ใช้บน Prod (decisions R135 · 6 พ.ย. 2026) — ยาฉีด MED0000260 / 756 สั่งไม่ได้แล้ว → ยาเม็ด
+const LAB = PROD ? 'LAB0000399' : 'SBHLAB399';
+const IMAGING = PROD ? 'IMG0000194' : 'SBHIMG1';
+const PROCEDURE = PROD ? 'ACT0005224' : '89.52';
+const MEDS = PROD ? ['MED0000318', 'MED0001279', 'MED0001272'] : ['med0000006', 'med0000007', 'med0000008'];
+const CANCEL_MED = PROD ? 'MED0001272' : 'med0000008';
+/** แพทย์ของบัญชีหลัก (user1) = แพทย์ที่ถูกขอ Consult — dev-x "นาย ทดสอบ มานะ" · Prod "ดร. วิชัย รัตน์ เอื้อเฟื้อ" */
+// Prod ค้น "วิชัย" มีหลายคน (เช่น "… เกิดวิชัย" — รอบ D 6 พ.ย. 20:24 เลือกผิดคน) → จับชื่อเต็ม
+const MAIN_DOCTOR = PROD ? { name: 'ดร. วิชัย รัตน์ เอื้อเฟื้อ', re: /วิชัย.*เอื้อเฟื้อ/ } : { name: 'นาย ทดสอบ มานะ', re: /ทดสอบ มานะ/ };
+const CONSULT_DOCTOR = PROD ? { search: 'วิชัย', name: /วิชัย.*เอื้อเฟื้อ/ } : { search: 'มานะ', name: /ทดสอบ มานะ/ };
 const VITALS_RETRIAGE: VitalSigns[] = [
   { systolic: '130', diastolic: '85', pr: '92', rr: '20', temp: '37.8', spo2: '97', painScore: '4' },
   { systolic: '118', diastolic: '76', pr: '84', rr: '18', temp: '37.2', spo2: '99', painScore: '2' },
@@ -118,6 +168,7 @@ async function newErVisit(page: Page, key: string): Promise<ErVisit & { name: st
   }, 'เปิด ER Dashboard').toPass({ timeout: 180_000 });
   const patient = newTestPatient(`X3182${key}`);
   const visit = await registerAndOpenErVisit(page, patient);
+  if (SYSTEM === 'sbh-prod') recordMockPatient(`SBH-3182 ${key}`, patient, visit, `SBH-3182 Prod Retest 6 พ.ย. 2026 · ผู้ป่วย ${key} · Visit ER (คืนเตียง + ปิด Visit ท้ายงานด้วย @SBH-3182-CLOSE)`);
   await expect(page.getByRole('main').getByRole('heading', { name: 'คัดกรอง ER', exact: true })).toBeVisible({ timeout: 90_000 });
   await expect(erTriagePanel(page).getByRole('combobox', { name: 'Eye Opening (E)' }).first(), 'ฟอร์มคัดกรองต้องโหลดเสร็จ').toBeVisible({ timeout: 120_000 });
   await dismissToast(page, 'สร้าง Visit สำเร็จ').catch(() => undefined);
@@ -150,7 +201,18 @@ async function triage(page: Page, visit: ErVisit, input: TriageInput): Promise<R
   const info: Record<string, string> = {};
   // U/D ก่อน แล้วโหลดหน้าใหม่ — บันทึก U/D ระหว่างกรอกคัดกรอง ร่างฟอร์มชนกัน ("ร่างถูกแก้ไขจากที่อื่น …" ฟอร์มล็อก ไม่ส่งคำสั่งบันทึก — dev-x 2 พ.ย.)
   if (input.ud) {
-    info.ud = await saveUnderlying(page, input.ud);
+    // SBH Prod 6 พ.ย. 2026 20:27: บันทึก U/D ได้ 400 "Cannot query field clinicallyRecognisedAt on type UnderlyingDisease" + "ไม่สามารถอัปเดตโรคประจำตัวได้"
+    // (บั๊กของระบบ — ภาพ clips/…/obs/UD-save-fail-A.png) → ไม่หยุดเทส จดผลไว้ · TC-005 / 046 ลงตามจริง
+    info.ud = await saveUnderlying(page, input.ud).catch(async (e: Error) => {
+      if (!PROD) throw e;
+      const alert = page.getByText('ไม่สามารถอัปเดตโรคประจำตัวได้').first();
+      if (await alert.isVisible().catch(() => false)) {
+        await markEvidence(alerted(alert, 'บันทึก U/D ไม่สำเร็จ'));
+        await snapEvidence(page, 'แจ้งเตือน — บันทึก U/D ไม่สำเร็จ');
+        await clearEvidenceMarks(page);
+      }
+      return `บันทึก U/D ${input.ud} ไม่สำเร็จ — ${e.message.split('\n')[0].slice(0, 220)}`;
+    });
     await gotoVisit(page, visit);
     await expect(f.panel.getByRole('combobox', { name: 'Eye Opening (E)' }).first(), 'ฟอร์มคัดกรองต้องโหลดเสร็จ').toBeVisible({ timeout: 120_000 });
     await page.waitForTimeout(2_000);
@@ -173,6 +235,18 @@ async function triage(page: Page, visit: ErVisit, input: TriageInput): Promise<R
         await f.preHospital.press('Tab');
       }
       await page.waitForTimeout(1_500);
+      // SBH Prod 6 พ.ย. 2026: ช่อง ผู้นำส่ง ไม่มีค่าตั้งต้น (dev-x = "EMS ขึ้นทะเบียน") → เลือกตัวเลือกที่มีคำ EMS (ไม่มีใช้ตัวแรก)
+      const typeSel = f.arrival.locator('.ant-select').first();
+      if (/เลือก|^$/.test(norm(await typeSel.innerText()))) {
+        await typeSel.click();
+        const opts = page.locator('.ant-select-dropdown:visible .ant-select-item-option');
+        await expect(opts.first()).toBeVisible({ timeout: 15_000 });
+        const texts = (await opts.allInnerTexts()).map((t) => norm(t));
+        const idx = Math.max(0, texts.findIndex((t) => /EMS/.test(t)));
+        await opts.nth(idx).click();
+        await page.waitForTimeout(800);
+      }
+      info.transporterType = norm(await typeSel.innerText());
       info.arrival = `EMS${a.ems ? ` (${a.ems})` : ''} · ผู้นำส่ง ${norm(await f.arrival.locator('.ant-select').first().innerText())}${a.transporter ? ` · ${a.transporter}` : ''}${a.preHospital ? ` · ก่อนถึง รพ.: ${a.preHospital}` : ' · ไม่กรอกข้อมูลก่อนถึงโรงพยาบาล'}`;
     } else info.arrival = 'Walk-in';
   }
@@ -191,7 +265,14 @@ async function triage(page: Page, visit: ErVisit, input: TriageInput): Promise<R
     await f.emergency.getByText('Trauma', { exact: true }).click();
     await expect(f.emergency.getByRole('radio', { name: 'Trauma', exact: true })).toBeChecked();
   }
-  if (input.fastTrack) await f.fastTrack.selectOption({ label: input.fastTrack });
+  if (input.fastTrack) {
+    await f.fastTrack.selectOption({ label: input.fastTrack });
+    // Retest 6 พ.ย. 2026 (SBH-3842 ข้อ 5): ภาพก่อนกดบันทึก — ประเภทฉุกเฉิน Trauma + Fast Track ที่เลือก
+    await f.fastTrack.scrollIntoViewIfNeeded();
+    await markEvidence(filled(f.emergency, 'Trauma'), filled(f.fastTrack, input.fastTrack));
+    await snapEvidence(page, `ก่อนบันทึกคัดกรอง — ${input.fastTrack}`);
+    await clearEvidenceMarks(page);
+  }
   info.emergency = input.trauma ? 'Trauma' : 'Non-Trauma';
   info.fastTrack = input.fastTrack ?? '-';
   await f.levels.scrollIntoViewIfNeeded();
@@ -313,7 +394,15 @@ async function consult(page: Page, browser: Browser, visit: ErVisit, problem: st
     const target = await requestConsult(doctor, problem, { doctor: CONSULT_DOCTOR });
     if (reply) {
       await gotoVisit(page, visit);
-      await replyConsult(page, problem, `ตอบ Consult (SBH-3182 ${visit.en})`);
+      // SBH Prod (6 พ.ย. 2026 · SBH-3181 / SBH-3914): ตอบ Consult จาก ER อาจไม่มีช่องคำตอบ → ไม่ล้มขั้นเตรียม จดผลไว้ (TC-017 / 018 ตรวจตามจริง)
+      const replied = await replyConsult(page, problem, `ตอบ Consult (SBH-3182 ${visit.en})`).then(
+        () => '',
+        (e: Error) => {
+          if (!PROD) throw e;
+          return ` · ตอบ Consult ไม่ได้ — ${e.message.split('\n')[0].slice(0, 200)}`;
+        },
+      );
+      return target + replied;
     }
     return target;
   } finally {
@@ -405,9 +494,11 @@ async function chooseReferHospital(page: Page): Promise<string> {
 const thaiAppt = (appt: string) => appt.replace(/^(\d{4})-(\d{2})-(\d{2})/, (_, y, m, d) => `${d}/${m}/${Number(y) + 543}`);
 
 /** ช่อง Clinical Summary ของ Disposition (dev-x 3 พ.ย. 2026 · locale erDispositionClinicalSummary) */
-const clinicalSummaryBox = (page: Page) => page.getByRole('main').getByPlaceholder('สรุปอาการผู้ป่วย คำแนะนำ และการติดตามอาการ').first();
+// SBH Prod 6 พ.ย. 2026 (ตัวแก้ SBH-3885 ข้อ 3 · แบบ spec SBH-2079): ส่วนเดียวกันแยกเป็น "คำแนะนำผู้ป่วย" (ระบุคำแนะนำผู้ป่วย) + "นัดติดตาม/ Follow-up" (ระบุแผนการติดตามอาการ…)
+const clinicalSummaryBox = (page: Page) => page.getByRole('main').getByPlaceholder('สรุปอาการผู้ป่วย คำแนะนำ และการติดตามอาการ').or(page.getByRole('main').getByPlaceholder('ระบุคำแนะนำผู้ป่วย')).first();
+const followUpBox = (page: Page) => page.getByRole('main').getByPlaceholder(/ระบุแผนการติดตามอาการ/).first();
 
-async function dispose(page: Page, visit: ErVisit, method: 'รับไว้รักษาต่อIPD' | 'By Transfer' | 'With Approval', opts: { clinicalSummary?: string } = {}): Promise<{ hospital?: string; signedAt: string; signedBy: string }> {
+async function dispose(page: Page, visit: ErVisit, method: 'รับไว้รักษาต่อIPD' | 'By Transfer' | 'With Approval', opts: { clinicalSummary?: string; dx?: string } = {}): Promise<{ hospital?: string; signedAt: string; signedBy: string }> {
   await gotoVisit(page, visit);
   // แผง Overview โหลดตามหลังแล้วทับแท็บ Disposition → careMenu กดซ้ำจนหัว สรุปการจำหน่าย ขึ้น
   await careMenu(page, 'Disposition', page.getByRole('main').getByText('สรุปการจำหน่าย', { exact: true }));
@@ -421,7 +512,7 @@ async function dispose(page: Page, visit: ErVisit, method: 'รับไว้�
   const hospital = method === 'By Transfer' ? await chooseReferHospital(page) : undefined;
   const suggested = main.getByRole('button', { name: 'ใช้รหัสโรคที่แนะนำ' });
   if (await suggested.isVisible().catch(() => false)) await suggested.click();
-  if (opts.clinicalSummary) await chooseDispositionDiagnosis(page, 'K30'); // มีรหัสอยู่แล้ว = ไม่ทำอะไร
+  if (opts.clinicalSummary || opts.dx) await chooseDispositionDiagnosis(page, opts.dx ?? 'K30'); // มีรหัสอยู่แล้ว = ไม่ทำอะไร
   const { clinical, finding } = dispositionTextBoxes(page);
   await clinical.fill(`ทดสอบ SBH-3182 ${method}`);
   await finding.fill(`ทดสอบ SBH-3182 ${method}`);
@@ -430,7 +521,10 @@ async function dispose(page: Page, visit: ErVisit, method: 'รับไว้�
     const box = clinicalSummaryBox(page);
     await box.scrollIntoViewIfNeeded();
     await box.fill(opts.clinicalSummary);
-    await markEvidence(filled(box, 'Clinical Summary'));
+    const follow = followUpBox(page);
+    const hasFollow = await follow.isVisible().catch(() => false);
+    if (hasFollow) await follow.fill(opts.clinicalSummary);
+    await markEvidence(filled(box, PROD ? 'คำแนะนำผู้ป่วย' : 'Clinical Summary'), ...(hasFollow ? [filled(follow, 'นัดติดตาม / Follow-up')] : []));
     await snapEvidence(page, 'กรอก Clinical Summary (Disposition)');
     await clearEvidenceMarks(page);
     await main.getByRole('radio', { name: method, exact: true }).scrollIntoViewIfNeeded();
@@ -600,7 +694,10 @@ async function traumaExam(page: Page, input: NoteInput): Promise<TraumaExamResul
   if (await dtx.count()) await dtx.fill('110');
   await pickRadio('Log Roll', 'Normal');
   // PE by system: Lung ไม่ปกติ + Detail · สรุปผลการตรวจ (rich text ของการ์ด Physical examination)
-  const systems = await n.pe.getByRole('combobox', { name: /^System \d+$/ }).evaluateAll((els) => els.map((e) => (e as HTMLSelectElement).options[(e as HTMLSelectElement).selectedIndex]?.text ?? ''));
+  // dev-x: <select> · SBH Prod 6 พ.ย. 2026: <input class="pe-system__select"> ค่าอยู่ใน value
+  const systems = await n.pe.getByRole('combobox', { name: /^System \d+$/ }).evaluateAll((els) =>
+    els.map((e) => ((e as HTMLSelectElement).options ? (e as HTMLSelectElement).options[(e as HTMLSelectElement).selectedIndex]?.text ?? '' : (e as HTMLInputElement).value ?? '')),
+  );
   const li = Math.max(1, systems.indexOf('Lung') + 1);
   await n.pe.getByRole('radiogroup', { name: `Clinical Interpretation ${li}` }).getByText('ไม่ปกติ', { exact: true }).click();
   const peAbnormal = 'decreased breath sound Rt.';
@@ -763,7 +860,7 @@ async function treatmentRows(page: Page, auth: () => string, visit: ErVisit, wan
 // ------------------------------------------------------------------------------------------------
 test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
   test.describe.configure({ timeout: 3_600_000 });
-  test.skip(SYSTEM !== 'dev-x', 'การ์ดนี้รันบน dev-x เท่านั้น (SBH Prod ยังไม่ได้รับอนุญาต — R40)');
+  test.skip(SYSTEM !== 'dev-x' && SYSTEM !== 'sbh-prod', 'การ์ดนี้รันบน dev-x / SBH Prod (ผู้ใช้อนุญาต 6 พ.ย. 2026) เท่านั้น');
 
   test.afterEach(async ({ page }) => {
     await hideCompareTable(page).catch(() => undefined);
@@ -780,6 +877,7 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     }
     const visit = await prepare();
     saveState(key, visit);
+    if (RESUMABLE) clearProgress(key);
     r.note(`ผู้ป่วย ${key}`, `${visit.name} · HN ${visit.hn} · ${visit.vn} · ${visit.en} · ใช้ซ้ำ: SBH3182_${key}=${visit.hn},${visit.vn},${visit.en}`);
     for (const [k, v] of Object.entries(visit.info ?? {})) r.note(`ข้อมูล ${key} · ${k}`, v);
     return visit;
@@ -798,33 +896,51 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const consultProblem = 'ขอปรึกษาอายุรกรรม ปวดท้องเรื้อรัง (SBH-3182 ผู้ป่วย A)';
     const visit = await patient(page, 'A', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย A', async () => {
-        const v = await newErVisit(page, 'A');
+        const step = resumable(page, 'A');
+        const v = await step('visit', () => newErVisit(page, 'A'));
         const info: Record<string, string> = {};
-        Object.assign(info, await triage(page, v, { level: 3, vitals: VITALS_NORMAL, arrival: { method: 'EMS', ems: 'ALS', transporter: 'หน่วยกู้ภัยทดสอบ SBH-3182', preHospital: 'BP 120/80 ระหว่างนำส่ง' }, ud: 'I10' }));
-        info.allergy = await recordDrugAllergy(page);
-        info.reconcile = await reconcileMed(page);
+        Object.assign(info, await step('triage', () => triage(page, v, { level: 3, vitals: VITALS_NORMAL, arrival: { method: 'EMS', ems: 'ALS', transporter: 'หน่วยกู้ภัยทดสอบ SBH-3182', preHospital: 'BP 120/80 ระหว่างนำส่ง' }, ud: 'I10' })));
+        info.allergy = await step('allergy', () => recordDrugAllergy(page));
+        info.reconcile = await step('reconcile', () => reconcileMed(page).catch((e: Error) => { if (!PROD) throw e; return `Reconcile Med ไม่สำเร็จ — ${e.message.split('\n')[0].slice(0, 200)}`; }));
         const vitals = [VITALS_NORMAL];
-        for (const vs of VITALS_RETRIAGE) {
-          await waitNextMinute(page);
-          await reTriage(page, v, 3, vs);
+        for (const [i, vs] of VITALS_RETRIAGE.entries()) {
+          await step(`retriage${i + 1}`, async () => {
+            await waitNextMinute(page);
+            await reTriage(page, v, 3, vs);
+            return true;
+          });
           vitals.push(vs);
         }
         info.vitals = vitals.map((x) => `${x.systolic}/${x.diastolic} PR ${x.pr} RR ${x.rr} BT ${x.temp} SpO₂ ${x.spo2}`).join(' → ');
-        await gotoVisit(page, v);
-        info.dx = (await physicianNote(page, { dx: ['K30', 'J00'], illness: 'ปวดท้องใต้ลิ้นปี่ 1 วัน (SBH-3182)' })).join(' · ');
-        await openOneDayOrder(page);
-        for (const med of MEDS) {
+        // SBH3182_SKIP_NOTE=1 (dev-x 6 พ.ย. 2026 19:10: diagnosis-onset-general-v2.js 404 ฟอร์มแพทย์บันทึกไม่ได้) = ข้ามฟอร์มแพทย์ · Dx K30 เลือกใน Disposition
+        info.dx = await step('note', async () => {
+          await gotoVisit(page, v);
+          if (SKIP_NOTE) return SKIP_NOTE_INFO;
+          return (await physicianNote(page, { dx: ['K30', 'J00'], illness: 'ปวดท้องใต้ลิ้นปี่ 1 วัน (SBH-3182)' })).join(' · ');
+        });
+        await step('orders', async () => {
           await openOneDayOrder(page);
-          await addMedicineToCart(page, med);
-        }
-        await submitOrders(page, [LAB, IMAGING, PROCEDURE]);
-        await cancelMedication(page, CANCEL_MED);
+          for (const med of MEDS) {
+            await openOneDayOrder(page);
+            await addMedicineToCart(page, med);
+          }
+          await submitOrders(page, [LAB, IMAGING, PROCEDURE]);
+          return true;
+        });
+        await step('cancelMed', async () => {
+          await cancelMedication(page, CANCEL_MED);
+          return true;
+        });
         info.orders = `ยา ${MEDS.join(' / ')} (ยกเลิก ${CANCEL_MED}) · Lab ${LAB} · Imaging ${IMAGING} · หัตถการ ${PROCEDURE}`;
-        info.consult = await consult(page, browser, v, consultProblem, true);
-        await gotoVisit(page, v);
-        const admit = await admitWithBed(page, v, auth);
+        info.consult = await step('consult', () => consult(page, browser, v, consultProblem, true));
+        const admit = await step('admit', async () => {
+          await gotoVisit(page, v);
+          return admitWithBed(page, v, auth, { autoBed: true }); // R97 เตียง SBHAUTO
+        });
         info.admit = `AN ${admit.an} · หอ ${admit.ward}`;
-        const d = await dispose(page, v, 'รับไว้รักษาต่อIPD');
+        info.an = admit.an;
+        info.ward = admit.ward;
+        const d = await step('dispose', () => dispose(page, v, 'รับไว้รักษาต่อIPD', SKIP_NOTE ? { dx: 'K30' } : {}));
         info.disposition = `รับไว้รักษาต่อIPD · ลงนาม ${d.signedAt} โดย ${d.signedBy}`;
         return { ...v, preparedAt: bangkokText(), info };
       }),
@@ -904,8 +1020,10 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
 
     // TC-005 / 006 / 007 โรคประจำตัวและการแพ้
     const history = erSummarySection(page, 'history');
+    // SBH Prod: บันทึก U/D ไม่สำเร็จ (info.ud เป็นข้อความ error) → Expected ยังเป็นโรคที่กรอก (I10) ไม่เอา error มาใส่ (evidence-checker 6 พ.ย.)
+    const udWant = !info.ud || /ไม่สำเร็จ/.test(info.ud) ? 'Essential (primary) hypertension' : info.ud;
     for (const [n, label, want] of [
-      [5, 'โรคประจำตัว (U/D)', info.ud ?? 'Essential (primary) hypertension'],
+      [5, 'โรคประจำตัว (U/D)', udWant],
       [6, 'ประวัติแพ้ยา', info.allergy ?? 'paracetamol'],
       [7, 'ยาที่ใช้ประจำ', info.reconcile ?? 'PARATEMP'],
     ] as const) {
@@ -919,8 +1037,10 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
         // แพ้ยา: ชนิดในวงเล็บ (VTM / SUBS) ขึ้นกับรายการยาที่เลือก — เทียบชื่อยาอย่างเดียว
         const rows = [row(label, n === 6 ? key : want, got, got.toLowerCase().includes(key))];
         if (n === 6) rows.push(row('อาการแพ้', 'ผื่นคันหลังกินยา / อาการคัน', got, /คัน|ผื่น/.test(got)));
+        if (n === 5 && udWant !== info.ud && info.ud) rows.push(row('ผลการกดบันทึก U/D (ขั้นเตรียม)', 'บันทึกสำเร็จ', 'ระบบแจ้ง "ไม่สามารถอัปเดตโรคประจำตัวได้" (400)', false));
         await compare(page, n, rows, ['Expected (ที่บันทึก)', 'จริง (ER Summary)']);
-        await markEvidence(expected(fieldOf(history, label), label));
+        const ok = bad(rows).length === 0;
+        await markEvidence(expected(fieldOf(history, label), ok ? label : `${n === 6 ? 'อาการคัน / ผื่นคัน' : norm(want).split(' (')[0]} · จริง: ${got || '(ว่าง)'}`));
         expect(bad(rows)).toEqual([]);
       });
     }
@@ -1115,7 +1235,7 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
       r.note(`${tcId(17)} Consult`, `${t.head.join(' · ')} | ${c.join(' · ')}`);
       const rows = [
         row('คอลัมน์', 'แผนก · แพทย์ที่ถูก Consult · สถานะ · เวลาขอ · เวลาตอบรับ', t.head.join(' · ')),
-        row('แพทย์ที่ถูก Consult', 'นาย ทดสอบ มานะ', c[1] ?? '', /ทดสอบ มานะ/.test(c[1] ?? '')),
+        row('แพทย์ที่ถูก Consult', MAIN_DOCTOR.name, c[1] ?? '', MAIN_DOCTOR.re.test(c[1] ?? '')),
         row('สถานะ', 'ตอบรับแล้ว', c[2] ?? ''),
         row('เวลาขอ', 'มีค่า', c[3] ?? '', /\d{2}:\d{2}/.test(c[3] ?? '')),
         row('เวลาตอบรับ', 'มีค่า', c[4] ?? '', /\d{2}:\d{2}/.test(c[4] ?? '')),
@@ -1146,13 +1266,15 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
       r.note(`${tcId(18)} Timeline`, consultLines.join(' ‖ ') || '(ไม่พบรายการ Consult)');
       const rows = [
         row('เวลาขอ', time(c[3] ?? ''), consultLines.some((l) => l.startsWith(time(c[3] ?? ''))) ? time(c[3] ?? '') : '(ไม่พบบน Timeline)', !!time(c[3] ?? '') && consultLines.some((l) => l.startsWith(time(c[3] ?? '')))),
-        row('เวลาตอบรับ', time(c[4] ?? ''), consultLines.some((l) => l.startsWith(time(c[4] ?? ''))) ? time(c[4] ?? '') : '(ไม่พบบน Timeline)', !!time(c[4] ?? '') && consultLines.some((l) => l.startsWith(time(c[4] ?? '')))),
+        row('เวลาตอบรับ', time(c[4] ?? '') || 'มีเวลาตอบรับ', consultLines.some((l) => l.startsWith(time(c[4] ?? ''))) ? time(c[4] ?? '') : '(ไม่พบบน Timeline)', !!time(c[4] ?? '') && consultLines.some((l) => l.startsWith(time(c[4] ?? '')))),
       ];
       await compare(page, 18, rows, ['Expected (ER Summary)', 'จริง (Timeline)']);
       const asked = tlPanel.getByText(/ขอ Consult/).first();
       const answered = tlPanel.getByText(/Consult ตอบกลับ|ตอบ Consult|ตอบกลับ/).first();
       await asked.scrollIntoViewIfNeeded();
-      await markEvidence(expected(asked, `ขอ Consult ${time(c[3] ?? '')}`), ...((await answered.count()) ? [expected(answered, `ตอบรับ ${time(c[4] ?? '')}`)] : []));
+      // ป้ายบนรายการ Timeline ทับข้อความรายการข้างเคียง (evidence-checker 6 พ.ย.) → ตีกรอบทั้งรายการแบบไม่มีป้าย คำอธิบายอยู่ในตารางเทียบ
+      const entry = (loc: Locator) => loc.locator('xpath=ancestor::*[contains(@class,"timeline") or contains(@class,"Timeline")][1]').or(loc).last();
+      await markEvidence(entry(asked), ...((await answered.count()) ? [entry(answered)] : []));
       await page.waitForTimeout(1_500);
       expect(bad(rows)).toEqual([]);
     });
@@ -1245,10 +1367,11 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const r = makeRunner(page);
     const visit = await patient(page, 'D', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย D', async () => {
-        const v = await newErVisit(page, 'D');
-        const info = await triage(page, v, { level: 3, vitals: VITALS_NORMAL });
+        const step = resumable(page, 'D');
+        const v = await step('visit', () => newErVisit(page, 'D'));
+        const info = { ...(await step('triage', () => triage(page, v, { level: 3, vitals: VITALS_NORMAL }))) };
         const api = await fetchErSummaryApi(page, auth(), v.en);
-        info.consult = await consult(page, browser, v, 'ขอปรึกษาอายุรกรรม (SBH-3182 ผู้ป่วย D · ยังไม่ตอบ)', false);
+        info.consult = await step('consult', () => consult(page, browser, v, 'ขอปรึกษาอายุรกรรม (SBH-3182 ผู้ป่วย D · ยังไม่ตอบ)', false));
         return { ...v, arrivedAt: String(api.arrivedAt), preparedAt: bangkokText(), info };
       }),
     );
@@ -1305,7 +1428,7 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     r.note('ผู้ป่วยที่ใช้', `HN ${visit.hn} · ${visit.en} · มาถึง ${thaiDateTime(visit.arrivedAt!)} (ยังไม่จำหน่าย)`);
     for (const [n, minutes, want] of [[41, 59, '59 นาที'], [42, 60, '1 ชม. 0 นาที']] as const) {
       // หน้า ER Summary คำนวณ "เวลาใน ER (ถึงตอนนี้)" ครั้งเดียวตอนเปิด — เปิดเมนูประวัติการรักษาตอนเข้านาทีที่ต้องการแล้วเท่านั้น
-      const at = arrived + minutes * 60_000 + 10_000; // นับจากเวลามาถึงแบบละเอียดวินาที (ระบบนับแบบนี้ — รอบ 12:49 ปัดเป็นนาทีแล้วเปิดเร็วไป)
+      const at = arrived + minutes * 60_000 + (PROD ? 2_000 : 10_000); // นับจากเวลามาถึงแบบละเอียดวินาที (ระบบนับแบบนี้ — รอบ 12:49 ปัดเป็นนาทีแล้วเปิดเร็วไป) · SBH Prod 6 พ.ย.: เปิดหน้า ER Summary ช้า ~50 วิ (รอบแรกถ่ายได้ตอนผ่านไป 60 นาที) → เริ่มเปิดหลังเข้านาทีที่ 2 วิ
       // เปิดหน้า Visit ล่วงหน้า 4 นาที (dev-x 13:14 หน้าค้างโหลด 150 วิ) — พังแล้วลองใหม่ได้ถ้ายังไม่ถึงเวลา
       const wait = at - Date.now() - 240_000;
       if (wait > 0) {
@@ -1341,6 +1464,12 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const saved = readState().E;
     const visit = env?.length === 3 ? { ...saved, hn: env[0], vn: env[1], en: env[2] } : saved;
     expect(visit?.en, 'ต้องมีผู้ป่วย E ใน state.json หรือ SBH3182_E').toBeTruthy();
+    // SBH Prod 6 พ.ย. 2026: ใช้ผู้ป่วยทดสอบของทีมที่ยังอยู่ใน ER ตั้งแต่ 5 พ.ย. (อ่านอย่างเดียว) — เวลามาถึงอ่านจาก API
+    if (!visit.arrivedAt) {
+      const auth = trackAuthorization(page);
+      await gotoVisit(page, visit);
+      visit.arrivedAt = String((await fetchErSummaryApi(page, auth(), visit.en)).arrivedAt);
+    }
     await gotoVisit(page, visit);
     await openSummaryView(page, visit);
     await startClip(page, tcId(44));
@@ -1365,11 +1494,14 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const r = makeRunner(page);
     const visit = await patient(page, 'B', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย B', async () => {
-        const v = await newErVisit(page, 'B');
-        const info = await triage(page, v, { level: 3, vitals: VITALS_NORMAL });
-        await gotoVisit(page, v);
-        info.dx = (await physicianNote(page, { dx: ['K30'] })).join(' · ');
-        const d = await dispose(page, v, 'By Transfer');
+        const step = resumable(page, 'B');
+        const v = await step('visit', () => newErVisit(page, 'B'));
+        const info = { ...(await step('triage', () => triage(page, v, { level: 3, vitals: VITALS_NORMAL }))) };
+        info.dx = await step('note', async () => {
+          await gotoVisit(page, v);
+          return (await physicianNote(page, { dx: ['K30'] })).join(' · ');
+        });
+        const d = await step('dispose', () => dispose(page, v, 'By Transfer'));
         info.hospital = d.hospital ?? '';
         info.disposition = `By Transfer → ${d.hospital} · ลงนาม ${d.signedAt}`;
         return { ...v, preparedAt: bangkokText(), info };
@@ -1399,18 +1531,22 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
         // SBH3182_C_FROM=HN,VN,EN = ทำต่อกับผู้ป่วยที่คัดกรองแล้ว · SBH3182_C_SKIP_NOTE=1 = ข้ามฟอร์มแพทย์ (Dx K30 เลือกในฟอร์ม Disposition แทน)
         // (3 พ.ย. 2026 18:30 dev-x: ฟอร์มแพทย์ขึ้น "กำลังรอการเชื่อมต่อตัวกรอกข้อมูลที่รองรับ ยังไม่สามารถบันทึกได้" ส่วน Diagnosis ไม่โหลด)
         const from = process.env.SBH3182_C_FROM?.split(',');
-        const v = from?.length === 3 ? { hn: from[0], vn: from[1], en: from[2], name: '' } : await newErVisit(page, 'C');
-        const info: Record<string, string> = from?.length === 3 ? { triage: 'คัดกรอง ESI 4 ในรอบก่อน' } : await triage(page, v, { level: 4, vitals: VITALS_NORMAL });
+        const step = resumable(page, 'C');
+        const v = from?.length === 3 ? { hn: from[0], vn: from[1], en: from[2], name: '' } : await step('visit', () => newErVisit(page, 'C'));
+        const info: Record<string, string> = from?.length === 3 ? { triage: 'คัดกรอง ESI 4 ในรอบก่อน' } : { ...(await step('triage', () => triage(page, v, { level: 4, vitals: VITALS_NORMAL }))) };
         if (process.env.SBH3182_C_SKIP_NOTE) info.dx = 'ไม่ได้บันทึกฟอร์มแพทย์ (ฟอร์มไม่โหลดส่วน Diagnosis) — เลือก K30 ในฟอร์ม Disposition';
-        else {
+        else
+          info.dx = await step('note', async () => {
+            await gotoVisit(page, v);
+            return (await physicianNote(page, { dx: ['K30'] })).join(' · ');
+          });
+        info.appointment = await step('appointment', async () => {
           await gotoVisit(page, v);
-          info.dx = (await physicianNote(page, { dx: ['K30'] })).join(' · ');
-        }
-        await gotoVisit(page, v);
-        info.appointment = await createAppointment(page).catch((e: Error) => `สร้างนัดหมายไม่สำเร็จ — ${e.message.split('\n')[0]}`);
+          return createAppointment(page).catch((e: Error) => `สร้างนัดหมายไม่สำเร็จ — ${e.message.split('\n')[0]}`);
+        });
         // 3 พ.ย. 2026 ผู้ใช้: นัด / คำแนะนำใน ER Summary มาจากช่อง Clinical Summary ของ Disposition → กรอกนัดที่สร้างลงช่องนี้
         info.clinicalSummary = `นัดติดตามอาการ ${thaiAppt(info.appointment)} ห้องตรวจแผนกฉุกเฉิน · ทดสอบ SBH-3182 TC-023`;
-        const d = await dispose(page, v, 'With Approval', { clinicalSummary: info.clinicalSummary });
+        const d = await step('dispose', () => dispose(page, v, 'With Approval', { clinicalSummary: info.clinicalSummary }));
         info.disposition = `With Approval (กลับบ้าน) · ลงนาม ${d.signedAt}`;
         return { ...v, preparedAt: bangkokText(), info };
       }),
@@ -1472,17 +1608,30 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const r = makeRunner(page);
     const visit = await patient(page, 'F', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย F', async () => {
-        const v = await newErVisit(page, 'F');
+        const step = resumable(page, 'F');
+        const v = await step('visit', () => newErVisit(page, 'F'));
         const info: Record<string, string> = {};
         // ประวัติทางการแพทย์ (เมนูซ้าย) → ส่วน Underlying Disease — ไม่มีปุ่มบันทึกของส่วนนี้ ให้ใช้ส่วนเดียวกันในฟอร์มคัดกรอง (เก็บระดับผู้ป่วยเหมือนกัน)
-        await recordMenu(page, 'ประวัติทางการแพทย์');
-        await page.waitForTimeout(3_000);
-        await snapEvidence(page, 'ประวัติทางการแพทย์ ก่อนบันทึก U/D');
-        info.ud = await saveUnderlying(page, 'E11.9');
+        info.ud = await step('ud', async () => {
+          await recordMenu(page, 'ประวัติทางการแพทย์');
+          await page.waitForTimeout(3_000);
+          await snapEvidence(page, 'ประวัติทางการแพทย์ ก่อนบันทึก U/D');
+          // SBH Prod: บันทึก U/D ได้ 400 (ดู triage()) → จดผลไว้ ไม่หยุดเทส
+          return saveUnderlying(page, 'E11.9').catch(async (e: Error) => {
+            if (!PROD) throw e;
+            await snapEvidence(page, 'หลังกด — บันทึก U/D ประวัติทางการแพทย์');
+            return `บันทึก U/D E11.9 ไม่สำเร็จ — ${e.message.split('\n')[0].slice(0, 220)}`;
+          });
+        });
         info.udSource = 'ส่วน Underlying Disease (ระดับผู้ป่วย) ก่อนกรอกคัดกรอง — ฟอร์มคัดกรองของ visit นี้ไม่แตะ U/D';
-        await gotoVisit(page, v);
-        await expect(erTriagePanel(page).getByRole('combobox', { name: 'Eye Opening (E)' }).first()).toBeVisible({ timeout: 120_000 });
-        Object.assign(info, await triage(page, v, { level: 3, vitals: VITALS_NORMAL }));
+        Object.assign(
+          info,
+          await step('triage', async () => {
+            await gotoVisit(page, v);
+            await expect(erTriagePanel(page).getByRole('combobox', { name: 'Eye Opening (E)' }).first()).toBeVisible({ timeout: 120_000 });
+            return triage(page, v, { level: 3, vitals: VITALS_NORMAL });
+          }),
+        );
         return { ...v, preparedAt: bangkokText(), info };
       }),
     );
@@ -1492,10 +1641,14 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     await r.soft(`${TC(46)} U/D ใช้ประวัติทางการแพทย์เมื่อ Triage ไม่บันทึก`, async () => {
       await toSection(history);
       const f = await readFields(history);
-      const want = visit.info?.ud ?? 'Type 2 diabetes mellitus';
-      const rows = [row('โรคประจำตัว (U/D)', want, f['โรคประจำตัว (U/D)'] ?? '', (f['โรคประจำตัว (U/D)'] ?? '').toLowerCase().includes(want.toLowerCase().slice(0, 15)))];
+      // SBH Prod: บันทึก U/D ไม่สำเร็จ (info.ud เป็นข้อความ error) → Expected ยังเป็นโรคที่กรอก (E11.9)
+      const saveFailed = /ไม่สำเร็จ/.test(visit.info?.ud ?? '');
+      const want = !visit.info?.ud || saveFailed ? 'Type 2 diabetes mellitus' : visit.info.ud;
+      const got = f['โรคประจำตัว (U/D)'] ?? '';
+      const rows = [row('โรคประจำตัว (U/D)', want, got, got.toLowerCase().includes(want.toLowerCase().slice(0, 15)))];
+      if (saveFailed) rows.push(row('ผลการบันทึก U/D ที่ประวัติทางการแพทย์ (ขั้นเตรียม)', 'บันทึกสำเร็จ', 'บันทึกไม่สำเร็จ (400)', false));
       await compare(page, 46, rows, ['Expected (ประวัติทางการแพทย์)', 'จริง (ER Summary)']);
-      await markEvidence(expected(fieldOf(history, 'โรคประจำตัว (U/D)'), want));
+      await markEvidence(expected(fieldOf(history, 'โรคประจำตัว (U/D)'), bad(rows).length ? `${want} · จริง: ${got || '(ว่าง)'}` : want));
       expect(bad(rows)).toEqual([]);
     });
     r.finish();
@@ -1506,8 +1659,9 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const r = makeRunner(page);
     const visit = await patient(page, 'G', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย G', async () => {
-        const v = await newErVisit(page, 'G');
-        const info = await triage(page, v, { level: 4, vitals: VITALS_NORMAL });
+        const step = resumable(page, 'G');
+        const v = await step('visit', () => newErVisit(page, 'G'));
+        const info = { ...(await step('triage', () => triage(page, v, { level: 4, vitals: VITALS_NORMAL }))) };
         return { ...v, preparedAt: bangkokText(), info };
       }),
     );
@@ -1539,50 +1693,80 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
   });
 
   // ==============================================================================================
-  test('ผู้ป่วย T1 (Trauma · EMS · ข้อมูลครบ · Admit): TC-024 · 025 · 027–039 (Super_User)', meta('T1', 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39), async ({ page }) => {
+  test('ผู้ป่วย T1 (Trauma · EMS · ข้อมูลครบ · Admit): TC-024 · 025 · 027–039 (Super_User)', meta('T1', 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39), async ({ page, browser }) => {
     const auth = trackAuthorization(page);
     const r = makeRunner(page);
     const transporter = 'หน่วยกู้ภัยทดสอบ SBH-3182';
     const preHospital = 'ถูกรถชน รู้สึกตัวดี BP 110/70 ระหว่างนำส่ง';
-    const visit = await patient(page, 'T1', r, () =>
+    // SBH3182_T1_KEY=T1B (Prod 6 พ.ย. 2026) = ผู้ป่วยแยกอีกราย (ใช้คู่ SBH3182_T1_TRIAGE_ONLY=1 ตรวจ TC-028 หลังเลือกผู้นำส่ง) — ไม่ทับ state ของ T1
+    const T1KEY = process.env.SBH3182_T1_KEY ?? 'T1';
+    const visit = await patient(page, T1KEY, r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย T1', async () => {
         // SBH3182_T1_FROM=<HN>,<VN>,<EN> = ทำต่อกับผู้ป่วยที่คัดกรองแล้ว (ข้ามสร้างผู้ป่วย + คัดกรอง + ภาพการนำส่งแบบ 1)
         const from = process.env.SBH3182_T1_FROM?.split(',');
+        const step = resumable(page, T1KEY);
         let v: ErVisit & { name: string };
         let info: Record<string, string>;
         if (from?.length === 3) {
           v = { hn: from[0], vn: from[1], en: from[2], name: '' };
           info = { emergency: 'Trauma', arrival: `EMS (ALS) · ${transporter} · ก่อนถึง รพ.: ${preHospital}`, transportTriageOnly: '(ภาพแบบ 1 เก็บในรอบก่อน — T1-transport-triage-only.png)' };
         } else {
-          v = await newErVisit(page, 'T1');
-          info = await triage(page, v, { level: 2, vitals: VITALS_NORMAL, arrival: { method: 'EMS', ems: 'ALS', transporter, preHospital }, trauma: true });
+          v = await step('visit', () => newErVisit(page, 'T1'));
+          // Retest 6 พ.ย. 2026: เลือก Trauma Fast Track ตาม Step ของ TC-027 (SBH-3842 ข้อ 5) · SBH3182_T1_NO_FT=1 = ไม่เลือก (แบบรอบ 2 พ.ย.)
+          const fastTrack = process.env.SBH3182_T1_NO_FT ? undefined : 'Trauma Fast Track';
+          info = { ...(await step('triage', () => triage(page, v, { level: 2, vitals: VITALS_NORMAL, arrival: { method: 'EMS', ems: 'ALS', transporter, preHospital }, trauma: true, fastTrack }))) };
           // การนำส่ง แบบ 1: หลังบันทึกคัดกรอง (ยังไม่บันทึกฟอร์ม PHER+)
-          await openSummaryView(page, v);
-          const t1 = erSummarySection(page, 'transport');
-          await toSection(t1);
-          info.transportTriageOnly = norm(await t1.innerText());
-          await markEvidence(expected(t1, 'แบบ 1: หลังคัดกรองอย่างเดียว'));
-          await snapEvidence(page, 'การนำส่ง แบบ 1 หลังคัดกรอง ก่อนฟอร์ม PHER+');
-          await clearEvidenceMarks(page);
+          info.transportTriageOnly = await step('transport1', async () => {
+            await openSummaryView(page, v);
+            const t1 = erSummarySection(page, 'transport');
+            await toSection(t1);
+            const text = norm(await t1.innerText());
+            await markEvidence(expected(t1, 'แบบ 1: หลังคัดกรองอย่างเดียว'));
+            await snapEvidence(page, 'การนำส่ง แบบ 1 หลังคัดกรอง ก่อนฟอร์ม PHER+');
+            await clearEvidenceMarks(page);
+            return text;
+          });
         }
-        info.fastTrack = 'ไม่เลือก — เลือก Trauma Fast Track แล้วบันทึกคัดกรองไม่ได้ (422 VALIDATION_FAILED · dev-x 2 พ.ย. 15:05 ทั้งที่สัญญาณชีพครบ)';
+        if (process.env.SBH3182_T1_NO_FT) info.fastTrack = 'ไม่เลือก — เลือก Trauma Fast Track แล้วบันทึกคัดกรองไม่ได้ (422 VALIDATION_FAILED · dev-x 2 พ.ย. 15:05 ทั้งที่สัญญาณชีพครบ)';
+        // SBH3182_T1_TRIAGE_ONLY=1 (Retest 6 พ.ย. 2026 · dev-x ฟอร์มแพทย์ / ER Trauma Exam โหลดส่วน Diagnosis ไม่ได้ — diagnosis-onset-general-v2.js 404)
+        // = เตรียมแค่คัดกรอง (ใช้ตรวจ TC-027) · ข้าม PHER+ / ER Trauma Exam / Body chart / Admit / Disposition — TC อื่นของ T1 ไม่นับผลรอบนี้
+        if (process.env.SBH3182_T1_TRIAGE_ONLY) return { ...v, preparedAt: bangkokText(), info: { ...info, skipped: 'TRIAGE_ONLY — ข้าม PHER+ / Trauma Exam / Body chart / Admit / Disposition' } };
         // แบบ 2: ฟอร์ม PHER+ การดูแลระหว่างนำส่ง
-        await gotoVisit(page, v);
-        if (!process.env.SBH3182_T1_SKIP_PHER) await pherCare(page); // PHER+ บันทึกได้ฉบับเดียวต่อ Encounter — ทำต่อรายเดิมที่บันทึกแล้วให้ข้าม
-        info.pher = CARE.map(([n, p, w]) => `${n} ${p.trim()} ${w}`).join(' · ');
-        await gotoVisit(page, v);
-        const exam = await traumaExam(page, { dx: ['S06.0', 'S22.3'], illness: 'อุบัติเหตุรถจักรยานยนต์ ล้มกระแทกอกขวา (SBH-3182)' });
+        // SBH Prod: บันทึกฟอร์ม PHER+ อาจได้ 503 (SBH-3918) → ไม่ล้มขั้นเตรียม จดผลไว้ (TC-029 / 030 ตรวจตามจริง)
+        // SBH Prod 6 พ.ย. 2026: รายการ "เลือกฟอร์ม" ของ user1 ว่าง (Nurse มี Trauma Detail For Pher Plus — แบบ SBH-2952 Prod) → กรอกด้วยหน้าต่างบัญชี Nurse
+        const pherResult = await step('pher2', async () => {
+          if (process.env.SBH3182_T1_SKIP_PHER) return '';
+          const who = PROD ? await openPatientAs(browser, 'Nurse', v.hn, v) : page;
+          if (!PROD) await gotoVisit(page, v);
+          try {
+            return await pherCare(who).then(() => (PROD ? 'กรอกด้วยบัญชี Nurse (หน้าต่างแยก)' : ''), (e: Error) => { if (!PROD) throw e; return `บันทึกฟอร์ม PHER+ ไม่สำเร็จ — ${e.message.split('\n')[0].slice(0, 200)}`; });
+          } finally {
+            if (PROD) await who.context().close().catch(() => undefined);
+          }
+        });
+        // (PHER+ บันทึกได้ฉบับเดียวต่อ Encounter — ทำต่อรายเดิมที่บันทึกแล้วให้ข้ามด้วย SBH3182_T1_SKIP_PHER)
+        info.pher = /ไม่สำเร็จ/.test(pherResult) ? pherResult : `${CARE.map(([n, p, w]) => `${n} ${p.trim()} ${w}`).join(' · ')}${pherResult ? ` (${pherResult})` : ''}`;
+        const exam = await step('traumaExam', async () => {
+          await gotoVisit(page, v);
+          return traumaExam(page, { dx: ['S06.0', 'S22.3'], illness: 'อุบัติเหตุรถจักรยานยนต์ ล้มกระแทกอกขวา (SBH-3182)' });
+        });
         info.dx = exam.dx.join(' · ');
         info.primarySurvey = Object.entries(exam.primarySurvey).map(([k, x]) => `${k}=${x}`).join(' · ');
         info.peSummary = exam.peSummary;
         info.peAbnormal = exam.peAbnormal;
         info.compression = `Chest: ${exam.compression.chest} · Pelvis: ${exam.compression.pelvis}`;
-        await gotoVisit(page, v);
-        info.bodyChart = await drawBodyChart(page).then(() => 'วาด 2 ตำแหน่ง · บันทึกสำเร็จ', (e: Error) => `บันทึก Body chart ไม่สำเร็จ — ${e.message.split('\n')[0]}`);
-        await gotoVisit(page, v);
-        const admit = await admitWithBed(page, v, auth);
+        info.bodyChart = await step('bodyChart', async () => {
+          await gotoVisit(page, v);
+          return drawBodyChart(page).then(() => 'วาด 2 ตำแหน่ง · บันทึกสำเร็จ', (e: Error) => `บันทึก Body chart ไม่สำเร็จ — ${e.message.split('\n')[0]}`);
+        });
+        const admit = await step('admit', async () => {
+          await gotoVisit(page, v);
+          return admitWithBed(page, v, auth, { autoBed: true }); // R97 เตียง SBHAUTO
+        });
         info.admit = `AN ${admit.an} · หอ ${admit.ward}`;
-        const d = await dispose(page, v, 'รับไว้รักษาต่อIPD');
+        info.an = admit.an;
+        info.ward = admit.ward;
+        const d = await step('dispose', () => dispose(page, v, 'รับไว้รักษาต่อIPD'));
         info.disposition = `รับไว้รักษาต่อIPD · ลงนาม ${d.signedAt}`;
         return { ...v, preparedAt: bangkokText(), info };
       }),
@@ -1655,7 +1839,12 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
       const rows = [
         row('วิธีการมาถึง', 'EMS', f['วิธีการมาถึง'] ?? '', /^EMS/.test(f['วิธีการมาถึง'] ?? '')),
         row('ระดับความเร่งด่วน EMS', 'ALS', f['ระดับความเร่งด่วน EMS'] ?? ''),
-        row('ผู้นำส่ง', 'EMS ขึ้นทะเบียน', f['ผู้นำส่ง'] ?? '', /EMS ขึ้นทะเบียน/.test(f['ผู้นำส่ง'] ?? '')),
+        // dev-x: ค่าตั้งต้น "EMS ขึ้นทะเบียน" · SBH Prod: ไม่มีค่าตั้งต้น → triage() เลือกให้ (ค่าใน info.transporterType)
+        ...(() => {
+          // ตัวเลือกบน Prod มีรหัสนำหน้า ("ems_personnel - เจ้าหน้าที่ EMS") ส่วน ER Summary แสดงชื่ออย่างเดียว → เทียบเฉพาะชื่อ
+          const want = (info.transporterType ?? 'EMS ขึ้นทะเบียน').replace(/^[a-z_]+ - /, '');
+          return [row('ผู้นำส่ง', want, f['ผู้นำส่ง'] ?? '', (f['ผู้นำส่ง'] ?? '').includes(want))];
+        })(),
         row('ชื่อผู้นำส่ง / หน่วยงาน', transporter, f['ชื่อผู้นำส่ง / หน่วยงาน'] ?? ''),
         row('ข้อมูลก่อนถึงโรงพยาบาล', preHospital, f['ข้อมูลก่อนถึงโรงพยาบาล'] ?? ''),
       ];
@@ -1742,10 +1931,15 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
         const want = (en[v] ?? v).toLowerCase();
         rows.push(row(`${k}`, v, lower.includes(want) ? `${en[v] ?? v}` : '(ไม่พบ)', lower.includes(want)));
       }
-      rows.push(row('D · รูม่านตา / DTX (บันทึกเพิ่ม 2 พ.ย. 15:4x)', 'รูม่านตา 3 mm RTL ทั้ง 2 ข้าง · DTX 110', /3\s*mm/i.test(text) && /RTL/i.test(text) && /110/.test(text) ? 'แสดงครบ' : '(ไม่พบ)', /3\s*mm/i.test(text) && /RTL/i.test(text) && /110/.test(text)));
+      // กลุ่ม D แยก 3 แถว (ขนาด · การตอบสนองต่อแสง · DTX) แสดงข้อความจริงที่อ่านได้ (Prod 6 พ.ย.: "Pupil Rt: 3 mm; Pupil Lt: 3 mm; DTX: 110 mg/dL")
+      const dText = (text.match(/D\s*·\s*Disability\s*(.*?)(?=E\s*·\s*Exposure|การรับทราบ|$)/) ?? ['', ''])[1].trim().slice(0, 80);
+      rows.push(row('D · ขนาดรูม่านตา', '3 mm ทั้ง 2 ข้าง', dText || '(ไม่พบ)', (text.match(/3\s*mm/gi) ?? []).length >= 2));
+      rows.push(row('D · การตอบสนองต่อแสง', 'RTL ทั้ง 2 ข้าง', /RTL/i.test(text) ? 'แสดง RTL' : 'ไม่แสดง', /RTL/i.test(text)));
+      rows.push(row('D · DTX', '110', /DTX:?\s*110/i.test(text) ? 'DTX: 110 mg/dL' : '(ไม่พบ)', /110/.test(text)));
       rows.push(row('ข้อความว่าง', 'ไม่แสดง "ยังไม่บันทึก Primary Survey"', text.includes('ยังไม่บันทึก Primary Survey') ? 'แสดง' : 'ไม่แสดง', !text.includes('ยังไม่บันทึก Primary Survey')));
       await compare(page, 33, rows, ['Expected (ER Trauma Exam)', 'จริง (ER Summary)']);
-      await markEvidence(expected(ps, 'Primary Survey'));
+      const missing = ['A', 'B', 'C', 'D', 'E'].filter((g) => !new RegExp(`${g}\\s*·`).test(text));
+      await markEvidence(expected(ps, missing.length ? `กลุ่ม A–E · จริง: ไม่มีกลุ่ม ${missing.join(' ')}` : 'Primary Survey'));
       expect(bad(rows)).toEqual([]);
     });
     const pe = erSummarySection(page, 'physical-exam-trauma');
@@ -1810,6 +2004,13 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
       await hideCompareTable(page);
       await toSection(pe);
       const view = pe.getByRole('button', { name: 'ดูภาพ' }).or(pe.getByText('ดูภาพ', { exact: true })).first();
+      if (!(await view.count())) {
+        // ไม่มีปุ่ม (ER Summary แสดง "ไม่มีการบันทึก Body chart") → ภาพต้องสื่อว่าไม่ผ่านตรงจุด (evidence-checker 6 พ.ย.)
+        const got = (await readFields(pe))['Body chart'] ?? '';
+        await compare(page, 38, [row('ปุ่ม ดูภาพ', 'มี (Body chart ที่บันทึก)', `ไม่มี — ${got || '(ว่าง)'}`, false)]);
+        await markEvidence(expected(fieldOf(pe, 'Body chart'), `ปุ่ม ดูภาพ · จริง: ไม่มีปุ่ม`));
+        await holdForClip(page, 2_000);
+      }
       expect(await view.count(), 'ต้องมีปุ่ม ดูภาพ (มี Body chart ที่บันทึก)').toBeGreaterThan(0);
       await markEvidence(clicked(view, 'ดูภาพ'));
       await snapEvidence(page, 'ก่อนกด — ดูภาพ');
@@ -1854,12 +2055,15 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const r = makeRunner(page);
     const visit = await patient(page, 'T2', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย T2', async () => {
-        const v = await newErVisit(page, 'T2');
+        const step = resumable(page, 'T2');
+        const v = await step('visit', () => newErVisit(page, 'T2'));
         const { rr: _rr, ...noRr } = VITALS_NORMAL;
-        const info = await triage(page, v, { level: 3, vitals: noRr, trauma: true });
+        const info = { ...(await step('triage', () => triage(page, v, { level: 3, vitals: noRr, trauma: true }))) };
         info.vitals = 'ไม่บันทึก RR (ไม่เลือก Suspect Fast Track Type — รอบที่เลือก Trauma Fast Track + สัญญาณชีพไม่ครบ บันทึกไม่ได้ 422)';
-        await gotoVisit(page, v);
-        info.dx = (await physicianNote(page, { dx: ['S06.0'] })).join(' · ');
+        info.dx = await step('note', async () => {
+          await gotoVisit(page, v);
+          return (await physicianNote(page, { dx: ['S06.0'] })).join(' · ');
+        });
         info.exam = 'ER Trauma Exam บันทึกเฉพาะ Diagnosis — ไม่บันทึก Primary Survey / Body chart · ไม่บันทึก Trauma Detail Form (PHER+)';
         return { ...v, preparedAt: bangkokText(), info };
       }),
@@ -1913,8 +2117,9 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
     const r = makeRunner(page);
     const visit = await patient(page, 'T3', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย T3', async () => {
-        const v = await newErVisit(page, 'T3');
-        const info = await triage(page, v, { level: 3, vitals: VITALS_NORMAL, arrival: { method: 'EMS', ems: 'BLS', transporter: 'มูลนิธิทดสอบ SBH-3182' }, trauma: true });
+        const step = resumable(page, 'T3');
+        const v = await step('visit', () => newErVisit(page, 'T3'));
+        const info = { ...(await step('triage', () => triage(page, v, { level: 3, vitals: VITALS_NORMAL, arrival: { method: 'EMS', ems: 'BLS', transporter: 'มูลนิธิทดสอบ SBH-3182' }, trauma: true }))) };
         return { ...v, preparedAt: bangkokText(), info };
       }),
     );
@@ -1938,12 +2143,18 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
       const r = makeRunner(page);
       const visit = await patient(page, key, r, () =>
         test.step(`เตรียมข้อมูล ผู้ป่วย ${key}`, async () => {
-          const v = await newErVisit(page, key);
-          const info = await triage(page, v, { level: 3, vitals: VITALS_NORMAL, trauma: from === 'Trauma' });
-          await editTriageEmergency(page, v, to);
+          const step = resumable(page, key);
+          const v = await step('visit', () => newErVisit(page, key));
+          const info = { ...(await step('triage', () => triage(page, v, { level: 3, vitals: VITALS_NORMAL, trauma: from === 'Trauma' }))) };
+          await step('edit', async () => {
+            await editTriageEmergency(page, v, to);
+            return true;
+          });
           info.emergency = `${from} → แก้เป็น ${to}`;
-          await gotoVisit(page, v);
-          info.dx = (await physicianNote(page, { dx: [to === 'Trauma' ? 'S06.0' : 'K30'] })).join(' · ');
+          info.dx = await step('note', async () => {
+            await gotoVisit(page, v);
+            return (await physicianNote(page, { dx: [to === 'Trauma' ? 'S06.0' : 'K30'] })).join(' · ');
+          });
           return { ...v, preparedAt: bangkokText(), info };
         }),
       );
@@ -1983,15 +2194,22 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
       test.step('เตรียมข้อมูล ผู้ป่วย Admit', async () => {
         // SBH3182_BUGLOS_FROM=HN,VN,EN = ทำต่อกับผู้ป่วยที่คัดกรองแล้ว (ข้ามสร้างผู้ป่วย + คัดกรอง)
         const from = process.env.SBH3182_BUGLOS_FROM?.split(',');
-        const v = from?.length === 3 ? { hn: from[0], vn: from[1], en: from[2], name: '' } : await newErVisit(page, 'L');
-        const info: Record<string, string> = from?.length === 3 ? { triage: 'คัดกรองแล้วในรอบก่อน' } : await triage(page, v, { level: 3, vitals: VITALS_NORMAL });
+        const step = resumable(page, 'BUGLOS');
+        const v = from?.length === 3 ? { hn: from[0], vn: from[1], en: from[2], name: '' } : await step('visit', () => newErVisit(page, 'L'));
+        const info: Record<string, string> = from?.length === 3 ? { triage: 'คัดกรองแล้วในรอบก่อน' } : { ...(await step('triage', () => triage(page, v, { level: 3, vitals: VITALS_NORMAL }))) };
         // 3 พ.ย. 17:40 ฟอร์มแพทย์ขึ้น "กำลังรอการเชื่อมต่อตัวกรอกข้อมูลที่รองรับ…" ส่วน Diagnosis ไม่โหลด (แบบ SBH-3607) → ไม่หยุดเทส
-        await gotoVisit(page, v);
-        info.dx = await physicianNote(page, { dx: ['K30'] }).then((d) => d.join(' · '), (e: Error) => `บันทึก Physician Note ไม่ได้ — ${e.message.split('\n')[0]}`);
-        await gotoVisit(page, v);
-        const admit = await admitWithBed(page, v, auth, { autoBed: true });
+        info.dx = await step('note', async () => {
+          await gotoVisit(page, v);
+          return SKIP_NOTE ? SKIP_NOTE_INFO : physicianNote(page, { dx: ['K30'] }).then((d) => d.join(' · '), (e: Error) => `บันทึก Physician Note ไม่ได้ — ${e.message.split('\n')[0]}`);
+        });
+        const admit = await step('admit', async () => {
+          await gotoVisit(page, v);
+          return admitWithBed(page, v, auth, { autoBed: true });
+        });
         info.admit = `AN ${admit.an} · หอ ${admit.ward}`;
-        info.disposition = await dispose(page, v, 'รับไว้รักษาต่อIPD').then((d) => `รับไว้รักษาต่อIPD · ลงนาม ${d.signedAt}`, (e: Error) => `ลงนาม Disposition ไม่ได้ — ${e.message.split('\n')[0]}`);
+        info.an = admit.an;
+        info.ward = admit.ward;
+        info.disposition = await step('dispose', () => dispose(page, v, 'รับไว้รักษาต่อIPD', SKIP_NOTE ? { dx: 'K30' } : {}).then((d) => `รับไว้รักษาต่อIPD · ลงนาม ${d.signedAt}`, (e: Error) => `ลงนาม Disposition ไม่ได้ — ${e.message.split('\n')[0]}`));
         return { ...v, preparedAt: bangkokText(), info };
       }),
     );
@@ -2022,15 +2240,24 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
         await toSection(s);
         const f = await readFields(s);
         r.note('Visit ยังเปิด', `ออกจาก ER: ${f['ออกจาก ER']} · เวลาใน ER: ${f['เวลาใน ER']}`);
-        await markEvidence(actual(fieldOf(s, 'ออกจาก ER'), f['ออกจาก ER'] ?? ''), actual(fieldOf(s, 'เวลาใน ER'), f['เวลาใน ER'] ?? ''));
+        // Retest 6 พ.ย. 2026: ช่วง Visit ยังเปิดยังไม่มี Expected → ป้าย "ค่าที่เห็น"
+        const seen = (target: Locator, note: string): EvidenceMark => ({ target, label: 'ค่าที่เห็น' as unknown as EvidenceLabel, note });
+        await markEvidence(seen(fieldOf(s, 'ออกจาก ER'), f['ออกจาก ER'] ?? ''), seen(fieldOf(s, 'เวลาใน ER'), f['เวลาใน ER'] ?? ''));
         await holdForClip(page, 3_000);
       });
 
       // ขั้น 2: ปิด Visit ที่การเงิน (ผู้ป่วย Admit ไม่มีปุ่ม จำหน่าย ในหน้ารายการผู้ป่วย ER)
       await startClip(page, 'BUG-LOS-2');
       await test.step('ปิด Visit ที่การเงิน', async () => {
-        const closed = await closeVisitAtCashier(page, visit.hn, visit.vn);
+        const closed = await closeVisitAtCashier(page, visit.hn, visit.vn).catch(async (e: Error) => {
+          // SBH Prod: ค้างใบแจ้งหนี้ (Uninvoiced) → ชำระเงินสดแล้วปิดอีกครั้ง (แบบ SBH-2079 Prod)
+          if (!PROD || !/Uninvoiced/.test(e.message)) throw e;
+          await gotoCashierAccount(page, visit.hn, visit.vn);
+          await payAllInCash(page);
+          return closeVisitAtCashier(page, visit.hn, visit.vn);
+        });
         r.note('ปิด Visit', JSON.stringify(closed));
+        if (PROD) saveState('BUGLOS', { ...visit, info: { ...(visit.info ?? {}), closed: new Date().toISOString() } });
       });
     }
     await summaryOf(page, visit);
@@ -2041,7 +2268,14 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
       await toSection(s);
       const f = await readFields(s);
       r.note('หลังปิด Visit', `ออกจาก ER: ${f['ออกจาก ER']} · เวลาใน ER: ${f['เวลาใน ER']}`);
-      await markEvidence(actual(fieldOf(s, 'ออกจาก ER'), f['ออกจาก ER'] ?? ''), actual(fieldOf(s, 'เวลาใน ER'), f['เวลาใน ER'] ?? ''), actual(page.getByText('เสร็จสิ้น', { exact: true }).filter({ visible: true }).first(), 'สถานะ Visit'));
+      // Retest 6 พ.ย. 2026 (SBH-3842 ข้อ 7): ป้าย Expected แบบ "<ที่ต้องการ> · จริง: <ที่เห็น>" · สถานะ Visit ใช้ป้าย Actual (ข้อมูลประกอบ)
+      const out = f['ออกจาก ER'] ?? '';
+      const los = f['เวลาใน ER'] ?? '';
+      await markEvidence(
+        expected(fieldOf(s, 'ออกจาก ER'), /^\d{2}\/\d{2}\/25\d{2} \d{2}:\d{2}$/.test(out) ? `เวลาออกจาก ER = ${out}` : `เวลา dd/MM/yyyy HH:mm · จริง: ${out || '(ว่าง)'}`),
+        expected(fieldOf(s, 'เวลาใน ER'), /\d+ (นาที|ชม\.|วัน)/.test(los) ? `ระยะเวลา = ${los}` : `ระยะเวลามาถึง→ออก · จริง: ${los || '(ว่าง)'}`),
+        actual(page.getByText('เสร็จสิ้น', { exact: true }).filter({ visible: true }).first(), 'สถานะ Visit'),
+      );
       await holdForClip(page, 3_000);
       expect.soft(f['ออกจาก ER'], 'ออกจาก ER ต้องเป็นเวลา dd/MM/พ.ศ. HH:mm').toMatch(/^\d{2}\/\d{2}\/25\d{2} \d{2}:\d{2}$/);
       expect(f['เวลาใน ER'], 'เวลาใน ER ต้องมีค่า').toMatch(/\d+ (นาที|ชม\.|วัน)/);
@@ -2055,7 +2289,64 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
   // แท็บ รับเป็นผู้ป่วยใน → เลือกผู้ป่วย → หน้า Order → สั่ง Continuous Order → ตรวจการแสดงผล
   // ช่วงแรก: เตรียมผู้ป่วยถึงลงนาม Disposition (ขั้นหลังจากนี้กำลังสำรวจ)
   // รัน: npx playwright test --headed --grep "@SBH-3182-CONT" · ใช้ผู้ป่วยเดิม: SBH3182_CONT=HN,VN,EN
+  // ==============================================================================================
+  // ท้ายงานบน SBH Prod (ผู้ใช้เลือก "คืนเตียง + ปิด Visit ทุกราย" 6 พ.ย. 2026): ผู้ป่วยที่มี AN (A · T1 · BUGLOS) ลงเตียง SBHAUTO ที่ IPD → Discharge คืนเตียง ·
+  // ทุกรายใน state-sbh-prod.json + progress (เตรียมไม่ครบ) ปิด Visit ที่การเงิน (ค้างใบแจ้งหนี้ → ชำระเงินสดแล้วปิดอีกครั้ง) · เลือกบางรายด้วย SBH3182_CLOSE=A,B,…
+  test('ท้ายงาน: คืนเตียง + ปิด Visit ของผู้ป่วยที่เทสสร้าง (SBH Prod)', { tag: ['@SBH-3182-CLOSE'] }, async ({ page }) => {
+    test.skip(!PROD, 'dev-x ทิ้ง Visit ไว้ได้ (R11)');
+    test.setTimeout(3_600_000);
+    const only = process.env.SBH3182_CLOSE?.split(',').map((s) => s.trim()).filter(Boolean);
+    const state = readState();
+    for (const [k, p] of Object.entries(readProgress())) {
+      const v = p.visit as (ErVisit & { name: string }) | undefined;
+      const admit = p.admit as { an: string; ward: string } | undefined;
+      if (v && !state[k]) state[k] = { ...v, preparedAt: '(เตรียมไม่ครบ)', info: admit ? { an: admit.an, ward: admit.ward } : {} };
+    }
+    const failed: string[] = [];
+    for (const [k, v] of Object.entries(state)) {
+      if (only && !only.includes(k)) continue;
+      const info = v.info ?? {};
+      if (info.closed && (!info.an || info.discharged)) {
+        console.log(`    ${k} HN ${v.hn}: เก็บกวาดแล้วจากรอบก่อน`);
+        continue;
+      }
+      if (info.an && !info.discharged) {
+        const note = (t: string, d: string) => test.info().annotations.push({ type: t, description: d });
+        const d = await (async () => {
+          // ลงเตียงแล้วในรอบก่อน (info.bed = ชื่อเตียง) → ข้าม ไปคืนเตียงเลย (6 พ.ย. 22:18 รอบแรก Discharge หาแถวไม่เจอ — ตัวกรองแพทย์ของหน้ารายการเตียง)
+          const bed = info.bed && !/ไม่สำเร็จ/.test(info.bed) ? info.bed : await putToBed(page, v, info.ward ?? '', note).catch((e: Error) => `ลงเตียงไม่สำเร็จ — ${e.message.split('\n')[0]}`);
+          info.bed = bed;
+          return `${bed} → ${await ipdDischarge(page, v.hn, info.ward ?? '')}`;
+        })().then(
+          (x) => { info.discharged = new Date().toISOString(); return x; },
+          (e: Error) => { failed.push(`${k} คืนเตียง`); return `Discharge ที่ IPD ไม่สำเร็จ — ${e.message.split('\n')[0]}`; },
+        );
+        saveState(k, { ...v, info });
+        console.log(`    ${k} HN ${v.hn} · AN ${info.an}: ${d}`);
+        test.info().annotations.push({ type: 'คืนเตียง', description: `${k} HN ${v.hn} · AN ${info.an}: ${d}` });
+      }
+      if (info.closed) continue;
+      const closeOnce = () => closeVisitAtCashier(page, v.hn, v.vn);
+      const result = await closeOnce()
+        .catch(async (e: Error) => {
+          if (!/Uninvoiced/.test(e.message)) throw e;
+          await gotoCashierAccount(page, v.hn, v.vn);
+          await payAllInCash(page);
+          return closeOnce();
+        })
+        .then(
+          (c) => { info.closed = new Date().toISOString(); return c.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'; },
+          (e: Error) => { failed.push(`${k} ปิด Visit`); return `ปิด Visit ไม่สำเร็จ — ${e.message.split('\n')[0]}`; },
+        );
+      saveState(k, { ...v, info });
+      console.log(`    ${k} HN ${v.hn} · ${v.vn}: ${result}`);
+      test.info().annotations.push({ type: 'ปิด Visit', description: `${k} HN ${v.hn} · ${v.vn}: ${result}` });
+    }
+    expect(failed, 'เก็บกวาดไม่สำเร็จ').toEqual([]);
+  });
+
   test('ทดสอบเพิ่ม Continuous Order ของผู้ป่วยที่รับเป็นผู้ป่วยใน (Super_User)', meta('CONT'), async ({ page }) => {
+    test.skip(PROD, 'ทดสอบเพิ่มนอก TC — dev-x เท่านั้น');
     const auth = trackAuthorization(page);
     const r = makeRunner(page);
     await patient(page, 'CONT', r, () =>

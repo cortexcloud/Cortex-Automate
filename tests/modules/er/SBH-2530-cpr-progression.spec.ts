@@ -10,6 +10,8 @@ import {
   cprForm,
   cprHistory,
   cprHistoryEpisodes,
+  cprHistoryForm,
+  cprHistoryTab,
   cprSummary,
   cycleCard,
   cycleTimeInput,
@@ -28,12 +30,12 @@ import {
   type CprRow,
 } from '../../../helpers/functions/er-cpr';
 import { erTriagePanel, fillErTriageForm, saveErTriageForm } from '../../../helpers/functions/er-triage';
-import { alerted, checkStep, clicked, expected, filled, hideCompareTable, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow, type EvidenceMark } from '../../../helpers/functions/evidence';
-import { startClip } from '../../../helpers/functions/fixtures';
+import { alerted, checkStep, clicked, expected, filled, hideCompareTable, makeRunner, markEvidence, showCompareTable, snapEvidence, holdForClip, type CompareRow, type EvidenceMark } from '../../../helpers/functions/evidence';
+import { restartVideo, startClip } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { SYSTEM, registerAndOpenErVisit } from '../../../mock-data/uat-er';
-import { VITALS_HIGH_MEWS, gotoVisit } from '../../../mock-data/uat-play';
+import { VITALS_HIGH_MEWS, gotoVisit, recordMenu } from '../../../mock-data/uat-play';
 
 // SBH-2530 [ER] [CPR-Progression] Improve CPR Progression — Cycle timer 2 นาที · ยา + Dose / Route · หลาย Episode (กู้ชีพซ้ำ) · Timeline + filter · Nurse note · Vital Signs หุบ / กางเอง · Episode Summary
 // ชุด EXE SBH-3029 → SC HPY SBH-3030 (TC-001…049) · UHP SBH-3032 (TC-050…053) · EDG SBH-3033 (TC-054…056) — 56 TC (เลข Issue ใน ISSUE)
@@ -101,7 +103,7 @@ function cprKit(page: Page, soft: (title: string, body: () => Promise<void>) => 
     });
 
   /** แสดงตารางเทียบ (สคริปต์วาด) + ตีกรอบ Expected แล้วค่อย expect — ภาพ Error เห็นแถวที่ไม่ตรง */
-  const verify = async (title: string, rows: CompareRow[], marks: EvidenceMark[] = [], side: 'left' | 'right' | 'bottom' = 'right') => {
+  const verify = async (title: string, rows: CompareRow[], marks: (Locator | EvidenceMark)[] = [], side: 'left' | 'right' | 'bottom' = 'right') => {
     await showCompareTable(page, title, ['Expected', 'ผลจริง'], rows, { side, width: side === 'bottom' ? undefined : '600px' });
     if (marks.length) await markEvidence(...marks);
     expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ต้องเป็น "${r.values[0]}" · ได้ "${r.values[1]}"`), title).toEqual([]);
@@ -256,7 +258,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('countdown เริ่ม ~02:00', '01:50–02:00', c1, clockSeconds(c1) >= 110 && clockSeconds(c1) <= 120),
           row('นับถอยหลัง (ห่าง 4 วิ)', 'ลดลง', `${c1} → ${c2}`, clockSeconds(c2) < clockSeconds(c1)),
           row('progress bar เดินตามเวลา', 'เพิ่มขึ้น', `${p1}% → ${p2}%`, p2 > p1),
-        ], [expected(card.locator('.cycle-head'), `Cycle 1 · เริ่ม ${shownStart} · countdown ${c2}`)], 'left');
+        ], [expected(card.locator('.cycle-head'), 'Cycle 1 · เริ่ม ≈ เวลากด Start CPR · นับถอยหลังจาก ~02:00')], 'left');
       });
 
       await startClip(page, 'TC-003');
@@ -311,12 +313,16 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
       await step(27, 'ขั้น 2 ดูส่วน CPR Comment และ Nurse note', async () => {
         const nurseCard = form.locator('section.nurse-card');
         const commentCard = k.commentInput.locator('xpath=ancestor::section[1]');
-        await nurseCard.scrollIntoViewIfNeeded();
+        // การ์ด 2 ใบอยู่คนละคอลัมน์ / คนละระดับ (Retest 6 พ.ย. กรอบตกใต้แถบหัวผู้ป่วย) → ภาพ 1 Nurse note + badge กลางจอ · ภาพ 2 CPR Comment
+        await nurseCard.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        await markEvidence(expected(nurseCard, 'Nurse note'), expected(nurseCard.locator('.role-badge'), 'badge พยาบาล'));
+        await snapEvidence(page, 'การ์ด Nurse note + badge');
+        await commentCard.evaluate((el) => el.scrollIntoView({ block: 'center' }));
         await verify('TC-027 การ์ด Nurse note', [
           row('การ์ด CPR Comment', 'มี', (await commentCard.getByRole('heading', { name: 'CPR Comment' }).isVisible()) ? 'มี' : 'ไม่มี'),
           row('การ์ด Nurse note แยกจาก CPR Comment', 'แยกกัน', (await nurseCard.isVisible()) && !(await commentCard.evaluate((c, n) => c === n || c.contains(n as Node), await nurseCard.elementHandle())) ? 'แยกกัน' : 'ไม่แยก'),
           row('badge ของ Nurse note', 'พยาบาล', ((await nurseCard.locator('.role-badge').textContent()) ?? '').trim()),
-        ], [expected(commentCard, 'CPR Comment'), expected(nurseCard, 'Nurse note'), expected(nurseCard.locator('.role-badge'), 'badge')], 'bottom');
+        ], [expected(commentCard, 'CPR Comment (การ์ดแยก)')], 'right');
       });
 
       await startClip(page, 'TC-028');
@@ -432,6 +438,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         const two = ((await badge.textContent()) ?? '').trim();
         await markEvidence(clicked(am.check, 'ติ๊ก'), expected(badge, two));
         await snapEvidence(page, 'ติ๊ก 2 ตัว — Badge');
+        await holdForClip(page, 2_000);
         await am.check.uncheck();
         const one = ((await badge.textContent()) ?? '').trim();
         await verify('TC-011 Badge จำนวนยา', [row('ติ๊ก 2 ตัว', 'เลือกแล้ว 2 รายการ', two), row('เอาออก 1 ตัว', 'เลือกแล้ว 1 รายการ', one)], [expected(badge, one)], 'right');
@@ -490,6 +497,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('เวลาของยา = เวลาของ Cycle', stampClock(cycleTimes['Cycle 1']), r?.time ?? '-'),
         ], [expected(k.summaryRow('Cycle 1'), 'Cycle 1 + ยา 3 ตัว')], 'right');
       });
+      await startClip(page, 'TC-032b'); // แยกคลิปตาม TC (R61 · Retest 6 พ.ย. — เดิมปนในคลิป TC-012)
       await step(32, 'ขั้น 3 บันทึก Cycle ที่ Vital Signs กางอยู่โดยไม่กรอก — สำเร็จ ไม่มี error', async () => {
         const box = vitalBox(form);
         await box.scrollIntoViewIfNeeded();
@@ -499,6 +507,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('error ให้กรอก Vital Signs', '0', String(errors)),
         ], [expected(box, 'ไม่มี error')], 'left');
       });
+      await startClip(page, 'TC-002b');
       await step(2, 'ขั้น 3 Cycle 2: ช่อง วันที่และเวลาบันทึก = เวลาเริ่ม Cycle 2 + 2 นาที', async () => {
         await card.scrollIntoViewIfNeeded();
         const start = `${cycleTimes['Cycle 1'].split('T')[0]}T${((await card.locator('.cycle-start time').textContent()) ?? '').trim()}`;
@@ -592,7 +601,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         await summary.scrollIntoViewIfNeeded();
         const rows = events(await k.rowsNow());
         const first = await k.numbers();
-        await markEvidence(expected(summary.locator('dl').first(), `Duration ${first.Duration}`));
+        await markEvidence(expected(summary.locator('dl').first(), 'ครั้งที่ 1'));
         await snapEvidence(page, 'ครั้งที่ 1 — ตัวเลขสรุป');
         await page.waitForTimeout(10_000);
         const second = await k.numbers();
@@ -604,11 +613,13 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('Cycles', String(rows.filter(isCycle).length), second.Cycles),
           row('Shocks (แถวที่มี Defib)', String(rows.filter(isShock).length), second.Shocks),
           row('ยา (dose)', String(rows.reduce((n, r) => n + r.drugs.length, 0)), second['ยา (dose)']),
-        ], [expected(summary.locator('dl').first(), `Duration ${second.Duration}`)], 'bottom');
+        ], [expected(summary.locator('dl').first(), `Duration เพิ่มขึ้น (+${grow} วิ)`)], 'bottom');
       });
 
       await startClip(page, 'TC-047');
       await step(47, 'ขั้น 1–2 จดตัวเลข > บันทึก Cycle ที่มี Defib 200 J + Atropine 1 mg IV (ไม่ refresh)', async () => {
+        const centerNumbers = () => summary.locator('dl').first().evaluate((el) => el.scrollIntoView({ block: 'center' })); // ใต้แถบหัวผู้ป่วย (Retest 6 พ.ย.)
+        await centerNumbers();
         const before = await k.numbers();
         const beforeN = await k.timelineCount();
         await markEvidence(expected(summary.locator('dl').first(), 'ก่อนบันทึก'), expected(k.toggle(summary), `N = ${beforeN}`));
@@ -621,9 +632,13 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         await markEvidence(filled(k.defibInput, '200 J'), filled(at.row, 'Atropine 1 mg IV'), clicked(cprButton(form, 'Save CPR Progress')));
         await snapEvidence(page, 'ก่อนกด — Cycle 4 (Defib + Atropine)');
         cycleTimes['Cycle 4'] = await k.saveCycle('ตอนนี้', 'บันทึก Cycle 4 (Defib + Atropine)');
-        await summary.scrollIntoViewIfNeeded();
+        await centerNumbers();
         const after = await k.numbers();
         const afterN = await k.timelineCount();
+        await centerNumbers();
+        await markEvidence(expected(summary.locator('dl').first(), 'หลังบันทึก — อัปเดตแล้ว'), expected(k.toggle(summary), `N = ${afterN}`));
+        await snapEvidence(page, 'หลังบันทึก — ตัวเลขสรุป');
+        await holdForClip(page, 1_500);
         const last = events(await k.rowsNow()).at(-1);
         await verify('TC-047 อัปเดตทันทีหลังบันทึก', [
           row('แถวใหม่ต่อท้ายรายการ', 'Cycle 4 · Atropine · 1 mg · IV', `${last?.name} · ${last?.drugs.join(', ')}`),
@@ -631,7 +646,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('Shocks +1', String(Number(before.Shocks) + 1), after.Shocks),
           row('dose ยา +1', String(Number(before['ยา (dose)']) + 1), after['ยา (dose)']),
           row('N ของ CPR Timeline +1', String(beforeN + 1), String(afterN)),
-        ], [expected(summary.locator('dl').first(), 'อัปเดตแล้ว'), expected(k.toggle(summary), `N = ${afterN}`), expected(k.summaryRow('Cycle 4'), 'แถวใหม่')], 'bottom');
+        ], [expected(k.toggle(summary), `N = ${afterN}`), expected(k.summaryRow('Cycle 4'), 'แถวใหม่')], 'bottom');
       });
 
       await startClip(page, 'TC-033');
@@ -667,7 +682,8 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         const rosc = rows.find((x) => x.name === 'ROSC');
         const rel = (r?: CprRow) => {
           if (!r || !start) return '-';
-          const s = Math.round((Date.parse(r.iso) - Date.parse(start.iso)) / 1000);
+          // จอแสดงเวลาจริงตัดเป็นวินาที → ตัดมิลลิวินาทีของทั้ง 2 ฝั่งก่อนลบ (Retest 6 พ.ย.: ปัดแบบ round ได้ T+02:59 ทั้งที่ 19:34:52 − 19:31:54 = 02:58)
+          const s = Math.floor(Date.parse(r.iso) / 1000) - Math.floor(Date.parse(start.iso) / 1000);
           return `T+${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
         };
         const xs = await summary.locator('li.row').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)));
@@ -678,7 +694,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('Cycle 1 (chip +2 นาที)', 'T+02:00', c1?.relative ?? '-'),
           row('ROSC = เวลาจริง − Start', rel(rosc), rosc?.relative ?? '-'),
           row('แนวตั้ง (x ทุกแถวเท่ากัน)', 'ใช่', new Set(xs).size === 1 ? 'ใช่' : xs.join(',')),
-        ], [expected(k.summaryRow('Start CPR').locator('.when'), 'T+00:00'), expected(k.summaryRow('Cycle 1').locator('.when'), 'T+02:00'), expected(k.summaryRow('ROSC').locator('.when'), 'ROSC')], 'right');
+        ], [expected(summary.locator('ol').first(), 'เวลาจริง HH:MM:SS + T+MM:SS ทุกแถว'), k.summaryRow('Start CPR').locator('.when'), k.summaryRow('Cycle 1').locator('.when'), k.summaryRow('ROSC').locator('.when')], 'right'); // ป้ายรายแถวทับค่า T+ ของแถวข้างเคียง (Retest 6 พ.ย.) → กรอบไม่มีป้าย
       });
 
       await startClip(page, 'TC-023');
@@ -808,6 +824,9 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         await openCarePanel(page, 'CPR Progression', k.main.getByRole('heading', { name: 'CPR Progression' }).first());
         await expect(summary).toBeVisible({ timeout: 60_000 });
         await expect(form).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+        await page.mouse.move(1000, 700);
+        await page.waitForTimeout(800);
+        await restartVideo(page); // ตัดช่วงจอขาว / โหลดหน้าใหม่ออกจากคลิป (Retest 6 พ.ย.)
         await summary.scrollIntoViewIfNeeded();
         const rows = events(await k.rowsNow());
         await verify('TC-045 ปุ่ม CPR Timeline (N)', [
@@ -816,6 +835,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('แถวมองเห็น', 'ใช่', (await summary.locator('li.row').first().isVisible()) ? 'ใช่' : 'ไม่'),
         ], [expected(k.toggle(summary), `CPR Timeline (${rows.length})`), expected(summary.locator('ol').first(), 'กางอยู่')], 'bottom');
       });
+      await startClip(page, 'TC-035b');
       await step(35, 'ขั้น 3 หลังเปิดหน้าใหม่: สัญญาณชีพล่าสุดของผู้ป่วยมีเวลาวัด = ROSC + 5 นาที', async () => {
         const updated = page.getByText(/^อัปเดตล่าสุด:/).first();
         const text = ((await updated.textContent()) ?? '').trim();
@@ -870,6 +890,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
       await step(49, 'ขั้น 2–3 จดทุกแถวบน Episode Summary > เปิดหน้า History > เทียบทีละแถว', async () => {
         const pageRows = events(await k.rowsNow());
         await k.historyLink.click();
+        await page.mouse.move(1200, 700); // เมาส์ค้างฝั่งซ้ายแล้วเมนูข้างกางบังหน้า History (Retest 6 พ.ย. TC-049)
         await expect(cprHistory(form)).toBeVisible();
         const ep = cprHistoryEpisodes(form).first();
         historyRowsEp1 = events(await readCprRows(ep));
@@ -878,6 +899,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         pageRows.forEach((r, i) => rows.push(row(`แถว ${i + 1} ${r.name}`, key(r), key(historyRowsEp1[i]))));
         await verify('TC-049 หน้า CPR (Expected) vs หน้า History (ผลจริง)', rows, [expected(ep, 'Episode #1 ในหน้า History')], 'bottom');
       });
+      await startClip(page, 'TC-029b');
       await step(29, 'ขั้น 4 หน้า History: Nurse note ของ Cycle 1 (Episode เดียวกัน)', async () => {
         const ep = cprHistoryEpisodes(form).first();
         const r = historyRowsEp1.find((x) => x.name === 'Cycle 1');
@@ -923,8 +945,10 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         const linkText = ((await k.historyLink.textContent()) ?? '').trim();
         await markEvidence(expected(label, 'กู้ชีพซ้ำ'), clicked(k.historyLink, linkText));
         await snapEvidence(page, 'ก่อนกด — ลิงก์ดูประวัติ');
+        await holdForClip(page, 2_000);
         const labelText = ((await label.textContent()) ?? '').trim();
         await k.historyLink.click();
+        await page.mouse.move(1200, 700); // เมาส์ค้างฝั่งซ้ายแล้วเมนูข้างกางบังหน้า History (Retest 6 พ.ย. TC-049)
         await expect(cprHistory(form)).toBeVisible();
         await verify('TC-015 ป้ายกู้ชีพซ้ำ + ลิงก์', [
           row('ป้าย', 'กู้ชีพซ้ำ', labelText),
@@ -1050,10 +1074,12 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'ยกเลิก' }).click();
           await target.scrollIntoViewIfNeeded();
         }
-        await verify('TC-020 Episode ที่จบแล้วเป็น read-only', [
-          row('ปุ่ม / ช่องแก้ไขของ Episode #1', 'ไม่มี (หรือแก้แล้วบันทึกไม่ได้)', edits ? `มีปุ่มแก้ไข ${edits} ปุ่ม` : 'ไม่มี', !edits || saved === 'บันทึกไม่ได้'),
-          row('ผลการบันทึกการแก้ไข', 'บันทึกไม่ได้', saved, !edits || saved === 'บันทึกไม่ได้'),
-        ], [expected(target, saved)], 'right');
+        // Expected แก้ 29/10/2569 ตาม AC 3.6 (ผู้ใช้สั่ง — R73): แก้ได้เฉพาะผ่านหน้าต่าง "แก้ไขข้อมูล CPR" ที่ต้องใส่เหตุผล · แถวแสดงประวัติการแก้ไข (ผู้แก้ · เวลา)
+        const audit = saved.match(/แก้ไขแล้ว.*\d{2}:\d{2}:\d{2}/)?.[0] ?? '';
+        await verify('TC-020 Episode ที่จบแล้ว (Expected ฉบับแก้ 29/10 ตาม AC 3.6)', [
+          row('แก้ผ่านหน้าต่าง "แก้ไขข้อมูล CPR" + เหตุผล', 'บันทึกได้', saved.startsWith('บันทึกได้') ? 'บันทึกได้' : saved),
+          row('แถวแสดงประวัติการแก้ไข (ผู้แก้ · เวลา)', 'แก้ไขแล้ว · ผู้แก้ · เวลา', audit || '(ไม่มี)', Boolean(audit)),
+        ], [expected(target, audit || saved)], 'right');
       });
 
       await startClip(page, 'wait-A2');
@@ -1088,15 +1114,19 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         const label = ((await k.toggle(summary).textContent()) ?? '').trim();
         await markEvidence(expected(li, overdue?.name ?? 'ไม่มีแถวครบกำหนด'), expected(k.toggle(summary), label));
         await snapEvidence(page, 'หน้า CPR — แถวครบกำหนด');
+        await holdForClip(page, 2_000);
         await k.historyLink.click();
+        await page.mouse.move(1200, 700); // เมาส์ค้างฝั่งซ้ายแล้วเมนูข้างกางบังหน้า History (Retest 6 พ.ย. TC-049)
         const ep2 = cprHistoryEpisodes(form).first();
         const hist = (await readCprRows(ep2)).find((r) => r.overdue);
         await verify('TC-056 Cycle ที่ครบกำหนดแต่ยังไม่บันทึก', [
           row('หน้า CPR: ป้าย', 'ครบกำหนด · ยังไม่บันทึก', overdue?.name ?? '-'),
           row('หน้า CPR: แถวจาง / เส้นประ', 'จาง / เส้นประ', `opacity ${style.opacity} · border ${style.border}`, true),
           row('ปุ่ม (ไม่นับแถวนี้)', 'CPR Timeline (1)', label),
-          row('หน้า History: ป้าย', 'ครบกำหนด (ยังไม่บันทึก)', hist?.name ?? '-'),
+          // Expected แก้ 29/10/2569 (R73): ป้ายหน้า History = "ครบกำหนด · ยังไม่บันทึก" แบบเดียวกับหน้า CPR
+          row('หน้า History: ป้าย', 'ครบกำหนด · ยังไม่บันทึก', hist?.name ?? '-'),
         ], [expected(ep2.locator('li.row.overdue').first(), 'หน้า History')], 'right');
+        await holdForClip(page, 2_000);
       });
       await k.backToCpr();
 
@@ -1144,6 +1174,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('อยู่เหนือ banner / Post-CPR', 'ใช่', ys[0] >= 0 && ys[0] < ys[1] ? 'ใช่' : `y ${ys.join(' / ')}`),
         ], [expected(summary.getByRole('heading').first(), 'ด้านบน')], 'bottom');
       });
+      await startClip(page, 'TC-043c');
       await step(43, 'ขั้น 3 หลัง Stop CPR: Status pill = Terminal: Stop CPR สีเทา', async () => {
         const pill = summary.locator('.pill').first();
         const color = await pill.evaluate((e) => getComputedStyle(e).color);
@@ -1167,6 +1198,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
       await step(37, 'ขั้น 4 กรอกค่าชุดเดียวกันในฟอร์มคัดกรองซ้ำ (ไม่บันทึก) แล้วเทียบ MEWS', async () => {
         const main = k.main;
         // ออกจากฟอร์ม CPR (ไม่บันทึก Vital Signs) → หน้า Overview ของ Visit
+        await startClip(page, 'wait-A3'); // ช่วงโหลดหน้า Visit ใหม่ (จอขาว) ไม่แนบ
         await gotoVisit(page, visit);
         const redo = main.getByRole('button', { name: 'redo คัดกรองซ้ำ' });
         await expect(redo).toBeVisible({ timeout: 90_000 });
@@ -1174,6 +1206,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         await redo.click();
         const panel = erTriagePanel(page);
         await expect(panel.getByRole('spinbutton', { name: 'Systolic' }).first()).toBeVisible({ timeout: 90_000 });
+        await startClip(page, 'TC-037b');
         const pairs: [string, string][] = [['Systolic', MEWS_VITALS.systolic], ['Diastolic', MEWS_VITALS.diastolic], ['PR', MEWS_VITALS.pr], ['RR', MEWS_VITALS.rr], ['Temp', MEWS_VITALS.temp], ['SpO2', MEWS_VITALS.spo2]];
         for (const [name, value] of pairs) await panel.getByRole('spinbutton', { name }).first().fill(value);
         const avpu = panel.locator('select[data-mews-avpu]').first();
@@ -1192,7 +1225,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         await result.scrollIntoViewIfNeeded();
         await verify('TC-037 MEWS ฟอร์ม CPR (Expected) vs ฟอร์มคัดกรอง (ผลจริง)', [
           row('MEWS', `${a} (ฟอร์ม CPR: ${cprMews})`, `${b} (ฟอร์มคัดกรอง: ${triageMews})`, a === b && a !== '-'),
-        ], [filled(avpu, 'AVPU V'), expected(result, triageMews)], 'right');
+        ], [filled(avpu, 'AVPU V'), expected(result, `เท่ากับฟอร์ม CPR (MEWS ${a})`)], 'right');
         // ไม่บันทึกคัดกรองซ้ำ — ไม่กดกลับในขั้นนี้ (ภาพ "ผ่าน" ต้องเห็นฟอร์มคัดกรองซ้ำ) · ท้ายเทสปิด Visit ที่การเงิน
       });
 
@@ -1243,10 +1276,11 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         await timeChip(form, 'แก้เวลาเอง').click();
         const value = shiftStamp(start, -60);
         await fillStamp(cycleTimeInput(form), value);
-        await markEvidence(filled(cycleTimeInput(form), `${stampClock(value)} (Start − 1 นาที)`), clicked(cprButton(form, 'Save CPR Progress')));
+        await cycleTimeInput(form).evaluate((el) => el.scrollIntoView({ block: 'center' })); // ช่องเวลาอยู่ใต้แถบหัวผู้ป่วยได้ (Retest 6 พ.ย.)
+        await markEvidence(filled(cycleTimeInput(form), `${stampClock(value)} (Start − 1 นาที)`)); // ปุ่มบันทึกอยู่ท้ายฟอร์ม ห่างเกินจอ — เห็นจังหวะกดในคลิป
         await snapEvidence(page, 'ก่อนกด — บันทึก Cycle (เวลาย้อนหลัง)');
         const saves = await countCprSaves(page, () => cprButton(form, 'Save CPR Progress').click());
-        await card.scrollIntoViewIfNeeded();
+        await cycleTimeInput(form).evaluate((el) => el.scrollIntoView({ block: 'center' })); // ช่องเวลาอยู่ใต้แถบหัวผู้ป่วยได้ (Retest 6 พ.ย.)
         await verify('TC-050 เวลาก่อน event ก่อนหน้า', [
           row('inline error ที่ช่องเวลา', 'เวลาที่บันทึกต้องไม่ย้อนหลังกว่า event ก่อนหน้า', ((await timeError.first().textContent().catch(() => '-')) ?? '-').trim()),
           row('ช่องเวลา (aria-invalid)', 'true', String(await cycleTimeInput(form).getAttribute('aria-invalid'))),
@@ -1260,10 +1294,11 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         const before = events(await k.rowsNow()).length;
         const value = await browserStamp(page, 180_000);
         await fillStamp(cycleTimeInput(form), value);
-        await markEvidence(filled(cycleTimeInput(form), `${stampClock(value)} (ปัจจุบัน + 3 นาที)`), clicked(cprButton(form, 'Save CPR Progress')));
+        await cycleTimeInput(form).evaluate((el) => el.scrollIntoView({ block: 'center' })); // ช่องเวลาอยู่ใต้แถบหัวผู้ป่วยได้ (Retest 6 พ.ย.)
+        await markEvidence(filled(cycleTimeInput(form), `${stampClock(value)} (ปัจจุบัน + 3 นาที)`)); // ปุ่มบันทึกอยู่ท้ายฟอร์ม ห่างเกินจอ
         await snapEvidence(page, 'ก่อนกด — บันทึก Cycle (+3 นาที)');
         const saves = await countCprSaves(page, () => cprButton(form, 'Save CPR Progress').click());
-        await card.scrollIntoViewIfNeeded();
+        await cycleTimeInput(form).evaluate((el) => el.scrollIntoView({ block: 'center' })); // ช่องเวลาอยู่ใต้แถบหัวผู้ป่วยได้ (Retest 6 พ.ย.)
         await verify('TC-051 เวลาเกินปัจจุบัน 2 นาที', [
           row('inline error ที่ช่องเวลา', 'เวลาที่บันทึกต้องไม่เกินเวลาปัจจุบันเกิน 2 นาที', ((await timeError.first().textContent().catch(() => '-')) ?? '-').trim()),
           row('คำสั่งบันทึกที่ส่ง', '0', String(saves)),
@@ -1289,12 +1324,17 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         chosen = await browserStamp(page, -30_000);
         if (chosen < start) chosen = shiftStamp(start, 1);
         await fillStamp(input, chosen);
-        await verify('TC-005 แก้เวลาเอง', [
-          row('กดแล้วเปิด datetime picker', 'เปิด picker', readonlyAfter ? 'ช่องยัง readonly' : `ช่องแก้ได้ (เลิก readonly) · picker ไม่เปิดเอง · focus อยู่ที่ ${focused}`, !readonlyAfter),
+        note('TC-005 focus หลังกด', focused);
+        // Expected แก้ 29/10/2569 (R73): กดแล้วช่องแก้ได้ (เลือกเวลาผ่านไอคอนปฏิทินของช่อง) — เดิม "เปิด datetime picker"
+        // ช่อง error ไม่มีบนจอ → อ่านด้วย timeout สั้น (Retest 6 พ.ย.: textContent รอจนหมดเวลา 20 วิ คลิปจอนิ่ง)
+        const errorText = ((await timeError.first().textContent({ timeout: 1_000 }).catch(() => '')) ?? '').trim();
+        await input.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        await verify('TC-005 แก้เวลาเอง (Expected ฉบับแก้ 29/10)', [
+          row('กดแล้วช่องวันที่และเวลาบันทึกแก้ได้', 'แก้ได้ (เลิก readonly)', readonlyAfter ? 'ช่องยัง readonly' : 'แก้ได้ (เลิก readonly)'),
           row('chip ที่ highlight', 'แก้เวลาเอง', (await manual.getAttribute('aria-pressed')) === 'true' ? 'แก้เวลาเอง' : '-'),
           row('วันที่และเวลาบันทึก = เวลาที่เลือก', chosen.replace('T', ' '), fullStamp(await input.inputValue()).replace('T', ' ')),
-          row('ไม่มี error', '(ไม่มี)', ((await timeError.first().textContent().catch(() => '')) ?? '').trim() || '(ไม่มี)'),
-        ], [clicked(manual, 'highlight'), filled(input, `${stampClock(chosen)} (ปัจจุบัน − 30 วิ)`)], 'left');
+          row('ไม่มี error', '(ไม่มี)', errorText || '(ไม่มี)'),
+        ], [clicked(manual, 'แก้เวลาเอง'), filled(input, `${stampClock(chosen)} (ปัจจุบัน − 30 วิ)`)], 'left');
       });
 
       await startClip(page, 'TC-006');
@@ -1366,6 +1406,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
       });
       await step(24, 'ขั้น 2 เปิดหน้า History > ดู Header ของ Episode นี้', async () => {
         await k.historyLink.click();
+        await page.mouse.move(1200, 700); // เมาส์ค้างฝั่งซ้ายแล้วเมนูข้างกางบังหน้า History (Retest 6 พ.ย. TC-049)
         const ep = cprHistoryEpisodes(form).first();
         const head = ep.locator('.head');
         const text = ((await head.textContent()) ?? '').replace(/\s+/g, ' ');
@@ -1375,6 +1416,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('Adrenaline 1:10,000', '×3', /Adrenaline 1:10,000 ×3/.test(text) ? '×3' : drugsLine),
           row('Amiodarone', '×1', /Amiodarone ×1/.test(text) ? '×1' : drugsLine),
         ], [expected(head.getByText(/ยาที่ให้/), 'สรุปยารวม')], 'bottom');
+        await page.waitForTimeout(2_000); // จังหวะคลิป: ให้กรอบ + ตารางผลค้างก่อนกลับหน้า CPR (Retest 6 พ.ย. ค้างแค่ ~1.4 วิ)
       });
       await k.backToCpr();
 
@@ -1390,10 +1432,13 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
 
       await startClip(page, 'TC-007');
       await step(7, 'ขั้น 2–3 countdown ≈ 01:00 > กด บันทึก Cycle (chip ค่าตั้งต้น) > ดูการ์ด Cycle ทันที', async () => {
+        // การ์ด Cycle อยู่ใต้แถบหัวผู้ป่วยได้ → เลื่อนให้อยู่กลางจอก่อนตีกรอบ (Retest 6 พ.ย. กรอบไปตกที่หัวจอ)
+        await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
         const before = ((await countdown.textContent()) ?? '').trim();
-        await markEvidence(expected(countdown, `ก่อนบันทึก ${before}`), clicked(cprButton(form, 'Save CPR Progress')));
+        await markEvidence(expected(countdown, `ก่อนบันทึก ${before}`), expected(timeChip(form, 'default'), 'chip ค่าตั้งต้น')); // ปุ่มบันทึกอยู่ท้ายฟอร์ม ห่างเกินจอ
         await snapEvidence(page, 'ก่อนกด — บันทึก Cycle 1 (countdown ≈ 01:00)');
         const time = await k.saveCycle('default', 'บันทึก Cycle 1 ของ Episode #3');
+        await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
         const c1 = ((await countdown.textContent()) ?? '').trim();
         const p1 = Number(await progress.getAttribute('aria-valuenow'));
         await page.waitForTimeout(3_000);
@@ -1404,7 +1449,7 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
           row('countdown เริ่มใหม่', '02:00', c1, clockSeconds(c1) >= 115 && clockSeconds(c1) <= 120),
           row('นับถอยหลังทันที (3 วิ)', 'ลดลง', `${c1} → ${c2}`, clockSeconds(c2) < clockSeconds(c1)),
           row('progress bar เริ่มใหม่', '≈ 0%', `${p1}%`, p1 <= 5),
-        ], [expected(card.locator('.cycle-head'), `Cycle 2 · countdown ${c2}`)], 'left');
+        ], [expected(card.locator('.cycle-head'), clockSeconds(c1) >= 115 && clockSeconds(c1) <= 120 ? `Cycle 2 · countdown เริ่ม ${c1}` : `countdown เริ่ม 02:00 · จริง: ${c1}`)], 'left');
       });
 
       await startClip(page, 'TC-054');
@@ -1412,9 +1457,15 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
         await timeChip(form, 'แก้เวลาเอง').click();
         const value = await browserStamp(page, 120_000);
         await fillStamp(cycleTimeInput(form), value);
-        const error = ((await timeError.first().textContent().catch(() => '')) ?? '').trim();
-        await markEvidence(filled(cycleTimeInput(form), `${stampClock(value)} (ปัจจุบัน + 2 นาที)`), clicked(cprButton(form, 'Save CPR Progress')));
+        // ขอบ +2:00 พอดี: Retest 6 พ.ย. อ่าน error ทันทีหลังพิมพ์แล้วเจอ "ไม่เกินเวลาปัจจุบันเกิน 2 นาที" (นาฬิกาของฟอร์มเดินทีละวินาที) แต่กดบันทึกได้
+        // → จดทั้ง 2 จังหวะ · Expected ใช้ค่าตอนกดบันทึก (จังหวะที่ผู้ใช้กด) · error ทันทีหลังพิมพ์ลงเป็นข้อสังเกต
+        const errorNow = async () => ((await timeError.first().textContent({ timeout: 1_000 }).catch(() => '')) ?? '').trim();
+        const errorTyped = await errorNow();
+        await cycleTimeInput(form).evaluate((el) => el.scrollIntoView({ block: 'center' })); // ช่องเวลาอยู่ใต้แถบหัวผู้ป่วยได้ (Retest 6 พ.ย.)
+        await markEvidence(filled(cycleTimeInput(form), `${stampClock(value)} (ปัจจุบัน + 2 นาที)`)); // ปุ่มบันทึกอยู่ท้ายฟอร์ม ห่างเกินจอ
         await snapEvidence(page, 'ก่อนกด — บันทึก Cycle (+2 นาทีพอดี)');
+        const error = await errorNow();
+        note('TC-054 inline error', `ทันทีหลังพิมพ์: ${errorTyped || '(ไม่มี)'} · ตอนกดบันทึก: ${error || '(ไม่มี)'}`);
         await clickCprSave(page, form, cprButton(form, 'Save CPR Progress'), 'บันทึก Cycle (+2 นาทีพอดี)');
         const r = events(await k.rowsNow()).find((x) => x.name === 'Cycle 2');
         await k.summaryRow('Cycle 2').scrollIntoViewIfNeeded();
@@ -1426,6 +1477,119 @@ test.describe(`SBH-2530 Improve CPR Progression (${SYSTEM})`, () => {
 
       note('ข้อมูลที่ใช้', `HN ${visit.hn} · ${visit.vn} · ${visit.en} · Start CPR ${start} · เวลาที่เลือกเอง ${chosen}`);
       void summary;
+      finish();
+    },
+  );
+
+  // Retest การ์ดบั๊ก SBH-3284 (6 พ.ย. 2026): Vital Signs ของ Post-CPR update ต้องแสดงในประวัติการรักษา > Encounter ER > แท็บ CPR Progression
+  // ค่าตามการ์ดบั๊ก: BP 120/90 · PR 65 · RR 15 · Temp 37.2 · SpO₂ 98 · Pain 4 · AVPU V (MEWS 2 Low)
+  test(
+    'C ผู้ป่วย AUTO ใหม่: Retest SBH-3284 Vital Signs ของ Post-CPR update แสดงในประวัติการรักษา (Super_User = user1)',
+    { tag: ['@SBH-2530', '@SBH-2530-C', '@SBH-3284'], annotation: [linear('SBH-3284')] },
+    async ({ page }) => {
+      const { note, soft, finish } = makeRunner(page);
+      const k = cprKit(page, soft);
+      const { form, main, verify } = k;
+      // SBH2530_C_RECHECK="<HN>:<VN>:<EN>" = ไม่สร้างผู้ป่วยใหม่ · เปิด Visit เดิมแล้วตรวจขั้น 2 ซ้ำแบบอ่านอย่างเดียว (ตัดกรณีข้อมูลขึ้นช้า)
+      const recheck = process.env.SBH2530_C_RECHECK?.split(':');
+      let visit: ErVisit;
+      if (recheck) {
+        visit = { hn: recheck[0], vn: recheck[1], en: recheck[2] } as ErVisit;
+        await gotoVisit(page, visit);
+        note('โหมดตรวจซ้ำ', `อ่านอย่างเดียว · ผู้ป่วยเดิม HN ${visit.hn} · ${visit.en}`);
+      } else visit = await k.newPatient('C', note);
+      const BUG = 'BUG-3284 (SBH-3284)';
+      const want = { bp: '120/90', pr: '65', rr: '15', temp: '37.2', spo2: '98', pain: '4', avpu: 'V' };
+
+      /** อ่านค่ารอบวัดที่ 1 ของส่วน Vital Signs (ใช้ได้ทั้งฟอร์มที่กรอกได้และโหมดอ่านอย่างเดียว) */
+      const readRound = async (scope: Locator) => {
+        const round = vitalBox(scope).locator('.vital-round').first();
+        const val = async (label: string | RegExp) => {
+          const field = round.getByLabel(label, { exact: typeof label === 'string' }).first();
+          if (!(await field.count())) return '-';
+          return field.evaluate((el) => (el instanceof HTMLSelectElement ? (el.selectedOptions[0]?.textContent ?? '').trim() : (el as HTMLInputElement).value)).catch(() => '-');
+        };
+        const mews = ((await round.getByText(/^MEWS/).first().textContent({ timeout: 3_000 }).catch(() => '-')) ?? '-').replace(/\s+/g, ' ').trim();
+        return {
+          round,
+          bp: `${await val('Systolic ครั้งที่ 1')}/${await val('Diastolic ครั้งที่ 1')}`,
+          pr: await val('PR'), rr: await val('RR'), temp: await val('Temperature (°C)'), spo2: await val('SpO₂ (%)'),
+          pain: await val(/^Pain score/), avpu: await val('Level of Consciousness (AVPU)'), mews,
+        };
+      };
+
+      if (!recheck) await startClip(page, 'setup-C2');
+      if (!recheck) await checkStep(page, 'เตรียม: Start CPR > บันทึก ROSC (Vital Signs กางเอง)', async () => {
+        await k.rhythm('PEA').click();
+        await clickCprSave(page, form, cprButton(form, 'Start CPR'), 'Start CPR');
+        await page.waitForTimeout(2_000);
+        await k.markSelect.selectOption({ label: 'ROSC' });
+        await timeChip(form, 'ตอนนี้').click();
+        await clickCprSave(page, form, form.getByRole('button', { name: 'บันทึก ROSC', exact: true }), 'บันทึก ROSC');
+        await expect(vitalBox(form).locator('.vital-round').first()).toBeVisible({ timeout: 30_000 });
+        await markEvidence(expected(vitalBox(form), 'Vital Signs กางหลัง ROSC'));
+      });
+
+      // โหมดตรวจซ้ำ: MEWS ที่ฟอร์มคำนวณตอนกรอกรอบแรก (6 พ.ย. 19:03) = "MEWS 2 · low"
+      let entered = { mews: recheck ? 'MEWS 2 · low' : '-' } as Awaited<ReturnType<typeof readRound>>;
+      await startClip(page, BUG);
+      if (!recheck) await soft(`${BUG} ขั้น 1 กรอก Vital Signs ใน Post-CPR update > กด บันทึก Post-CPR update`, async () => {
+        await hideCompareTable(page);
+        const round = await k.fillVitals(0, { systolic: '120', diastolic: '90', pr: '65', rr: '15', temp: '37.2', spo2: '98', avpu: 'V' });
+        const pain = round.getByLabel(/^Pain score/).first();
+        const painLabel = (await pain.locator('option').allTextContents()).find((t) => t.trim().startsWith('4'));
+        await pain.selectOption({ label: painLabel ?? '4' });
+        await k.freshTime('post', note);
+        await page.waitForTimeout(1_000);
+        entered = await readRound(form);
+        await round.scrollIntoViewIfNeeded();
+        await markEvidence(filled(round, `BP ${entered.bp} · PR ${entered.pr} · ${entered.mews}`), clicked(k.postSave));
+        await snapEvidence(page, 'ก่อนกด — บันทึก Post-CPR update');
+        const sent = await clickCprSave(page, form, k.postSave, 'บันทึก Post-CPR update (Vital Signs ตามการ์ดบั๊ก)');
+        const payload = sent.filter((s) => s.template.startsWith('vital_signs')).map((s) => s.body).join('\n');
+        test.info().attachments.push({ name: 'SBH-3284 payload Vital Signs ที่ส่งบันทึก', contentType: 'application/json', body: Buffer.from(payload || '{}') });
+        const snapshot = form.locator('section[aria-label="Saved CPR event"]');
+        await snapshot.scrollIntoViewIfNeeded();
+        await verify('SBH-3284 บันทึก Post-CPR update', [
+          row('ส่งคำสั่งบันทึก Vital Signs', 'ส่งแล้ว', payload ? 'ส่งแล้ว' : 'ไม่ส่ง'),
+          row('แถบบันทึกแล้ว', '1 vital round', ((await snapshot.textContent()) ?? '').match(/\d+ vital rounds?/)?.[0] ?? '-'),
+          row('MEWS ในฟอร์ม', 'มีคะแนน (ไม่ Incomplete)', entered.mews, !/Incomplete|—\s*$/.test(entered.mews) && /\d/.test(entered.mews)),
+        ], [expected(snapshot, 'บันทึกแล้ว')], 'bottom');
+      });
+
+      const history = cprHistoryForm(page);
+      await soft(`${BUG} ขั้น 2 เปิดประวัติการรักษา > Encounter ER > แท็บ CPR Progression > ดู Vital Signs`, async () => {
+        await hideCompareTable(page);
+        await recordMenu(page, 'ประวัติการรักษา');
+        const tab = cprHistoryTab(page);
+        await expect(tab).toBeVisible({ timeout: 45_000 });
+        await tab.click();
+        await expect(history, 'แท็บ CPR Progression ต้องแสดงฟอร์มโหมดอ่านอย่างเดียว').toBeVisible({ timeout: 45_000 });
+        await expect(history).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
+        const box = vitalBox(history);
+        await expect(box, 'ฟอร์มประวัติต้องมีส่วน Vital Signs').toBeVisible({ timeout: 30_000 });
+        const toggle = box.locator('button.toggle-link');
+        if ((await toggle.count()) && !(await box.locator('.vital-round').first().isVisible().catch(() => false))) await toggle.first().click();
+        await page.waitForTimeout(1_500);
+        test.info().attachments.push({ name: 'SBH-3284 ข้อความส่วน Vital Signs ในประวัติการรักษา', contentType: 'text/plain', body: Buffer.from((await box.innerText().catch(() => '-')) || '-') });
+        const got = await readRound(history);
+        await got.round.scrollIntoViewIfNeeded().catch(() => undefined);
+        note('SBH-3284 ค่าในประวัติการรักษา', JSON.stringify({ ...got, round: undefined }));
+        await verify('SBH-3284 Vital Signs ในประวัติการรักษา', [
+          row('Encounter', visit.en, (await main.getByText(visit.en, { exact: true }).filter({ visible: true }).count()) ? visit.en : 'ไม่เห็น EN'),
+          row('BP', want.bp, got.bp),
+          row('PR', want.pr, got.pr),
+          row('RR', want.rr, got.rr),
+          row('Temperature', want.temp, got.temp),
+          row('SpO₂', want.spo2, got.spo2),
+          row('Pain score', want.pain, got.pain, got.pain.trim().startsWith(want.pain)),
+          row('AVPU', want.avpu, got.avpu, got.avpu.trim().startsWith(want.avpu)),
+          row('MEWS', entered.mews, got.mews, got.mews === entered.mews && !/Incomplete/.test(got.mews)),
+        ], [expected(got.round, 'Vital Signs ที่บันทึก')], 'left');
+      });
+
+      await startClip(page, 'after');
+      note('ข้อมูลที่ใช้', `HN ${visit.hn} · ${visit.vn} · ${visit.en}`);
       finish();
     },
   );

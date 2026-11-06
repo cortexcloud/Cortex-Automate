@@ -4,6 +4,7 @@ import path from 'node:path';
 import { closeVisitAtCashier, gotoCashierAccount } from '../../../helpers/functions/cashier';
 import { dismissToast, expectVisitHeader, gotoErDashboard, openCarePanel, type ErVisit } from '../../../helpers/functions/er';
 import { createAdmitRequest } from '../../../helpers/functions/er-admit';
+import { createAnFromAdmitRequest, ipdDischarge, putToBed } from '../../../helpers/functions/ipd-admit';
 import { chooseDispositionDiagnosis, dispositionTextBoxes, graphqlMutation, saveDispositionDraft, signDisposition, startDisposition } from '../../../helpers/functions/er-disposition';
 import {
   bangkokToday,
@@ -41,15 +42,18 @@ import { VITALS_NORMAL } from '../../../mock-data/uat-play';
 //   1) เตรียม (วัน D ก่อน 21:30) `--grep @SBH-2236-prep` — ผู้ป่วย AUTO ใหม่ 5 ราย เทสละราย จด HN / VN / EN ลง .cache/SBH-2236/state.json
 //      A ER คัดกรองแล้ว (001 002 004 005) · B Visit OPD เช็คอิน (003) · C ER + Admit Request ไม่มีเตียง (006) · D ER + ลงนาม Disposition (007) · E เหมือน D + กดจำหน่าย (008)
 //   2) หลัง 22:05 วัน D `--grep @SBH-2236-night` — TC-001 / 008 / 002 / 003 + API ว่าคืนนี้ system ปิด Visit อะไรไปบ้าง
-//   3) หลัง 00:05 วัน D+1 `--grep @SBH-2236-midnight` — TC-004 / 005 / 006 / 007 แล้วปิด Visit A B D E ที่การเงิน (C รอเตียง ปิดแล้วก็ยังค้างบอร์ด — ทิ้งไว้แบบ SBH-2391)
+//   3) หลัง 00:05 วัน D+1 `--grep @SBH-2236-midnight` — TC-004 / 005 / 006 / 007
+//   4) หลังช่วง 3 `--grep @SBH-2236-cleanup` — ปิด Visit A B D E ที่การเงิน · C รอเตียง: dev-x ทิ้งไว้ (แบบ SBH-2391) · SBH Prod สร้าง AN + เตียง SBHAUTO → Discharge คืนเตียง → ปิด Visit (แบบ SBH-2947 R129)
 // ข้อมูลตั้งต้นต่างจาก TC: ไม่ทำ ER Physician Note ก่อน Disposition ของ D / E (ฟอร์มแพทย์แบบใหม่ยังบันทึกด้วย automate ไม่ได้ — SBH-2355) ใช้ Diagnosis K30 ในฟอร์ม Disposition แทน
 // SBH2236_DRYRUN=1 = ไม่เช็คเวลา (ซ้อม locator ของช่วง 2 / 3 ก่อนถึงเวลา — ผลใช้ลง Linear ไม่ได้)
 // คลิป 1 ไฟล์ต่อ 1 TC (R61): ช่วงเตรียม clip-prep-<ราย> · ช่วงตรวจ clip-TC-00x
-// ระบบ: dev-x เท่านั้น: npx playwright test --headed --grep @SBH-2236-prep
+// ระบบ: dev-x `npx playwright test --headed --grep "@SBH-2236-prep( |$)"` · SBH Prod (ผู้ใช้อนุญาต 6 พ.ย. 2026 "สร้างคนไข้ตามที่ต้องใช้งานได้เลย"):
+//   `npx playwright test -c playwright.sbh-prod.cards.config.ts --headed --grep "@SBH-2236-prep-A( |$)"` (เตรียมทีละราย A–E) · ไฟล์ state แยกระบบ (state-sbh-prod.json)
+//   SBH Prod 6 พ.ย.: "เริ่มจำหน่าย" ของ Disposition พัง (SBH-3908) → D / E เตรียมได้เมื่อแก้แล้วเท่านั้น
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const TC = { 1: 'TC-001 (SBH-3324)', 2: 'TC-002 (SBH-3325)', 3: 'TC-003 (SBH-3326)', 4: 'TC-004 (SBH-3328)', 5: 'TC-005 (SBH-3329)', 6: 'TC-006 (SBH-3330)', 7: 'TC-007 (SBH-3331)', 8: 'TC-008 (SBH-3327)' } as const;
-const STATE_FILE = path.join(__dirname, '..', '..', '..', '.cache', 'SBH-2236', 'state.json');
+const STATE_FILE = path.join(__dirname, '..', '..', '..', '.cache', 'SBH-2236', SYSTEM === 'dev-x' ? 'state.json' : `state-${SYSTEM}.json`);
 const DRYRUN = process.env.SBH2236_DRYRUN === '1';
 const DISPOSITION_TEXT = 'ทดสอบ automate SBH-2236';
 
@@ -64,6 +68,8 @@ interface Prepared {
   preparedAt: string;
   /** คอลัมน์บนบอร์ดตอนเตรียม (ผู้ป่วย A — TC-005 โซนเดิม) */
   column?: string;
+  /** หอผู้ป่วยของ Admit Request (ผู้ป่วย C — ใช้ตอนเก็บกวาดบน SBH Prod) */
+  ward?: string;
 }
 
 const readState = (): Partial<Record<Key, Prepared>> => (fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : {});
@@ -83,12 +89,14 @@ function bangkokNow(): { day: string; time: string; text: string } {
 const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 /** ผู้ป่วยที่เตรียมไว้ตามช่วงเวลา — ไม่ครบ / ผิดวัน / ไม่ถึงเวลา = skip พร้อมเหตุผล */
-function preparedFor(keys: Key[], window: 'night' | 'midnight'): Record<Key, Prepared> {
+function preparedFor(keys: Key[], window: 'night' | 'midnight', optional: Key[] = []): Record<Key, Prepared> {
   const state = readState();
   const missing = keys.filter((key) => !state[key]);
   test.skip(missing.length > 0, `ยังไม่ได้เตรียมผู้ป่วย ${missing.join(' ')} (${STATE_FILE})`);
+  const skipped = optional.filter((key) => !state[key]);
+  if (skipped.length) test.info().annotations.push({ type: 'ไม่ได้เตรียม', description: `ผู้ป่วย ${skipped.join(' ')} — ข้าม TC ของรายนั้น` });
   const now = bangkokNow();
-  for (const key of keys) {
+  for (const key of [...keys, ...optional.filter((key) => state[key])]) {
     const day = state[key]!.day;
     if (DRYRUN) continue;
     if (window === 'night') test.skip(now.day !== day || now.time < '22:05', `ช่วงตรวจหลัง Task 22:00 = ${day} 22:05–23:59 (ตอนนี้ ${now.text}) · ผู้ป่วย ${key}`);
@@ -251,10 +259,10 @@ async function encounterRecord(page: Page, authorization: () => string, visit: P
 
 test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง Task ปิด Visit 22:00 และหลังเที่ยงคืน (${SYSTEM})`, () => {
   test.describe.configure({ timeout: 900_000 });
-  test.skip(SYSTEM !== 'dev-x', 'การ์ดนี้รันบน dev-x เท่านั้น (SBH Prod ยังไม่ได้รับอนุญาต — R40)');
+  test.skip(SYSTEM === 'sbh-dev', 'การ์ดนี้รันบน dev-x / SBH Prod (SBH Dev ไม่ได้รับอนุญาต)');
 
   // =============================== 1) เตรียม (วัน D ก่อน 21:30) ===============================
-  test('เตรียม ผู้ป่วย A: เปิด Visit ER + คัดกรอง อยู่แท็บ ผู้ป่วยปัจจุบันใน ER (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-3324'], annotation: [linear('SBH-3322')] }, async ({ page }) => {
+  test('เตรียม ผู้ป่วย A: เปิด Visit ER + คัดกรอง อยู่แท็บ ผู้ป่วยปัจจุบันใน ER (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-2236-prep-A', '@SBH-3324'], annotation: [linear('SBH-3322')] }, async ({ page }) => {
     const now = prepGuard();
     const authorization = trackAuthorization(page);
     const { soft, finish } = makeRunner(page);
@@ -282,10 +290,21 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
     finish();
   });
 
-  test('เตรียม ผู้ป่วย B: เปิด Visit OPD + เช็คอิน ไม่ปิด Visit (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-3326'], annotation: [linear('SBH-3322')] }, async ({ page }) => {
+  test('เตรียม ผู้ป่วย B: เปิด Visit OPD (dev-x เช็คอิน) ไม่ปิด Visit (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-2236-prep-B', '@SBH-3326'], annotation: [linear('SBH-3322')] }, async ({ page }) => {
     const now = prepGuard();
     const main = page.getByRole('main');
     const authorization = trackAuthorization(page);
+    // SBH2236_B_REUSE=1 = ใช้ Visit OPD ที่เปิดไว้แล้ววันนี้ (state B) ไม่เปิด Visit ใหม่ — SBH Prod 6 พ.ย. รอบแรกเปิด Visit ได้แล้วพังที่ขั้นเช็คอิน
+    const reuse = process.env.SBH2236_B_REUSE === '1' ? readState().B : undefined;
+    if (reuse) {
+      expect(reuse.day, 'Visit ของผู้ป่วย B ต้องเปิดวันนี้').toBe(now.day);
+      await page.goto(`/cortex/next/patients/${reuse.hn}?en=${reuse.en}&vn=${reuse.vn}&fromApp=opd&preset=opdV2`);
+      await expect(main.getByText(`VN ${reuse.vn}`, { exact: true }).filter({ visible: true }).first()).toBeVisible({ timeout: 60_000 });
+      await page.waitForTimeout(3_000);
+      await startClip(page, 'prep-B');
+      await checkInOpdVisitStep(page, reuse, 'Visit OPD เดิม');
+      return;
+    }
     // dev-x 31 ต.ค. 2026: ฟอร์มผู้ป่วยใหม่ของเวชระเบียนกดบันทึกแล้วไม่ส่งคำสั่งสร้าง (registerPatient พัง) → ใช้ผู้ป่วย AUTO รายเดิมที่ไม่มีงานค้าง
     await gotoErDashboard(page);
     const { hn, name } = await pickIdleAutoPatient(page, authorization);
@@ -304,7 +323,7 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
     await checkInOpdVisitStep(page, prepared, opd.clinic);
   });
 
-  test('เตรียม ผู้ป่วย C: เปิด Visit ER + คัดกรอง + Admit Request ไม่มีเตียง อยู่แท็บ ผู้ป่วยรอเตียง (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-3330'], annotation: [linear('SBH-3323')] }, async ({ page }) => {
+  test('เตรียม ผู้ป่วย C: เปิด Visit ER + คัดกรอง + Admit Request ไม่มีเตียง อยู่แท็บ ผู้ป่วยรอเตียง (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-2236-prep-C', '@SBH-3330'], annotation: [linear('SBH-3323')] }, async ({ page }) => {
     const now = prepGuard();
     const authorization = trackAuthorization(page);
     const visit = await openTriagedVisit(page, 'C');
@@ -315,6 +334,7 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
     await soft('เตรียม ผู้ป่วย C ขั้น 1 ส่ง Admit Request (ไม่สร้าง AN ไม่เลือกเตียง)', async () => {
       const request = await createAdmitRequest(page, 'ปวดท้อง ต้องนอนโรงพยาบาล (SBH-2236)');
       note('Admit Request ของผู้ป่วย C', `Pre-diagnosis ${request.diagnosis} · หอผู้ป่วย ${request.ward} · จากแผนก ${request.fromDepartment}`);
+      saveState('C', { ...prepared, ward: request.ward });
       await expect.poll(async () => (await fetchErEncounterState(page, authorization(), visit.en, bangkokToday())).patientStatus, { message: 'ส่ง Admit Request แล้วสถานะต้องเป็น รอเตียง' }).toBe('bed_waiting');
       await markEvidence(expected(page.getByRole('main').getByText(/รายละเอียดการรับไว้รักษา|Admit Request Form/).first(), 'ส่ง Admit Request แล้ว'));
     });
@@ -327,7 +347,7 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
     finish();
   });
 
-  test('เตรียม ผู้ป่วย D: เปิด Visit ER + คัดกรอง + ลงนาม Disposition ไม่ Admit อยู่แท็บ รอจำหน่าย (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-3331'], annotation: [linear('SBH-3323')] }, async ({ page }) => {
+  test('เตรียม ผู้ป่วย D: เปิด Visit ER + คัดกรอง + ลงนาม Disposition ไม่ Admit อยู่แท็บ รอจำหน่าย (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-2236-prep-D', '@SBH-3331'], annotation: [linear('SBH-3323')] }, async ({ page }) => {
     const now = prepGuard();
     const authorization = trackAuthorization(page);
     const visit = await openTriagedVisit(page, 'D');
@@ -347,7 +367,7 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
     finish();
   });
 
-  test('เตรียม ผู้ป่วย E: ลงนาม Disposition ไม่ Admit แล้วกด จำหน่าย ไม่ปิด Visit ที่การเงิน (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-3327'], annotation: [linear('SBH-3322')] }, async ({ page }) => {
+  test('เตรียม ผู้ป่วย E: ลงนาม Disposition ไม่ Admit แล้วกด จำหน่าย ไม่ปิด Visit ที่การเงิน (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-prep', '@SBH-2236-prep-E', '@SBH-3327'], annotation: [linear('SBH-3322')] }, async ({ page }) => {
     const now = prepGuard();
     const authorization = trackAuthorization(page);
     const visit = await openTriagedVisit(page, 'E');
@@ -380,15 +400,18 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
         await test.info().attach('สถานะผู้ป่วย E หลังกดจำหน่าย', { body: JSON.stringify(state, null, 2), contentType: 'application/json' });
         expect(state.patientStatus).toBe('discharged');
         expect(state.visitClosed, 'จำหน่ายออกจาก ER แล้ว Visit ยังไม่ปิด').toBe(false);
+        // แจ้งเตือนหายก่อนตีกรอบได้ (SBH Prod 6 พ.ย. — markEvidence ค้าง 20 วิ) → ตีกรอบแจ้งเตือนเฉพาะตอนยังอยู่บนจอ
+        const toast = page.getByText('ยืนยันการจำหน่ายผู้ป่วยออกจาก ER แล้ว').first();
+        if (await toast.isVisible().catch(() => false)) await markEvidence(alerted(toast)).catch(() => undefined);
         await openErListTab(page, 'discharged');
-        await markEvidence(alerted(page.getByText('ยืนยันการจำหน่ายผู้ป่วยออกจาก ER แล้ว').first()), expected(erListTab(page, 'discharged'), 'จำหน่าย'), expected(erListRow(page, visit.en), 'ผู้ป่วย E'));
+        await markEvidence(expected(erListTab(page, 'discharged'), 'จำหน่าย'), expected(erListRow(page, visit.en), 'ผู้ป่วย E'));
       });
     finish();
   });
 
   // =============================== 2) หลัง Task 22:00 ของวัน D ===============================
   test('ตรวจหลัง Task ปิด Visit 22:00: ER ไม่ถูกปิด (A · E) · OPD ถูกปิด (B) (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-night', '@SBH-3324', '@SBH-3325', '@SBH-3326', '@SBH-3327'], annotation: [linear('SBH-3322')] }, async ({ page }) => {
-    const p = preparedFor(['A', 'B', 'E'], 'night');
+    const p = preparedFor(['A', 'B'], 'night', ['E']);
     const authorization = trackAuthorization(page);
     const main = page.getByRole('main');
     const { soft, finish, note } = makeRunner(page);
@@ -403,7 +426,7 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
       const tonight = data.filter((e) => e.completedAt >= new Date(Date.parse(`${p.A.day}T21:55:00+07:00`)).toISOString());
       await test.info().attach('Encounter ที่ system ปิดคืนนี้', { body: JSON.stringify(tonight, null, 2), contentType: 'application/json' });
       note('Task ปิด Visit คืนนี้', `system ปิด ${tonight.length} Encounter ตั้งแต่ 21:55 (${tonight.slice(0, 8).map((e) => `${e.en} ${e.encounterType}`).join(' · ')}${tonight.length > 8 ? ' …' : ''})`);
-      for (const key of ['A', 'B', 'E'] as Key[]) {
+      for (const key of (['A', 'B', 'E'] as Key[]).filter((k) => p[k])) {
         const record = await encounterRecord(page, authorization, p[key]);
         note(`Encounter ผู้ป่วย ${key}`, `${p[key].en} ${record?.encounterType ?? '-'} ${record?.latestStatusCode ?? 'ไม่พบ'} · ปิดโดย ${record?.completedBy ?? '-'} ${record?.completedAt ?? ''}`);
       }
@@ -417,7 +440,7 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
       await markEvidence(filled(hnSearchBox(page)), expected(row, 'ผู้ป่วย A ยังอยู่แท็บ ผู้ป่วยปัจจุบันใน ER (1)'), erListTab(page, 'current'), expected(erListTab(page, 'finished'), 'เสร็จสิ้น 0'));
     });
 
-    await soft(`${TC[8]} ขั้น 4–5 หลัง 22:00 หน้าการเงิน VN ของผู้ป่วย E (จำหน่ายออกจาก ER แล้ว) — Visit ยังเปิด`, async () => {
+    if (p.E) await soft(`${TC[8]} ขั้น 4–5 หลัง 22:00 หน้าการเงิน VN ของผู้ป่วย E (จำหน่ายออกจาก ER แล้ว) — Visit ยังเปิด`, async () => {
       const visit = await readCashierVisit(page, p.E, 'TC-008');
       note('สถานะ Visit ผู้ป่วย E', `${visit.statusText} · บัญชี ${visit.tagText}`);
       await markEvidence(expected(visit.bar, `${p.E.vn} · ${visit.statusText} (ต้องยังไม่ปิด)`));
@@ -447,7 +470,8 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
 
   // =============================== 3) หลังเที่ยงคืน (วัน D+1) ===============================
   test('ตรวจหลังเที่ยงคืน: ผู้ป่วยที่มาถึงเมื่อวานยังแสดงในรายการ / บอร์ด (A · C · D) แล้วปิด Visit ที่การเงิน (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-midnight', '@SBH-3328', '@SBH-3329', '@SBH-3330', '@SBH-3331'], annotation: [linear('SBH-3323')] }, async ({ page }) => {
-    const p = preparedFor(['A', 'C', 'D'], 'midnight');
+    const p = preparedFor(['A', 'C'], 'midnight', ['D']);
+    const authorization = trackAuthorization(page);
     const main = page.getByRole('main');
     const { soft, finish, note } = makeRunner(page);
     note('เวลาตรวจ', bangkokNow().text);
@@ -460,8 +484,13 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
     await soft(`${TC[4]} ขั้น 2–3 หลังเที่ยงคืน รายการ ER (ไม่เลือกวันที่) ค้น HN ของผู้ป่วย A — อยู่แท็บ ผู้ป่วยปัจจุบันใน ER แม้มาถึงวันก่อนหน้า`, async () => {
       const row = await showInListTab(page, p.A, 'current', 'TC-004');
       await noDatePicked();
-      const arrival = await erListCell(page, row, 'เวลารับเข้า');
-      note('ผู้ป่วย A', `มาถึง ${p.A.day} (เตรียม ${p.A.preparedAt}) · เวลารับเข้าในรายการ ${await arrival.innerText()}`);
+      // SBH Prod 6 พ.ย.: ตารางตั้งต้นไม่มีคอลัมน์ "เวลารับเข้า" → ใช้ arrivedAt จาก API (ข้อมูลประกอบ ไม่ใช่ Expected)
+      const arrival = await erListCell(page, row, 'เวลารับเข้า').then((cell) => cell.innerText(), async () => {
+        const res = await page.request.get(`/cortex-api/er/encounters/${p.A.en}`, { headers: { authorization: authorization() } });
+        const { arrivedAt } = (await res.json()) as { arrivedAt?: string };
+        return arrivedAt ? `${new Date(arrivedAt).toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' })} (API arrivedAt)` : '-';
+      });
+      note('ผู้ป่วย A', `มาถึง ${p.A.day} (เตรียม ${p.A.preparedAt}) · เวลารับเข้า ${arrival}`);
       expect(await tabsWithPatient(page)).toEqual(['ผู้ป่วยปัจจุบันใน ER']);
       await markEvidence(filled(hnSearchBox(page)), erListTab(page, 'current'), expected(row, `ผู้ป่วย A แท็บ ผู้ป่วยปัจจุบันใน ER · มาถึง ${p.A.day}`));
     });
@@ -495,7 +524,7 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
       await markEvidence(filled(hnSearchBox(page)), erListTab(page, 'bed-waiting'), expected(row, `ผู้ป่วย C แท็บ ผู้ป่วยรอเตียง · มาถึง ${p.C.day}`));
     });
 
-    await soft(`${TC[7]} ขั้น 2–3 หลังเที่ยงคืน รายการ ER (ไม่เลือกวันที่) ค้น HN ของผู้ป่วย D — อยู่แท็บ รอจำหน่าย มีปุ่ม จำหน่าย`, async () => {
+    if (p.D) await soft(`${TC[7]} ขั้น 2–3 หลังเที่ยงคืน รายการ ER (ไม่เลือกวันที่) ค้น HN ของผู้ป่วย D — อยู่แท็บ รอจำหน่าย มีปุ่ม จำหน่าย`, async () => {
       const row = await showInListTab(page, p.D, 'waiting-for-discharge', 'TC-007');
       await noDatePicked();
       expect(await tabsWithPatient(page)).toEqual(['รอจำหน่าย']);
@@ -505,20 +534,42 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
       await markEvidence(filled(hnSearchBox(page)), erListTab(page, 'waiting-for-discharge'), expected(row, `ผู้ป่วย D แท็บ รอจำหน่าย · มาถึง ${p.D.day}`), expected(button, 'ปุ่ม จำหน่าย'));
     });
 
-    // หลังเก็บหลักฐาน: ปิด Visit ของผู้ป่วยที่เตรียม (ไม่ใช่ TC) — C รอเตียง ปิดแล้วก็ยังค้างบอร์ด ทิ้งไว้
-    if (!DRYRUN) {
-      await startClip(page, 'cleanup');
-      const all = readState();
-      for (const key of ['A', 'B', 'D', 'E'] as Key[]) {
-        const visit = all[key];
-        if (!visit) continue;
-        const result = await closeVisitAtCashier(page, visit.hn, visit.vn).then(
-          (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
-          (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
-        );
-        note('หลังเทส', `ผู้ป่วย ${key} HN ${visit.hn} · ${visit.vn}: ${result}`);
+    finish();
+  });
+
+  // =============================== 4) เก็บกวาด (หลังช่วง 3) ===============================
+  test('เก็บกวาด: ปิด Visit ผู้ป่วยที่เตรียม A B D E · C (SBH Prod) สร้าง AN + เตียง SBHAUTO → Discharge คืนเตียง → ปิด Visit (Super_User)', { tag: ['@SBH-2236', '@SBH-2236-cleanup'] }, async ({ page }) => {
+    const all = readState();
+    test.skip(Object.keys(all).length === 0, `ไม่มีผู้ป่วยที่เตรียมไว้ (${STATE_FILE})`);
+    const authorization = trackAuthorization(page);
+    const { note, finish } = makeRunner(page);
+    await gotoErDashboard(page);
+    const close = async (key: Key, visit: Prepared) => {
+      const result = await closeVisitAtCashier(page, visit.hn, visit.vn).then(
+        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+        (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+      );
+      note('หลังเทส', `ผู้ป่วย ${key} HN ${visit.hn} · ${visit.vn}: ${result}`);
+      console.log(`    ผู้ป่วย ${key} HN ${visit.hn}: ${result}`);
+    };
+    for (const key of ['A', 'B', 'D', 'E'] as Key[]) if (all[key]) await close(key, all[key]!);
+    const c = all.C;
+    if (c && SYSTEM === 'sbh-prod') {
+      // ผู้ป่วยรอเตียง ปิดที่การเงินแล้วยังค้างบอร์ด → ทำให้ครบวงจรด้วยเตียง SBHAUTO แล้วคืน (ไม่จองเตียงจริง)
+      const steps: string[] = [];
+      try {
+        const state = await fetchErEncounterState(page, authorization(), c.en, c.day);
+        const an = state.an ?? (await createAnFromAdmitRequest(page, c, authorization));
+        steps.push(`AN ${an}`);
+        steps.push(`ลงเตียง ${await putToBed(page, c, c.ward ?? '', note)}`);
+        steps.push(await ipdDischarge(page, c.hn, c.ward ?? ''));
+      } catch (error) {
+        steps.push(`หยุดที่ขั้นนี้ — ${(error as Error).message.split('\n')[0]}`);
       }
-    }
+      note('ผู้ป่วย C', steps.join(' → '));
+      console.log(`    ผู้ป่วย C HN ${c.hn}: ${steps.join(' → ')}`);
+      await close('C', c);
+    } else if (c) note('ผู้ป่วย C', `HN ${c.hn} รอเตียง — ทิ้งไว้ (dev-x แบบ SBH-2391)`);
     finish();
   });
 });
@@ -526,10 +577,19 @@ test.describe(`SBH-2236 ผู้ป่วย ER ไม่หายหลัง 
 /** ผู้ป่วย B: เช็คอิน Visit OPD → หน้าการเงินแสดง Visit ยังเปิด (สถานะตั้งต้นก่อน Task) */
 async function checkInOpdVisitStep(page: Page, visit: Prepared, clinic: string) {
   const main = page.getByRole('main');
-  const queue = await checkInOpdVisit(page, visit);
-  test.info().annotations.push({ type: 'Visit OPD ผู้ป่วย B', description: `${clinic} · เช็คอินแล้ว (คิว ${queue})` });
-  const status = main.locator('.ant-select[class*="status-select"]').filter({ visible: true }).first();
-  await markEvidence(expected(main.getByText(`VN ${visit.vn}`, { exact: true }).filter({ visible: true }).first(), 'Visit OPD'), expected(status, 'เช็คอิน (ยังไม่ปิด)'));
+  const vnTag = main.getByText(`VN ${visit.vn}`, { exact: true }).filter({ visible: true }).first();
+  if (SYSTEM === 'sbh-prod') {
+    // SBH Prod: Visit OPD เปิดเป็น "คำขอ Walk-in" (Encounter WALK_IN) ช่องสถานะว่าง ไม่มีขั้นเช็คอินแบบ dev-x — TC-003 ขั้น 1 ต้องการแค่ "เปิด Visit OPD ไม่ปิด"
+    const encounterTag = main.getByText(visit.en, { exact: true }).filter({ visible: true }).first();
+    await expect(vnTag).toBeVisible({ timeout: 60_000 });
+    test.info().annotations.push({ type: 'Visit OPD ผู้ป่วย B', description: `${clinic} · คำขอ Walk-in (ไม่เช็คอิน)` });
+    await markEvidence(expected(vnTag, 'Visit OPD'), expected(encounterTag.locator('xpath=..'), `${visit.en} คำขอ Walk-in (ยังไม่ปิด)`));
+  } else {
+    const queue = await checkInOpdVisit(page, visit);
+    test.info().annotations.push({ type: 'Visit OPD ผู้ป่วย B', description: `${clinic} · เช็คอินแล้ว (คิว ${queue})` });
+    const status = main.locator('.ant-select[class*="status-select"]').filter({ visible: true }).first();
+    await markEvidence(expected(vnTag, 'Visit OPD'), expected(status, 'เช็คอิน (ยังไม่ปิด)'));
+  }
   await holdForClip(page);
   const cashier = await readCashierVisit(page, visit);
   test.info().annotations.push({ type: 'สถานะ Visit ผู้ป่วย B ก่อน Task', description: `${cashier.statusText} · บัญชี ${cashier.tagText}` });

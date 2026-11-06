@@ -41,6 +41,10 @@ import { registerAndOpenErVisit } from '../../../mock-data/uat-er';
 // หน้าต่าง: เจ้าหน้าที่ (Super_User — R6) + จอ TV แยก (ไม่มี session) · คลิป clip-TC-00x-staff.webm (เจ้าหน้าที่) + clip-TC-00x.webm (จอ TV)
 // รัน (dev-x): npx playwright test --headed --grep @SBH-3117   · เทส 1: --grep @SBH-3462 · เทส 2: --grep @SBH-3471
 // SBH3117_VISITS=<HN>,<VN>,<EN>;… (6 ราย) = ใช้ผู้ป่วยเดิม · SBH3117_KEEP=1 = ไม่ปิด Visit ท้ายเทส
+// SBH Prod (ผู้ใช้อนุญาต 6 พ.ย. 2026 — decisions R134): npm run card:prod -- --headed --grep "@SBH-3462( |$)" (เทส 1) · "@SBH-3471( |$)" (เทส 2 + SBH3117_KEEP=1)
+//   → ปิด Visit: SBH3117_VISITS=… npm run card:prod -- --headed --grep "@SBH-3117-CLOSE"
+//   Prod มีคิวผู้ป่วยจริงเรียกอยู่ระหว่างเทส: "เรียกแล้ว" ไม่ใช่ 4 / 5 คิวพอดี หรือ API เปลี่ยนระหว่างดู = TC-011 / 006 "ตรวจไม่ได้" (ไม่จบคิวของผู้ป่วยจริง)
+//   ท้ายเทส 2 จบคิวผู้ป่วย AUTO ที่เทสเรียกทุกราย — ไม่ให้คิวทดสอบค้างบนจอ TV จริง
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const ISSUE = { 1: 'SBH-3462', 2: 'SBH-3463', 3: 'SBH-3465', 4: 'SBH-3466', 5: 'SBH-3467', 6: 'SBH-3469', 7: 'SBH-3471', 8: 'SBH-3473', 9: 'SBH-3475', 10: 'SBH-3477', 11: 'SBH-3478' } as const;
@@ -78,7 +82,14 @@ async function readSavedSettings(page: Page, authorization: () => string): Promi
 const tvBanner = (tv: Page) => tvHeader(tv).locator('[class*="_resuscitation_"]');
 const bannerOnTv = async (tv: Page) => ((await tvBanner(tv).count()) ? ((await tvBanner(tv).first().innerText()) || '').trim() : null);
 
-test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ของ ER (dev-x)', () => {
+/** Prod มีคิวจริงแทรก → จดว่า TC ตรวจไม่ได้ (ไม่ใช่ไม่ผ่าน) */
+function untestable(tc: string, reason: string) {
+  test.info().annotations.push({ type: 'ตรวจไม่ได้', description: `${tc}: ${reason}` });
+  console.log(`    ⚠ ตรวจไม่ได้ — ${tc}: ${reason}`);
+}
+const sameQueues = (a: { queueNumber: string }[], b: { queueNumber: string }[]) => a.map((c) => c.queueNumber).join(',') === b.map((c) => c.queueNumber).join(',');
+
+test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ของ ER (dev-x / SBH Prod)', () => {
   test.describe.configure({ timeout: 1_800_000 });
 
   let opened: Map<string, ErVisit>;
@@ -416,6 +427,8 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
       const callButton = (cell: Locator, p: Patient) => cell.getByRole('button', { name: `เรียกคิว ${p.queue}`, exact: true });
       const completeButton = (cell: Locator, p: Patient) => cell.getByRole('button', { name: `จบคิว ${p.queue}`, exact: true });
 
+      /** ผู้ป่วยที่เทสกดเรียกคิว (ท้ายเทสจบคิวให้ทุกราย) */
+      const calledByTest = new Set<Patient>();
       /** กดเรียกคิวที่แถวผู้ป่วย → POST queue-call สำเร็จ + toast "ส่งคิว … ไปยังจอ ER แล้ว" */
       const callQueue = async (title: string, p: Patient, full: boolean) => {
         await checkStep(page, title, async () => {
@@ -431,6 +444,7 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
           await button.click();
           const res = await called;
           await expectOk(res, `เรียกคิว ${p.queue}`);
+          calledByTest.add(p);
           expect(new URL(res.url()).pathname).toContain(`/er/encounters/${p.visit!.en}/queue-call`);
           const toast = page.getByText(`ส่งคิว ${p.queue} ไปยังจอ ER แล้ว`, { exact: true }).first();
           await toast.waitFor({ state: 'visible', timeout: 30_000 });
@@ -561,10 +575,24 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
           await tv.bringToFront();
           await waitHistoryCount(tv, snap4.calledCalls.length);
           const first = await readHistory(tv);
+          if (snap4.calledCalls.length !== 4) {
+            // Prod: คิวจริงมีอยู่ก่อนแล้วเกิน 4 — ต้องจบคิวผู้ป่วยจริงถึงจะได้ 4 พอดี ซึ่งไม่ทำ
+            await markEvidence(expected(tvHistory(tv), `ต้องการ 4 คิว · จริง: ${first.countLabel} (มีคิวจริงอยู่ก่อน)`));
+            await snapEvidence(tv, 'TC-011 ตรวจไม่ได้');
+            untestable(TC(11), `"เรียกแล้ว" มี ${snap4.calledCalls.length} คิว (${snap4.calledCalls.map((c) => c.queueNumber).join(', ')}) ไม่ใช่ 4 พอดี`);
+            return;
+          }
           await markEvidence(expected(tvHistory(tv), `${first.countLabel} · หน้าเดียว`));
           await snapEvidence(tv, 'TC-011 ตอนเริ่มดู');
           await tv.waitForTimeout(17_000); // เลยรอบเปลี่ยนหน้า 15 วินาที
           const after = await readHistory(tv);
+          const afterApi = await fetchTvBoard(tv);
+          if (!sameQueues(afterApi.calledCalls, snap4.calledCalls)) {
+            untestable(TC(11), `ระหว่างรอ 17 วินาที "เรียกแล้ว" เปลี่ยนจากคิวจริง (API ${snap4.calledCalls.map((c) => c.queueNumber).join(', ')} → ${afterApi.calledCalls.map((c) => c.queueNumber).join(', ')})`);
+            await markEvidence(expected(tvHistory(tv), `ต้องการ 4 คิวชุดเดิม · จริง: ${after.countLabel} (คิวจริงแทรก)`));
+            await snapEvidence(tv, 'TC-011 ตรวจไม่ได้');
+            return;
+          }
           const apiQueues = snap4.calledCalls.map((c) => c.queueNumber);
           const rows: CompareRow[] = [
             { label: 'หัวกล่อง', values: ['4 คิว', after.countLabel], same: after.countLabel === '4 คิว' },
@@ -588,6 +616,13 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
         await screen.soft(`${TC(6)} ขั้น 2–3 กล่อง เรียกแล้ว 5 คิว — หน้า 1 / 2 แสดง 4 คิว · หน้า 2 / 2 แสดง 1 คิว`, async () => {
           await tv.bringToFront();
           await waitHistoryCount(tv, snap5.calledCalls.length);
+          if (snap5.calledCalls.length !== 5) {
+            const h = await readHistory(tv);
+            await markEvidence(expected(tvHistory(tv), `ต้องการ 5 คิว · จริง: ${h.countLabel} (มีคิวจริงอยู่ก่อน)`));
+            await snapEvidence(tv, 'TC-006 ตรวจไม่ได้');
+            untestable(TC(6), `"เรียกแล้ว" มี ${snap5.calledCalls.length} คิว (${snap5.calledCalls.map((c) => c.queueNumber).join(', ')}) ไม่ใช่ 5 พอดี`);
+            return;
+          }
           const pages = new Map<number, string[]>();
           const deadline = Date.now() + 40_000;
           let total = 0;
@@ -603,6 +638,11 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
               await snapEvidence(tv, `TC-006 หน้า ${settled.page}`);
             }
             await tv.waitForTimeout(300);
+          }
+          const afterApi = await fetchTvBoard(tv);
+          if (!sameQueues(afterApi.calledCalls, snap5.calledCalls)) {
+            untestable(TC(6), `ระหว่างดู 2 หน้า "เรียกแล้ว" เปลี่ยนจากคิวจริง (API ${snap5.calledCalls.map((c) => c.queueNumber).join(', ')} → ${afterApi.calledCalls.map((c) => c.queueNumber).join(', ')})`);
+            return;
           }
           const p1 = pages.get(1) ?? [];
           const p2 = pages.get(2) ?? [];
@@ -679,6 +719,16 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
           await waitHistoryCount(tv, before10.calledCalls.length - 1).catch(() => undefined);
           const after = await fetchTvBoard(tv);
           const h = await readHistory(tv);
+          const othersNow = after.calledCalls.map((c) => c.queueNumber).filter((q) => q !== A.queue);
+          if (othersNow.join(',') !== others.join(',')) {
+            // Prod: เจ้าหน้าที่เรียก / จบคิวจริงระหว่างนี้ — จำนวน "ลด 1" พิสูจน์ไม่ได้ แต่ยังดูว่าคิว A หายได้
+            untestable(`${TC(10)} (เฉพาะจำนวนลด 1 / คิวอื่นยังอยู่)`, `คิวอื่นใน API เปลี่ยนระหว่างจบคิว (${others.join(', ')} → ${othersNow.join(', ')})`);
+            const gone = !h.cards.includes(A.queue!) && !after.calledCalls.some((c) => c.queueNumber === A.queue);
+            await markEvidence(expected(tvHistory(tv).locator('[class*="_historyGrid_"]'), gone ? `ไม่มีคิว ${A.queue}` : `ไม่มีคิว ${A.queue} · จริง: ยังแสดง`));
+            await snapEvidence(tv, 'ผล — คิว A หายจากเรียกแล้ว');
+            expect(gone, `Expected: คิว A ${A.queue} หายจาก "เรียกแล้ว"`).toBeTruthy();
+            return;
+          }
           // ไม่เกิน 4 คิว = หน้าเดียว อ่านครบจากจอได้เลย
           const rows: CompareRow[] = [
             { label: 'หัวกล่อง', values: [`${before10.calledCalls.length - 1} คิว (ก่อน ${countBefore})`, h.countLabel], same: h.countLabel === `${before10.calledCalls.length - 1} คิว` },
@@ -697,9 +747,40 @@ test.describe('SBH-3117 ปรับปรุงหน้าจอ QUEUE ขอ�
         await hideCompareTable(tv).catch(() => undefined);
         await finishVideo(tv);
         await tv.context().close();
+        // จบคิวผู้ป่วย AUTO ที่เทสเรียกทุกราย — ไม่ให้คิวทดสอบค้างที่ "กำลังเรียก / เรียกแล้ว" ของจอ TV จริง (SBH Prod 6 พ.ย. 2026)
+        await hideCompareTable(page).catch(() => undefined);
+        for (const p of calledByTest) {
+          const result = await (async () => {
+            const cell = await queueCell(await rowOf(p));
+            const button = completeButton(cell, p);
+            if (!(await button.isVisible().catch(() => false))) return `ไม่มีปุ่มจบคิว (${((await cell.innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim()})`;
+            const done = waitForApi(page, 'POST', /\/cortex-api\/er\/encounters\/[^/]+\/queue-complete$/, 30_000);
+            await button.click();
+            const confirm = page.locator('.ant-popconfirm-buttons .ant-btn-primary, .ant-modal-confirm-btns .ant-btn-primary').filter({ visible: true }).first();
+            if (await confirm.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)) await confirm.click();
+            await expectOk(await done, `จบคิว ${p.queue}`);
+            return 'จบคิวแล้ว';
+          })().catch((error: Error) => `จบคิวไม่สำเร็จ — ${error.message.split('\n')[0]}`);
+          note(`หลังเทส: ผู้ป่วย ${p.key} คิว ${p.queue}`, result);
+          console.log(`    หลังเทส: ผู้ป่วย ${p.key} คิว ${p.queue}: ${result}`);
+        }
       }
       screen.finish();
       staff.finish();
     },
   );
+
+  // ปิด Visit ผู้ป่วยของเทส 2 ที่รันด้วย SBH3117_KEEP=1 (SBH Prod รอบแรก — กันเสียโควตาผู้ป่วยถ้าเทสล้มกลางทาง)
+  test('ปิด Visit ผู้ป่วย AUTO ของ SBH-3117 ที่การเงิน (SBH3117_VISITS)', { tag: ['@SBH-3117-CLOSE'] }, async ({ page }) => {
+    const visits = (process.env.SBH3117_VISITS ?? '').split(';').filter(Boolean).map((v) => v.split(','));
+    test.skip(!visits.length, 'ต้องใส่ SBH3117_VISITS=<HN>,<VN>,<EN>;…');
+    for (const [hn, vn, en] of visits) {
+      const result = await closeVisitAtCashier(page, hn, vn).then(
+        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+        (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+      );
+      test.info().annotations.push({ type: 'ปิด Visit', description: `HN ${hn} · ${vn} · ${en}: ${result}` });
+      console.log(`    HN ${hn} · ${vn} · ${en}: ${result}`);
+    }
+  });
 });

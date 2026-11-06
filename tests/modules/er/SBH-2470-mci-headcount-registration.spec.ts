@@ -166,25 +166,24 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
       await startClip(page, 'TC-003');
       const people = new Map<string, Awaited<ReturnType<typeof readPatient>>>();
       for (const m of sys()) people.set(m.hn, await readPatient(page, authorization, m.hn));
-      const nameRows = (): CompareRow[] =>
-        sys().map((m) => {
-          const p = people.get(m.hn)!;
-          return { label: `ลำดับ ${two(m.registrationSeq!)}`, values: [`ไม่ระบุตัวตน / ${name} ${two(m.registrationSeq!)}`, m.patientName, `${p.firstName} / ${p.familyName}`], same: p.firstName === 'ไม่ระบุตัวตน' && p.familyName === `${name} ${two(m.registrationSeq!)}` };
-        });
-      await soft(`${TC['003']} ขั้น 3 นามสกุล = "${name} 01" ถึง "05" เรียงต่อเนื่อง ไม่ซ้ำ ไม่ข้าม`, async () => {
-        const families = sys().map((m) => people.get(m.hn)!.familyName);
-        const rows: CompareRow[] = sys().map((m, i) => ({ label: `ลำดับ ${two(m.registrationSeq!)}`, values: [`${name} ${two(i + 1)}`, families[i]], same: families[i] === `${name} ${two(i + 1)}` }));
+      // Expected แก้ 4 พ.ย. 2026 ตาม SBH-3609: ชื่อ "01 MCI" … "05 MCI" · นามสกุล = ชื่อเหตุการณ์
+      await soft(`${TC['003']} ขั้น 3 ชื่อ "01 MCI" ถึง "05 MCI" เรียงต่อเนื่อง ไม่ซ้ำ ไม่ข้าม`, async () => {
+        const firsts = sys().map((m) => people.get(m.hn)!.firstName);
+        const rows: CompareRow[] = sys().map((m, i) => ({ label: `ลำดับ ${two(m.registrationSeq!)}`, values: [`${two(i + 1)} MCI`, firsts[i]], same: firsts[i] === `${two(i + 1)} MCI` }));
         await markEvidence(...sys().map((m) => expected(memberRow(page, m.hn).getByRole('heading'))));
-        await showCompareTable(page, `${TC['003']} นามสกุล (ระเบียนผู้ป่วย)`, ['Expected', 'ในระบบ'], rows, { side: 'right', width: '620px' });
+        await showCompareTable(page, `${TC['003']} ชื่อ (ระเบียนผู้ป่วย)`, ['Expected', 'ในระบบ'], rows, { side: 'right', width: '620px' });
         expect(rows.filter((r) => !r.same).map((r) => r.label)).toEqual([]);
-        expect(new Set(families).size).toBe(5);
+        expect(new Set(firsts).size).toBe(5);
       });
       await hideCompareTable(page);
-      await soft(`${TC['003']} ขั้น 3 ชื่อ = "ไม่ระบุตัวตน" ทั้ง 5 คน`, async () => {
-        const rows = nameRows();
+      await soft(`${TC['003']} ขั้น 3 นามสกุล = ชื่อเหตุการณ์ "${name}" ทั้ง 5 คน`, async () => {
+        const rows: CompareRow[] = sys().map((m) => {
+          const p = people.get(m.hn)!;
+          return { label: `ลำดับ ${two(m.registrationSeq!)}`, values: [`${two(m.registrationSeq!)} MCI / ${name}`, m.patientName, `${p.firstName} / ${p.familyName}`], same: p.firstName === `${two(m.registrationSeq!)} MCI` && p.familyName === name };
+        });
         await markEvidence(...sys().map((m) => expected(memberRow(page, m.hn).getByRole('heading'))));
         await showCompareTable(page, `${TC['003']} ชื่อ / นามสกุล`, ['Expected (TC)', 'ชื่อในรายการ', 'ระเบียนผู้ป่วย ชื่อ / นามสกุล'], rows, { side: 'right', width: '900px' });
-        expect(rows.filter((r) => !r.same).map((r) => r.label), 'ชื่อต้องเป็น "ไม่ระบุตัวตน"').toEqual([]);
+        expect(rows.filter((r) => !r.same).map((r) => r.label), 'นามสกุลต้องเป็นชื่อเหตุการณ์').toEqual([]);
       });
       await hideCompareTable(page);
       for (const m of sys()) {
@@ -264,6 +263,8 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
         await markEvidence(expected(triageHeader, 'คอลัมน์ Triage'), ...sys().map((m) => expected(page.getByText(`HN: ${m.hn}`, { exact: true }).first())));
         await snapEvidence(page, `${TC['005']} บอร์ด ER คอลัมน์ Triage`);
         await showCompareTable(page, `${TC['005']} Visit / Encounter บนบอร์ด ER`, ['VN', 'EN', 'คอลัมน์บนบอร์ด · สถานะ · location (API)'], rows, { side: 'right', width: '900px' });
+        // ภาพ "ผ่าน" ท้าย step ไม่ถูกบันทึกเมื่อชื่อ step ยาว (Prod 6 พ.ย.) — ถ่ายภาพตารางเองให้มีภาพนิ่งเป็นหลักฐาน
+        await snapEvidence(page, `${TC['005']} ตารางเทียบบอร์ด`);
         expect(rows.filter((r) => !r.same).map((r) => r.label)).toEqual([]);
       });
       await hideCompareTable(page);
@@ -429,6 +430,7 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
           { label: `Encounter ${m5.en}`, values: ['cancelled', enc ? `${enc.latestStatusCode} · ${enc.patientStatus}` : 'ไม่พบ'], same: enc?.latestStatusCode === 'cancelled' },
         ];
         await showCompareTable(page, `${TC['011']} HN ${m5.hn} หลังลบ member (API)`, ['Expected', 'ในระบบ'], rows, { side: 'right', width: '640px' });
+        await snapEvidence(page, `${TC['011']} ตารางเทียบหลังลบ`);
         expect(onBoard, 'Visit ของ member ที่ลบต้องไม่อยู่บนบอร์ด ER').toBeUndefined();
         await expect(card).toHaveCount(0);
         expect(enc?.latestStatusCode, 'Encounter ของ member ที่ลบต้องถูกยกเลิก').toBe('cancelled');
@@ -669,6 +671,8 @@ test.describe('SBH-2470 Triage หมู่ — ลงทะเบียนผ�
         };
         page.on('request', onReq);
         const text = await banner.textContent();
+        // รายการ member ยาวขึ้นระหว่างลงทะเบียน → ปุ่มเลื่อนลงนอกจอ กรอบไปตกที่แถว member (Prod 6 พ.ย.)
+        await submitAllButton(page).scrollIntoViewIfNeeded();
         await markEvidence(expected(banner, 'กำลังลงทะเบียน'), expected(submitAllButton(page), 'disable'));
         await snapEvidence(page, `${TC['013']} ระหว่างลงทะเบียน ${text}`);
         await submitAllButton(page).click({ force: true, timeout: 3_000 }).catch(() => undefined);
