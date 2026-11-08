@@ -184,7 +184,8 @@ async function saveUnderlying(page: Page, code: string): Promise<string> {
   // รหัสในรายการไม่มีจุด (E119 - …) · ฟอร์มคัดกรองแสดง I10 - …
   const option = page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: new RegExp(`^${code.replace('.', '\\.?')} - `) }).first();
   await expect(option, `ค้นโรค ${code} ต้องเจอ`).toBeVisible({ timeout: 20_000 });
-  const display = norm(await option.innerText()).replace(/^\S+ - /, '').replace(/ \(.*\)$/, '');
+  // ตัดเฉพาะวงเล็บตัวพิมพ์ใหญ่ท้ายชื่อ ("… (ESSENTIAL (PRIMARY) HYPERTENSION)") — แบบเดิม / \(.*\)$/ ตัด "(primary) hypertension" ทิ้งด้วย (Prod 8 พ.ย. ได้แค่ "Essential")
+  const display = norm(await option.innerText()).replace(/^\S+ - /, '').replace(/ \([^a-z]*\)$/, '');
   const saved = graphqlMutation(page, 'UpsertUnderlyingDisease', 30_000);
   await option.click();
   // ส่วนในฟอร์มคัดกรองมีปุ่มบันทึกของตัวเอง · หน้าประวัติทางการแพทย์ไม่มีปุ่ม (บันทึกตอนเลือก)
@@ -892,7 +893,19 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
   // ==============================================================================================
   test('ผู้ป่วย A (Non-Trauma · EMS · Admit): TC-001–021 · 026 · 040 (Super_User)', meta('A', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 26, 40), async ({ page, browser }) => {
     const auth = trackAuthorization(page);
-    const r = makeRunner(page);
+    // Retest SBH-3928 (U/D · SBH Prod 8 พ.ย. 2026): SBH3182_A_TCS=5 = ตรวจเฉพาะ TC ในรายการ (จบหลัง TC-007 ถ้าไม่มี TC เกิน 7) ·
+    //   SBH3182_A_PREP=triage = เตรียมผู้ป่วย A แค่เปิด Visit + คัดกรอง (มี U/D) ข้ามแพ้ยา / Reconcile / คัดกรองซ้ำ / ฟอร์มแพทย์ / Order / Consult / Admit / Disposition
+    const A_TCS = process.env.SBH3182_A_TCS?.split(',').map(Number).filter(Boolean);
+    const r0 = makeRunner(page);
+    const r: Runner = A_TCS?.length
+      ? {
+          ...r0,
+          soft: (title: string, body: () => Promise<void>) => {
+            const n = Number((title.match(/^TC-(\d{3})/) ?? [])[1]);
+            return !n || A_TCS.includes(n) ? r0.soft(title, body) : Promise.resolve(true);
+          },
+        }
+      : r0;
     const consultProblem = 'ขอปรึกษาอายุรกรรม ปวดท้องเรื้อรัง (SBH-3182 ผู้ป่วย A)';
     const visit = await patient(page, 'A', r, () =>
       test.step('เตรียมข้อมูล ผู้ป่วย A', async () => {
@@ -900,6 +913,7 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
         const v = await step('visit', () => newErVisit(page, 'A'));
         const info: Record<string, string> = {};
         Object.assign(info, await step('triage', () => triage(page, v, { level: 3, vitals: VITALS_NORMAL, arrival: { method: 'EMS', ems: 'ALS', transporter: 'หน่วยกู้ภัยทดสอบ SBH-3182', preHospital: 'BP 120/80 ระหว่างนำส่ง' }, ud: 'I10' })));
+        if (process.env.SBH3182_A_PREP === 'triage') return { ...v, preparedAt: bangkokText(), info: { ...info, skipped: 'A_PREP=triage — ข้ามแพ้ยา / Reconcile / คัดกรองซ้ำ / ฟอร์มแพทย์ / Order / Consult / Admit / Disposition' } };
         info.allergy = await step('allergy', () => recordDrugAllergy(page));
         info.reconcile = await step('reconcile', () => reconcileMed(page).catch((e: Error) => { if (!PROD) throw e; return `Reconcile Med ไม่สำเร็จ — ${e.message.split('\n')[0].slice(0, 200)}`; }));
         const vitals = [VITALS_NORMAL];
@@ -1043,6 +1057,13 @@ test.describe(`SBH-3182 ER Summary Trauma / Non-Trauma (${SYSTEM})`, () => {
         await markEvidence(expected(fieldOf(history, label), ok ? label : `${n === 6 ? 'อาการคัน / ผื่นคัน' : norm(want).split(' (')[0]} · จริง: ${got || '(ว่าง)'}`));
         expect(bad(rows)).toEqual([]);
       });
+    }
+
+    if (A_TCS?.length && Math.max(...A_TCS) <= 7) {
+      await startClip(page, 'after');
+      r.note('SBH3182_A_TCS', `รันเฉพาะ TC ${A_TCS.join(', ')} — ข้าม TC ที่เหลือของผู้ป่วย A`);
+      r.finish();
+      return;
     }
 
     // TC-008 / 009 / 010 Vital signs

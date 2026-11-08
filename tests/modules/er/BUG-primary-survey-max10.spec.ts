@@ -19,8 +19,8 @@ import { authFile } from '../../../utils/env';
 // แต่ละรอบ = กรอกค่าชุดหนึ่ง → กดบันทึก → เก็บ status / body ของ POST …/saves + toast + ภาพก่อน / หลังกด + คลิปแยกรอบ
 // หลังเทส: ปิด Visit ที่การเงิน · BUGPS10_KEEP=1 = ไม่ปิด
 // BUGPS10_USE=HN,VN,EN = ใช้ผู้ป่วยที่คัดกรองแล้ว (ข้ามสร้าง + คัดกรอง · ไม่ปิด Visit) — Prod 5 พ.ย. 2026 บันทึกคัดกรองไม่ส่งคำขอ → ผู้ใช้เลือกใช้ HN 6903956 ในภาพ
-// รัน (dev-x): npx playwright test --headed --grep @BUG-PS10
-// รัน (SBH Prod — ผู้ใช้สั่ง 5 พ.ย. 2026 เพราะ dev-x พัง): npm run card:prod -- --headed --grep @BUG-PS10
+// 7 พ.ย. 2026: เทส Reproduce เดิมถูกแทนด้วยเทส Retest (หลัง dev แก้ — ฟอร์ม 1.0.2 ตัด max) ด้านล่าง · helper ด้านบนใช้ร่วม
+// รัน (SBH Prod): npm run card:prod -- --headed --grep @SBH-3893
 
 const VITALS: VitalSigns = { systolic: '120', diastolic: '80', pr: '80', rr: '20', temp: '37', spo2: '98', painScore: '3' };
 const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
@@ -135,14 +135,25 @@ async function saveAndRead(doc: Page, label: string, values: Partial<Record<Key,
   const resP = doc.waitForResponse((r) => r.request().method() === 'POST' && SAVES.test(r.url()), { timeout: 30_000 }).catch(() => undefined as Response | undefined);
   await save.click();
   const toast = doc.locator('.ant-message-notice, .ant-notification-notice').filter({ visible: true }).first();
-  await toast.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
   const r = await resP;
-  const toastText = (await toast.isVisible().catch(() => false)) ? norm(await toast.innerText()) : '';
+  await toast.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
+  // toast หายเองใน ~3–4.5 วิ — hover ให้ antd หยุดนับเวลา แล้วตีกรอบทันที (7 พ.ย. รอบแรกรอนานไป กรอบ timeout)
+  await toast.hover({ timeout: 3_000 }).catch(() => undefined);
+  const toastText = (await toast.isVisible().catch(() => false)) ? norm(await toast.innerText({ timeout: 3_000 }).catch(() => '')) : '';
+  const ok = !!r && r.status() < 300 && !/ต้องไม่เกิน|ไม่สำเร็จ/.test(toastText);
+  // Retest SBH-3893: ผ่าน = ป้าย Expected "บันทึกสำเร็จ" · ไม่ผ่าน = ป้าย "<ที่ต้องการ> · จริง: <ที่เห็น>"
+  if (toastText) {
+    await markEvidence(ok ? expected(toast, `บันทึกสำเร็จ · ไม่มี "ต้องไม่เกิน 10"`) : alerted(toast, `บันทึกสำเร็จ · จริง: ${toastText.slice(0, 70)}`)).catch(() => undefined);
+    await snapEvidence(doc, `${label} — หลังกดบันทึก toast`);
+    await clearEvidenceMarks(doc);
+  }
+  await doc.mouse.move(1300, 600);
   const saved = physicianNotePanel(doc).getByText(/บันทึกจากแบบฟอร์มนี้/).first();
-  const marks = [];
-  if (toastText) marks.push(alerted(toast, toastText.slice(0, 80)));
-  else if (await saved.isVisible().catch(() => false)) marks.push(expected(saved, 'บันทึกแล้ว'));
-  await markEvidence(...marks);
+  await saved.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
+  if (ok && (await saved.isVisible().catch(() => false))) {
+    await saved.scrollIntoViewIfNeeded().catch(() => undefined);
+    await markEvidence(expected(saved, 'บันทึกสำเร็จ (POST saves ' + r!.status() + ')')).catch(() => undefined);
+  }
   await snapEvidence(doc, `${label} — หลังกดบันทึก ${r ? r.status() : '(ไม่ได้ส่ง)'}`);
   await clearEvidenceMarks(doc);
 
@@ -170,7 +181,38 @@ async function saveAndRead(doc: Page, label: string, values: Partial<Record<Key,
   return res;
 }
 
-test.describe('BUG ER Physician Note — Trauma Primary Survey บันทึกไม่ได้ "ต้องไม่เกิน 10" (dev-x)', () => {
+/** Diagnosis general เป็นช่องบังคับ (R21 · SBH Prod 7 พ.ย. 2026 มี *) — เลือก S06.0 แบบ spec SBH-2058 / 3839 (เลือกไว้แล้วข้าม) */
+async function pickDiagnosis(doc: Page, say: (t: string, d: string) => void) {
+  const pn = physicianNotePanel(doc);
+  const dxRow = pn.locator('[data-dx-index="0"]').filter({ visible: true }).first();
+  if (!(await dxRow.count())) return say('Diagnosis', 'ไม่พบช่อง Diagnosis แถวแรก — ข้าม');
+  const search = dxRow.getByRole('combobox').first();
+  await search.scrollIntoViewIfNeeded();
+  if (/S06/.test(norm(await dxRow.innerText().catch(() => '')))) return say('Diagnosis', 'เลือก S06 ไว้แล้ว');
+  await search.click();
+  await doc.keyboard.type('S060', { delay: 60 });
+  const option = doc.getByRole('option').filter({ visible: true }).filter({ hasText: /^S06\.?0\b/ }).first();
+  await expect(option, 'ค้น Diagnosis S06.0 ต้องเจอ').toBeVisible({ timeout: 20_000 });
+  say('Diagnosis', norm(await option.innerText()));
+  await option.click();
+  await doc.waitForTimeout(1_500);
+}
+
+/** หลังบันทึกสำเร็จ ถ้าฟอร์มล็อก (ช่อง disabled) ให้กดปุ่มแก้ไขของฟอร์มก่อนกรอกรอบถัดไป */
+async function ensureEditable(doc: Page, say: (t: string, d: string) => void) {
+  if (!(await field(doc, 'pupilRt').isDisabled().catch(() => false))) return;
+  const edit = physicianNotePanel(doc).getByRole('button', { name: /แก้ไข/ }).filter({ visible: true }).first();
+  if (await edit.count()) {
+    await edit.click();
+    await expect(field(doc, 'pupilRt')).toBeEnabled({ timeout: 20_000 });
+    say('ฟอร์มล็อกหลังบันทึก', 'กด แก้ไข แล้วกรอกต่อ');
+  }
+}
+
+// ── Retest การ์ดบั๊ก SBH-3893 บน SBH Prod (7 พ.ย. 2026 · ฟอร์ม er-trauma-primary-survey-v1.js deploy 6 พ.ย. 15:58 UTC ไม่มี max 10 แล้ว) ──
+// ผู้ใช้เลือก "สร้าง AUTO 1 ราย + ปิด Visit" · รอบ 1 ตามการ์ด · รอบ 2 ค่า 10 / 10 · รอบ 3 รูม่านตาทศนิยมเกิน 10 อย่างเดียว · รอบ 4 เปิดหน้าใหม่ ค่ารอบ 3 ยังอยู่
+// env: BUGPS10_KEEP=1 ไม่ปิด Visit · BUGPS10_USE=HN,VN,EN ทำต่อรายเดิม (BUGPS10_ROLE=Doctor|Super_User · BUGPS10_CLOSE=1 ปิด Visit รายนั้นท้ายเทส)
+test.describe('SBH-3893 Retest — Trauma Primary Survey รูม่านตาเกิน 10 mm บันทึก ER Physician Note ได้', () => {
   test.describe.configure({ timeout: 1_800_000 });
   let opened: Map<string, ErVisit>;
   let doc: Page | undefined;
@@ -195,63 +237,51 @@ test.describe('BUG ER Physician Note — Trauma Primary Survey บันทึ�
     }
   });
 
-  test('Reproduce + แยกช่องที่ติด limit 10', { tag: ['@BUG-PS10'] }, async ({ page, browser }) => {
+  test('Retest: รูม่านตาเกิน 10 mm บันทึกได้', { tag: ['@BUG-PS10', '@SBH-3893'] }, async ({ page, browser }) => {
     const { note: say, soft, finish } = makeRunner(page);
     const use = process.env.BUGPS10_USE?.split(',');
-    const visit: ErVisit = use ? { hn: use[0], vn: use[1], en: use[2] } as ErVisit : await prepareAuto();
+    const visit: ErVisit = use ? ({ hn: use[0], vn: use[1], en: use[2] } as ErVisit) : await prepareAuto();
+    if (use && process.env.BUGPS10_CLOSE) opened.set(visit.en, visit);
+    say('ผู้ป่วย', `HN ${visit.hn} · ${visit.vn} · ${visit.en}`);
 
     async function prepareAuto(): Promise<ErVisit> {
-    const visit = await checkStep(page, 'เตรียมข้อมูล: ผู้ป่วย AUTO ใหม่ + เปิด Visit ER', async () => {
-      await openBoard(page);
-      const p = newTestPatient('Ps');
-      const v = await registerAndOpenErVisit(page, p);
-      say('ผู้ป่วย', `${p.firstName} ${p.familyName} · HN ${v.hn} · ${v.vn} · ${v.en}`);
+      const v = await checkStep(page, 'เตรียมข้อมูล: ผู้ป่วย AUTO ใหม่ + เปิด Visit ER', async () => {
+        await openBoard(page);
+        const p = newTestPatient('Ps');
+        const created = await registerAndOpenErVisit(page, p);
+        say('ผู้ป่วย AUTO', `${p.firstName} ${p.familyName} · HN ${created.hn} · ${created.vn} · ${created.en}`);
+        return created;
+      });
+      await dismissToast(page, 'สร้าง Visit สำเร็จ').catch(() => undefined);
+      const panel = erTriagePanel(page);
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const ok = await expect(panel.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first()).toBeEnabled({ timeout: 90_000 }).then(() => true, () => false);
+        if (ok) break;
+        await gotoVisit(page, v);
+      }
+      await checkStep(page, 'คัดกรอง: Trauma · Not Suspect Fast Track · ESI 3', async () => {
+        await panel.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first().selectOption({ label: 'Not Suspect Fast Track' });
+        await panel.getByRole('radiogroup', { name: 'ประเภทฉุกเฉิน' }).first().getByText('Trauma', { exact: true }).click();
+        await fillErTriageForm(page, { level: 3, vitals: VITALS });
+        await saveErTriageForm(page, 'บันทึกคัดกรอง');
+        await expect(page.getByText('กรอกข้อมูล คัดกรอง ER สำเร็จ', { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+      });
       return v;
-    });
-    await dismissToast(page, 'สร้าง Visit สำเร็จ').catch(() => undefined);
-    const panel = erTriagePanel(page);
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const ok = await expect(panel.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first()).toBeEnabled({ timeout: 90_000 }).then(() => true, () => false);
-      if (ok) break;
-      await gotoVisit(page, visit);
     }
 
-    await checkStep(page, 'คัดกรอง: Trauma · Not Suspect Fast Track · ESI 3', async () => {
-      await panel.getByRole('combobox', { name: 'Suspect Fast Track Type' }).first().selectOption({ label: 'Not Suspect Fast Track' });
-      await panel.getByRole('radiogroup', { name: 'ประเภทฉุกเฉิน' }).first().getByText('Trauma', { exact: true }).click();
-      await fillErTriageForm(page, { level: 3, vitals: VITALS });
-      await saveErTriageForm(page, 'บันทึกคัดกรอง');
-      await expect(page.getByText('กรอกข้อมูล คัดกรอง ER สำเร็จ', { exact: true }).first()).toBeVisible({ timeout: 30_000 });
-    });
-    return visit;
-    }
-
-    // ผู้ป่วยเดิม (ภาพของผู้ใช้) = บัญชี user1 (Super_User) แบบในภาพ · ผู้ป่วย AUTO = บัญชี Doctor
-    doc = await openDoctor(browser, use ? 'Super_User' : 'Doctor');
-    let toggledTrauma = false;
-    const emergencyType = () => erTriagePanel(doc!).getByRole('radiogroup', { name: 'ประเภทฉุกเฉิน' }).first();
-    await checkStep(doc, `เปิดผู้ป่วย HN ${visit.hn} + กาง Trauma Primary Survey`, async () => {
+    const role = (process.env.BUGPS10_ROLE as 'Doctor' | 'Super_User' | undefined) ?? 'Doctor';
+    doc = await openDoctor(browser, role);
+    say('บัญชีฟอร์มแพทย์', role);
+    const docRun = makeRunner(doc); // ภาพ ผ่าน / Error ของรอบที่ทำในหน้าต่างแพทย์ ต้องถ่ายจากหน้าต่างนั้น
+    await checkStep(doc, `เปิดผู้ป่วย HN ${visit.hn} + กาง Trauma Primary Survey + เลือก Diagnosis`, async () => {
       if (use) {
         await gotoVisit(doc!, visit);
         const pn = physicianNotePanel(doc!);
         await expect(pn.getByRole('heading', { name: 'ER Physician Note', exact: true })).toBeVisible({ timeout: 120_000 });
-        await doc!.waitForTimeout(8_000);
-        const psBtn = pn.getByRole('button', { name: /Trauma Primary Survey/ }).first();
-        if (!(await psBtn.isVisible().catch(() => false))) {
-          // ฟอร์มแพทย์ยังเป็น Non-Trauma → กด Trauma ในฟอร์มคัดกรองฝั่งซ้าย (ไม่กดบันทึกคัดกรอง · คืนเป็น Non-Trauma ตอนจบ)
-          const g = emergencyType();
-          await expect(g, 'ฟอร์มคัดกรองฝั่งซ้ายต้องแก้ประเภทฉุกเฉินได้').toBeVisible({ timeout: 30_000 });
-          await g.scrollIntoViewIfNeeded();
-          await g.getByText('Trauma', { exact: true }).click();
-          toggledTrauma = true;
-          await markEvidence(clicked(g.getByText('Trauma', { exact: true }), 'Trauma (ไม่บันทึกคัดกรอง)'));
-          await snapEvidence(doc!, 'กด Trauma ในฟอร์มคัดกรองฝั่งซ้าย');
-          await clearEvidenceMarks(doc!);
-          say('ประเภทฉุกเฉิน', 'แผงขวาเป็น Non-Trauma → กด Trauma ในฟอร์มคัดกรองฝั่งซ้าย (ไม่บันทึก)');
-        }
-        await expect(psBtn, 'ฟอร์มแพทย์ต้องเป็นโหมด Trauma').toBeVisible({ timeout: 60_000 });
-        await doc!.waitForTimeout(3_000);
+        await expect(pn.getByRole('button', { name: /Trauma Primary Survey/ }).first(), 'ฟอร์มแพทย์ต้องเป็นโหมด Trauma').toBeVisible({ timeout: 120_000 });
+        await doc!.waitForTimeout(4_000);
       } else await doctorOpens(doc!, visit.hn);
+      await pickDiagnosis(doc!, say);
       await expandPrimarySurvey(doc!);
       for (const k of Object.keys(F) as Key[]) say(`ชนิดช่อง ${F[k]}`, await describeField(doc!, k));
     });
@@ -259,37 +289,44 @@ test.describe('BUG ER Physician Note — Trauma Primary Survey บันทึ�
     const results: Record<string, Result> = {};
     const round = async (id: string, label: string, values: Partial<Record<Key, string>>) => {
       await startClip(doc!, id);
-      await soft(label, async () => {
+      await docRun.soft(label, async () => {
         await expandPrimarySurvey(doc!);
+        await ensureEditable(doc!, say);
         const set: string[] = [];
         for (const k of Object.keys(F) as Key[]) set.push(await setField(doc!, k, values[k] ?? ''));
         say(`${label}: กรอก`, set.join(' · '));
-        results[id] = await saveAndRead(doc!, label, values, say);
+        const res = (results[id] = await saveAndRead(doc!, label, values, say));
+        expect(res.status, `${label}: POST saves ต้องสำเร็จ (2xx)`).toMatch(/^2/);
+        expect(res.toast, `${label}: ต้องไม่มีแจ้งเตือน "ต้องไม่เกิน 10"`).not.toMatch(/ต้องไม่เกิน|ไม่สำเร็จ/);
       });
     };
 
-    // ผู้ใช้ชี้ (5 พ.ย. 2026): จุดที่ติดคือ "ขนาดรูม่านตาขวา / ซ้ายเกิน 10 mm"
-    // รอบ 1: ตามภาพของผู้ใช้
-    await round('r1-as-reported', 'รอบ 1 ตามภาพ: Active bleeding 12 · Pelvic hematoma 34 · Open pneumothorax test · รูม่านตา 23 / 45',
+    await round('r1-as-reported', 'รอบ 1 ตามการ์ด: Active bleeding 12 · Pelvic hematoma 34 · Open pneumothorax test · รูม่านตาขวา 23 / ซ้าย 45 mm',
       { bleeding: '12', pelvic: '34', pneumo: 'test', pupilRt: '23', pupilLt: '45' });
-    // รอบ 2: รูม่านตาอย่างเดียว
-    await round('r2-pupil-only', 'รอบ 2 รูม่านตาขวา 23 / ซ้าย 45 mm อย่างเดียว', { pupilRt: '23', pupilLt: '45' });
-    // รอบ 3: ช่อง Active bleeding / Pelvic hematoma อย่างเดียว (ติด limit ด้วยไหม)
-    await round('r3-bleeding-pelvic', 'รอบ 3 Active bleeding 12 · Pelvic hematoma 34 อย่างเดียว', { bleeding: '12', pelvic: '34' });
-    // รอบ 4: รูม่านตาไม่เกิน 10
-    await round('r4-pupil-10', 'รอบ 4 รูม่านตาขวา 10 / ซ้าย 10 mm', { pupilRt: '10', pupilLt: '10' });
+    await round('r2-pupil-10', 'รอบ 2 รูม่านตาขวา 10 / ซ้าย 10 mm (ค่าเดิมยังบันทึกได้)', { pupilRt: '10', pupilLt: '10' });
+    await round('r3-pupil-decimal', 'รอบ 3 รูม่านตาขวา 12.5 / ซ้าย 15 mm อย่างเดียว', { pupilRt: '12.5', pupilLt: '15' });
 
-    if (toggledTrauma) {
-      await soft('คืนประเภทฉุกเฉินในฟอร์มคัดกรองฝั่งซ้ายเป็น Non-Trauma', async () => {
-        const g = emergencyType();
-        await g.scrollIntoViewIfNeeded();
-        await g.getByText('Non-Trauma', { exact: true }).click();
-        await doc!.waitForTimeout(3_000);
-      });
-    }
+    // รอบ 4: เปิดหน้าใหม่ → ค่าที่บันทึกรอบ 3 ยังอยู่
+    await startClip(doc, 'r4-reload');
+    await docRun.soft('รอบ 4 เปิดหน้าผู้ป่วยใหม่ ค่ารูม่านตา 12.5 / 15 ยังอยู่', async () => {
+      await clearEvidenceMarks(doc!);
+      await gotoVisit(doc!, visit);
+      const pn = physicianNotePanel(doc!);
+      await expect(pn.getByRole('button', { name: /Trauma Primary Survey/ }).first()).toBeVisible({ timeout: 120_000 });
+      await doc!.waitForTimeout(4_000);
+      await expandPrimarySurvey(doc!);
+      const rt = field(doc!, 'pupilRt');
+      const lt = field(doc!, 'pupilLt');
+      await rt.scrollIntoViewIfNeeded();
+      await expect(rt, 'รูม่านตาขวาต้องเป็น 12.5').toHaveValue(/^12\.5$/, { timeout: 30_000 });
+      await expect(lt, 'รูม่านตาซ้ายต้องเป็น 15').toHaveValue(/^15(\.0+)?$/, { timeout: 30_000 });
+      say('ค่าหลังเปิดใหม่', `ขวา ${await rt.inputValue()} · ซ้าย ${await lt.inputValue()}`);
+      await markEvidence(expected(rt, 'ขวา 12.5 mm ยังอยู่'), expected(lt, 'ซ้าย 15 mm ยังอยู่'));
+    });
 
     say('สรุป', Object.entries(results).map(([k, v]) => `${k}: ${v.status}${v.toast ? ` (${v.toast})` : ''}`).join(' | '));
-    expect(results['r1-as-reported']?.status, 'บันทึกตามภาพต้องสำเร็จหรือแจ้งชื่อช่องที่ผิด').toMatch(/^2/);
+    docRun.finish();
     finish();
   });
 });
+

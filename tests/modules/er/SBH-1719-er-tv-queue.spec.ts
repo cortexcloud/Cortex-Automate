@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { dismissToast, expectOk, fetchBoard, gotoErDashboard, waitForApi, type ErBoardEncounter, type ErVisit } from '../../../helpers/functions/er';
 import { cprButton, openCprForm, saveCprEvent } from '../../../helpers/functions/er-cpr';
 import { erListCell, erListRow, filterErListByHn, gotoErPatientList } from '../../../helpers/functions/er-list';
@@ -50,6 +51,29 @@ import { VITALS_NORMAL, gotoVisit } from '../../../mock-data/uat-play';
 // Retest 2 พ.ย. 2026 (ผู้ใช้ตอบ): SBH1719_ONLY=4,7,9,14,16 · TC-014 เปิดหน้า "ตั้งค่าข้อความจอคิว ER" (SBH-3117) อ่านอย่างเดียว ไม่กดบันทึก
 //   (แบบหาเมนู "ประกาศหน้าจอผู้ป่วย" ของรอบ 29 ต.ค. ใส่ SBH1719_OLD_MENU=1) · TC-016 กด "จบคิว" ของผู้ป่วย B (ของเรา) ที่กำลังเรียก แล้วดู "กรุณารอเรียกคิว"
 
+// รอบ 7 พ.ย. 2026 — Dev-X + SBH Prod ครบ 18 TC (ผู้ใช้ตอบ): ผู้ป่วย AUTO 6 ราย (A/B/C คัดกรอง ESI 3/4/5 + D/E/F เปิด Visit อย่างเดียว
+//   เรียกคิวให้ "เรียกแล้ว" เกิน 1 หน้าสำหรับ TC-010) · TC-017 ดูก่อนเรียกคิวแรก (คิวรีเซ็ตรายวัน) · TC-013 รุ่นใหม่ Tag กู้ชีพ = Banner
+//   (ข้อความจากหน้าตั้งค่า) แสดงเมื่อสวิตช์เปิด "หรือ" มี CPR → ปิดสวิตช์ชั่วคราว → Start / Stop CPR → เปิดคืน ·
+//   TC-014 พิมพ์ข้อความตาม Expected + บันทึก → ดูจอ → คืนข้อความเดิม · ท้ายเทสจบคิว AUTO ทุกราย + คืนค่าตั้งค่า (API) ถ้ายังไม่คืน
+// SBH Prod: SBH1719_KEEP ไม่มีผล (เทสนี้ไม่ปิด Visit เอง) → ปิด Visit ด้วย SBH1719_VISITS=… --grep "@SBH-1719-CLOSE"
+//   รัน: npm run card:prod -- --headed --grep "@SBH-1719( |$)" (ล้มกลางทาง = ทำต่อด้วย SBH1719_VISITS 6 ราย ไม่สร้างรายใหม่ — เพดาน 6)
+const SETTINGS_API = '/cortex-api/er/tv-queue/settings';
+const SETTINGS_MENU = /^(ตั้งค่าข้อความจอคิว ER|ประกาศหน้าจอผู้ป่วย)$/;
+const EXPECTED_TEXT = '📢 ขณะนี้มีผู้ป่วยฉุกเฉินจำนวนมาก การรักษาอาจล่าช้ากว่าปกติ ทีมงานดูแลตามความรุนแรงอาการอย่างเต็มที่ หากอาการท่านเปลี่ยนแปลง กรุณาแจ้งเจ้าหน้าที่ทันที ขออภัยในความไม่สะดวก';
+const OLD_TAG = 'กำลังกู้ชีพ · การรักษาอาจล่าช้า';
+const tvBanner = (tv: Page) => tvHeader(tv).locator('[class*="_resuscitation_"]');
+const bannerOnTv = async (tv: Page) => ((await tvBanner(tv).count()) ? ((await tvBanner(tv).first().innerText()) || '').trim() : null);
+type Settings = { enabled: boolean; text: string };
+async function apiSettings(page: Page, authorization: () => string, patch?: Settings): Promise<Settings> {
+  const res = await fetch(new URL(SETTINGS_API, page.url()), {
+    method: patch ? 'PATCH' : 'GET',
+    headers: { authorization: authorization(), ...(patch ? { 'content-type': 'application/json' } : {}) },
+    body: patch ? JSON.stringify(patch) : undefined,
+  });
+  if (!res.ok) throw new Error(`${patch ? 'PATCH' : 'GET'} ${SETTINGS_API} ได้ HTTP ${res.status}`);
+  return (await res.json()) as Settings;
+}
+
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const ISSUE: Record<number, string> = Object.fromEntries(Array.from({ length: 18 }, (_, i) => [i + 1, `SBH-${2981 + i}`]));
 const TC = (n: number) => `TC-${String(n).padStart(3, '0')} (${ISSUE[n]})`;
@@ -58,17 +82,17 @@ const PAGE_MS = 15_000;
 /** ตารางเทียบทับเฉพาะการ์ดฝั่งซ้าย (TC ที่ Expected อยู่ฝั่งขวา) */
 const NARROW = { side: 'left' as const, width: '730px', top: '130px' };
 
-type Patient = { key: 'A' | 'B' | 'C'; level: 3 | 4 | 5; urgency: string; color: string; visit?: ErVisit; fullName?: string; queue?: string };
+type Patient = { key: 'A' | 'B' | 'C' | 'D' | 'E' | 'F'; level: 0 | 3 | 4 | 5; urgency: string; color: string; visit?: ErVisit; fullName?: string; queue?: string };
 type BoardRow = ErBoardEncounter & { vn?: string; an?: string | null; queueExam?: { qDisplay?: string } | null };
 
-test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยและญาติ (dev-x)', () => {
+test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยและญาติ (dev-x / SBH Prod)', () => {
   test.describe.configure({ timeout: 2_700_000 });
 
   test(
     'TC-001…015: เรียกคิวผู้ป่วย AUTO 3 ราย (ESI 3 / 4 / 5) แล้วดูจอ TV — คิว · สี · ชื่อ mask · แบ่งหน้า · กู้ชีพ · ประกาศ · เต็มจอ',
     {
-      tag: ['@SBH-1719', ...Array.from({ length: 15 }, (_, i) => `@${ISSUE[i + 1]}`), `@${ISSUE[16]}`],
-      annotation: [linear('SBH-1719'), ...Array.from({ length: 16 }, (_, i) => linear(ISSUE[i + 1]))],
+      tag: ['@SBH-1719', ...Array.from({ length: 17 }, (_, i) => `@${ISSUE[i + 1]}`)],
+      annotation: [linear('SBH-1719'), ...Array.from({ length: 17 }, (_, i) => linear(ISSUE[i + 1]))],
     },
     async ({ page, browser }) => {
       const main = page.getByRole('main');
@@ -83,6 +107,11 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
         { key: 'C', level: 5, urgency: 'ไม่เร่งด่วน', color: 'เทา' },
       ];
       const [A, B, C] = patients;
+      // D/E/F: เปิด Visit อย่างเดียว เรียกคิวก่อน TC-010 ให้ "เรียกแล้ว" เกิน 1 หน้า (หน้าละ 4)
+      const extras: Patient[] = runs(10) ? (['D', 'E', 'F'] as const).map((key) => ({ key, level: 0, urgency: '-', color: '-' })) : [];
+      const everyone = [...patients, ...extras];
+      const calledByTest = new Set<Patient>();
+      let settingsBefore: Settings | undefined;
 
       // ---------- หน้าต่างจอ TV (ไม่มี session) ----------
       const tv = await openTvWindow(browser);
@@ -92,11 +121,14 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
       try {
         // ---------- เตรียมข้อมูล: ผู้ป่วย AUTO 3 ราย + คัดกรอง ESI 3 / 4 / 5 ----------
         await gotoErDashboard(page);
+        // SBH1719_ONLY = สร้างเฉพาะผู้ป่วยที่ TC ที่เลือกใช้ (รันซ้ำบางใบไม่ต้องสร้างครบ 3 ราย)
+        const NEED: Record<string, number[]> = { A: [1, 2, 3, 7, 8, 13], B: [4, 7, 8, 16], C: [5, 7, 8] };
         for (const [i, p] of patients.entries()) {
           if (reuse[i]?.length === 3) {
             p.visit = { hn: reuse[i][0], vn: reuse[i][1], en: reuse[i][2] };
             continue;
           }
+          if (only.length && !NEED[p.key].some(runs)) continue;
           await checkStep(page, `เตรียมข้อมูล ผู้ป่วย ${p.key}: เปิด Visit ER + คัดกรอง ESI ${p.level} (${p.urgency})`, async () => {
             const patient = newTestPatient(`TvQ${p.key}`);
             // หลังคัดกรองรายก่อน หน้าค้างที่หน้า Visit — ปุ่ม "+ คัดกรอง" อยู่บน Dashboard
@@ -104,7 +136,7 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
             p.visit = await registerAndOpenErVisit(page, patient);
             await expect(main.getByRole('heading', { name: 'คัดกรอง ER', exact: true }), 'หลังเปิด Visit ต้องอยู่หน้าคัดกรอง ER').toBeVisible({ timeout: 60_000 });
             await dismissToast(page, 'สร้าง Visit สำเร็จ');
-            await fillErTriageForm(page, { level: p.level, vitals: VITALS_NORMAL });
+            await fillErTriageForm(page, { level: p.level as 3 | 4 | 5, vitals: VITALS_NORMAL });
             await markEvidence(filled(erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' }), `ESI ${p.level}`), clicked(erTriageSaveButton(page)));
             await snapEvidence(page, `ก่อนกด — คัดกรอง ${p.key} ESI ${p.level}`);
             // บันทึกฟอร์มแล้วหน้าเว็บส่ง "ส่งเข้าโซน" (PATCH triage-result) ตามหลัง ~20 วิ — ไปหน้าอื่นก่อน = ผู้ป่วยค้างโซน Triage (triagedAt null)
@@ -114,16 +146,33 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
             await expectOk(await zoned, `ส่งเข้าโซน ${p.key} (${p.visit.en})`);
           });
         }
+        for (const [j, p] of extras.entries()) {
+          const i = patients.length + j;
+          if (reuse[i]?.length === 3) {
+            p.visit = { hn: reuse[i][0], vn: reuse[i][1], en: reuse[i][2] };
+            continue;
+          }
+          await checkStep(page, `เตรียมข้อมูล ผู้ป่วย ${p.key}: เปิด Visit ER (สำหรับคิว "เรียกแล้ว" ของ TC-010)`, async () => {
+            if (!page.url().includes('/er/')) await gotoErDashboard(page);
+            p.visit = await registerAndOpenErVisit(page, newTestPatient(`TvQ${p.key}`));
+            await expect(main.getByRole('heading', { name: 'คัดกรอง ER', exact: true }), 'หลังเปิด Visit ต้องอยู่หน้าคัดกรอง ER').toBeVisible({ timeout: 60_000 });
+            await dismissToast(page, 'สร้าง Visit สำเร็จ');
+          });
+        }
         // ชื่อเต็ม + เลขคิวจากบอร์ด (อ่านอย่างเดียว)
         const board = (await fetchBoard(page, authorization)) as BoardRow[];
-        for (const p of patients) {
+        for (const p of everyone) {
+          if (!p.visit) continue;
           const enc = board.find((e) => e.en === p.visit!.en);
           if (!enc) throw new Error(`ไม่เจอผู้ป่วย ${p.key} (${p.visit!.en}) บนบอร์ด ER`);
           p.fullName = [enc.patient?.firstName, enc.patient?.familyName].filter(Boolean).join(' ');
           p.queue = enc.queueExam?.qDisplay;
-          note(`ผู้ป่วย ${p.key}`, `${p.fullName} · ESI ${p.level} · HN ${p.visit!.hn} · ${p.visit!.vn} · ${p.visit!.en} · คิว ${p.queue ?? '-'}`);
+          note(`ผู้ป่วย ${p.key}`, `${p.fullName} · ${p.level ? `ESI ${p.level}` : 'ไม่คัดกรอง'} · HN ${p.visit!.hn} · ${p.visit!.vn} · ${p.visit!.en} · คิว ${p.queue ?? '-'}`);
         }
-        note('ใช้ผู้ป่วยเดิมรอบถัดไป', `SBH1719_VISITS=${patients.map((p) => `${p.visit!.hn},${p.visit!.vn},${p.visit!.en}`).join(';')}`);
+        note('ใช้ผู้ป่วยเดิมรอบถัดไป', `SBH1719_VISITS=${everyone.filter((p) => p.visit).map((p) => `${p.visit!.hn},${p.visit!.vn},${p.visit!.en}`).join(';')}`);
+        console.log(`    ใช้ผู้ป่วยเดิมรอบถัดไป: SBH1719_VISITS=${everyone.filter((p) => p.visit).map((p) => `${p.visit!.hn},${p.visit!.vn},${p.visit!.en}`).join(';')}`);
+        settingsBefore = await apiSettings(page, authorization);
+        note('ค่าตั้งค่าประกาศหน้าจอผู้ป่วยก่อนเทส (API)', `enabled ${settingsBefore.enabled} · "${settingsBefore.text}"`);
 
         /** เจ้าหน้าที่: รายการผู้ป่วย ER → กรอง HN → กด "เรียกคิว <เลขคิว>" → แจ้งเตือน "ส่งคิว … ไปยังจอ ER แล้ว" */
         const callQueue = async (n: number, p: Patient) => {
@@ -135,11 +184,12 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
             const button = row.getByRole('button', { name: /^เรียกคิว / });
             await expect(button, 'ต้องมีปุ่มเรียกคิว (สิทธิ์ queue-exam:call)').toBeVisible();
             p.queue = ((await button.getAttribute('aria-label')) ?? '').replace(/^เรียกคิว\s*/, '');
-            await markEvidence(expected(row, `ผู้ป่วย ${p.key} · ESI ${p.level}`), clicked(button, `เรียกคิว ${p.queue}`));
+            await markEvidence(expected(row, `ผู้ป่วย ${p.key}${p.level ? ` · ESI ${p.level}` : ''}`), clicked(button, `เรียกคิว ${p.queue}`));
             await snapEvidence(page, `ก่อนกด — เรียกคิว ${p.key}`);
             const called = waitForApi(page, 'POST', /\/cortex-api\/er\/encounters\/[^/]+\/queue-call$/, 30_000);
             await button.click();
             await expectOk(await called, `เรียกคิว ${p.queue}`);
+            calledByTest.add(p);
             const toast = page.getByText(`ส่งคิว ${p.queue} ไปยังจอ ER แล้ว`, { exact: true }).first();
             // toast ขึ้นช้าได้เกิน 10 วิหลัง API ตอบ (SBH-1026 · Retest 2 พ.ย. รอบ 2) — ผู้ใช้อนุมัติ 30 วิ
             await toast.waitFor({ state: 'visible', timeout: 30_000 });
@@ -177,6 +227,33 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
           });
         };
 
+        // ---------- TC-017 "ยังไม่มีคิวที่เรียกแล้ว" — ดูก่อนเรียกคิวแรก (คิวรีเซ็ตรายวัน · 7 พ.ย. ทั้ง 2 ระบบ calledCalls = 0) ----------
+        if (runs(17)) {
+          await startClip(tv, CLIP(17));
+          await screen.soft(`${TC(17)} ขั้น 2 จอ ER TV หัวข้อ "เรียกแล้ว" (ยังไม่มีการเรียกคิววันนี้): "0 คิว" + "ยังไม่มีคิวที่เรียกแล้ว"`, async () => {
+            await tv.bringToFront();
+            const api = await fetchTvBoard(tv);
+            note(`${TC(17)} ขั้น 1 API จอ TV`, `activeCall ${api.activeCall ? api.activeCall.queueNumber : 'null'} · calledCalls ${api.calledCalls.length} คิว`);
+            const stub = tvHistory(tv);
+            const count = stub.locator('[class*="_stubHeading_"] span').last();
+            const empty = stub.getByText('ยังไม่มีคิวที่เรียกแล้ว', { exact: true });
+            const countText = ((await count.textContent().catch(() => '')) ?? '').trim();
+            const emptyShown = await empty.isVisible();
+            const rows: CompareRow[] = [
+              { label: 'Pre-condition: คิวที่เรียกแล้ว (API)', values: ['0 คิว', `${api.calledCalls.length} คิว`], same: api.calledCalls.length === 0 },
+              { label: 'จำนวนใต้หัว "เรียกแล้ว"', values: ['0 คิว', countText || '(ไม่มี)'], same: countText === '0 คิว' },
+              { label: 'ข้อความ Empty state', values: ['ยังไม่มีคิวที่เรียกแล้ว', emptyShown ? 'ยังไม่มีคิวที่เรียกแล้ว' : 'ไม่แสดง'], same: emptyShown },
+            ];
+            await showCompareTable(tv, `${ISSUE[17]} ไม่มีคิวที่เรียกแล้ว`, ['Expected', 'จอ TV'], rows, { side: 'right' });
+            await markEvidence(expected(stub, emptyShown && countText === '0 คิว' ? '0 คิว + ยังไม่มีคิวที่เรียกแล้ว' : `0 คิว + ยังไม่มีคิวที่เรียกแล้ว · จริง: ${countText} ${emptyShown ? '' : '(ไม่มีข้อความ)'}`));
+            await snapEvidence(tv, 'ผล — ยังไม่มีคิวที่เรียกแล้ว');
+            await holdForClip(tv, 2_500);
+            await hideCompareTable(tv);
+            note(`${TC(17)} ผล`, rows.map((r) => `${r.label}: ${r.values[1]}`).join(' | '));
+            expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]}`), 'Expected: หัวข้อ "เรียกแล้ว" แสดง "0 คิว" และ "ยังไม่มีคิวที่เรียกแล้ว"').toEqual([]);
+          });
+        }
+
         // ---------- TC-001 แสดงคิวที่กำลังเรียก 1 คิว ----------
         if (runs(1) || runs(2) || runs(3)) {
           await startClip(tv, CLIP(1));
@@ -210,7 +287,11 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
               const right = await readTvPage(tvPatientsSection(tv));
               samples.push({ label: `วินาทีที่ ${at}`, values: [shown, `ซ้าย ${left.page}/${left.total} · ขวา ${right.page}/${right.total}`], same: shown === A.queue });
               if (k % 6 === 0) {
-                await markEvidence(expected(tvActiveNumber(tv), `วินาทีที่ ${at}: ${shown}`), expected(tvPageLabel(tvHistory(tv)), 'หน้าซ้าย'), expected(tvPageLabel(tvPatientsSection(tv)), 'หน้าขวา'));
+                // ป้าย "หน้า X / N" มีเฉพาะฝั่งที่เกิน 1 หน้า — ตีกรอบป้ายที่ไม่มีบนจอ = locator.evaluate ค้าง 20 วิ (รอบ 7 พ.ย. ฝั่งซ้ายยังมีคิวเดียว)
+                const labels = [];
+                if (left.total > 1) labels.push(expected(tvPageLabel(tvHistory(tv)), 'หน้าซ้าย'));
+                if (right.total > 1) labels.push(expected(tvPageLabel(tvPatientsSection(tv)), 'หน้าขวา'));
+                await markEvidence(expected(tvActiveNumber(tv), `วินาทีที่ ${at}: ${shown}`), ...labels);
                 await snapEvidence(tv, `ระหว่างรอ — วินาทีที่ ${at}`);
               }
               k++;
@@ -253,7 +334,8 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
             const sequential = rows.every((r, i) => r.seq === first + i);
             const statuses = rows.every((r) => r.status.length > 0 && !r.status.includes('\n'));
             const table: CompareRow[] = [
-              { label: 'คอลัมน์', values: ['ลำดับ · ชื่อ - สกุล · สถานะการรักษา', headers.join(' · ')], same: headers.join('|') === 'ลำดับ|ชื่อ - สกุล|สถานะการรักษา' },
+              // TC-006 รอบ dev-x ผู้ใช้จดในผล "(ให้มี 4 Column ได้)" — ยอมรับคอลัมน์ หมายเลขคิว เพิ่ม
+              { label: 'คอลัมน์', values: ['ลำดับ · ชื่อ - สกุล · สถานะการรักษา (มี หมายเลขคิว เพิ่มได้)', headers.join(' · ')], same: ['ลำดับ|ชื่อ - สกุล|สถานะการรักษา', 'ลำดับ|หมายเลขคิว|ชื่อ - สกุล|สถานะการรักษา'].includes(headers.join('|')) },
               { label: `ลำดับ (หน้า ${shownPage})`, values: ['เรียง 1, 2, 3, …', rows.map((r) => r.seq).join(', ')], same: sequential && (shownPage > 1 || first === 1) },
               { label: 'สถานะ 1 ค่าต่อแถว', values: ['มี 1 ค่า', [...new Set(rows.map((r) => r.status))].join(' / ')], same: statuses },
             ];
@@ -406,6 +488,15 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
           });
         };
         if (runs(10)) {
+          // Pre-condition: "เรียกแล้ว" เกิน 1 หน้า (หน้าละ 4) — เรียกคิวผู้ป่วย D / E / F ของเราเพิ่ม (ข้ามถ้ามีเกินอยู่แล้ว)
+          await startClip(page, `${CLIP(10)}-staff`);
+          for (const p of extras) {
+            if ((await readTvPage(tvHistory(tv))).total > 1) break;
+            await callQueue(10, p);
+            await waitActive(p.queue!);
+          }
+          await expect.poll(async () => (await readTvPage(tvHistory(tv))).total, { message: 'ฝั่ง "เรียกแล้ว" ต้องเกิน 1 หน้า', timeout: 30_000 }).toBeGreaterThan(1).catch(() => undefined);
+          await tv.bringToFront();
           await startClip(tv, CLIP(10));
           await checkPaging(10, 'ซ้าย (เรียกแล้ว)', tvHistory(tv), 'right');
         }
@@ -445,37 +536,123 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
           });
         }
 
-        // ---------- TC-013 Tag กำลังกู้ชีพ ----------
+        // ---------- หน้า "ประกาศหน้าจอผู้ป่วย" (ห้องฉุกเฉิน > ตั้งค่า) — ใช้กับ TC-013 / 014 ----------
+        const settingsMain = () => page.getByRole('main');
+        const settingsSwitch = () => settingsMain().getByRole('switch');
+        const settingsText = () => settingsMain().locator('textarea');
+        const settingsSave = () => settingsMain().getByRole('button', { name: 'บันทึก' });
+        const switchItem = () => settingsMain().locator('.ant-form-item').filter({ hasText: 'เปิดแสดงข้อความ' });
+        const textItem = () => settingsMain().locator('.ant-form-item').filter({ hasText: 'ข้อความสำหรับผู้ป่วย' });
+        const isOn = async () => (await settingsSwitch().getAttribute('aria-checked')) === 'true';
+        /** เปิดเมนู ห้องฉุกเฉิน > ตั้งค่า > ประกาศหน้าจอผู้ป่วย (snap = ถ่ายภาพก่อนกดเมนู) */
+        const openSettings = async (snap: boolean) => {
+          await page.bringToFront();
+          await hideCompareTable(page).catch(() => undefined);
+          await gotoErDashboard(page);
+          const expand = page.getByRole('button', { name: 'ขยายแถบนำทาง' });
+          if (await expand.isVisible()) await expand.click();
+          const er = page.getByRole('menuitem', { name: /^(\S+ )?ห้องฉุกเฉิน$/ });
+          const group = page.getByRole('menuitem', { name: /^(\S+ )?ตั้งค่า$/ }).first();
+          if (!(await group.isVisible())) await er.click();
+          await expect(group).toBeVisible();
+          const item = page.getByRole('menuitem', { name: SETTINGS_MENU });
+          if (!(await item.isVisible())) await group.click();
+          await expect(item, 'ใต้ ห้องฉุกเฉิน > ตั้งค่า ต้องมีเมนู ประกาศหน้าจอผู้ป่วย').toBeVisible();
+          const name = ((await item.innerText()) || '').trim();
+          if (snap) {
+            await markEvidence(clicked(item, name));
+            await snapEvidence(page, `ก่อนกด — เมนู ${name}`);
+          }
+          await item.click();
+          await expect(page).toHaveURL(/\/setting\/admin\/er-tv-queue/);
+          await expect(settingsSwitch()).toBeVisible({ timeout: 60_000 });
+          // ฟอร์มเติมค่าที่บันทึกไว้ตามหลัง (GET settings) — รอให้ช่องข้อความมีค่าก่อนอ่าน
+          await expect.poll(() => settingsText().inputValue(), { timeout: 15_000 }).not.toBe('').catch(() => undefined);
+          return name;
+        };
+        /** แก้ค่าในฟอร์ม + กดบันทึก → PATCH 200 + toast "บันทึกการตั้งค่าแล้ว" (evidence = ถ่ายก่อน / หลังกด) */
+        const applySettings = async (want: Partial<Settings>, evidence?: string) => {
+          if (want.text !== undefined && (await settingsText().inputValue()) !== want.text) await settingsText().fill(want.text);
+          if (want.enabled !== undefined && (await isOn()) !== want.enabled) await settingsSwitch().click();
+          if (await settingsSave().isDisabled()) return false;
+          await page.getByText('บันทึกการตั้งค่าแล้ว', { exact: true }).first().waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => undefined);
+          if (evidence) {
+            const marks = [clicked(settingsSave())];
+            if (want.text !== undefined) marks.unshift(filled(textItem(), want.text === EXPECTED_TEXT ? 'ข้อความตาม Expected' : 'ข้อความเดิม'));
+            if (want.enabled !== undefined) marks.unshift(filled(switchItem(), want.enabled ? 'เปิด' : 'ปิด'));
+            await markEvidence(...marks);
+            await snapEvidence(page, `ก่อนกด — ${evidence}`);
+          }
+          const saved = waitForApi(page, 'PATCH', SETTINGS_API, 30_000);
+          await settingsSave().click();
+          const res = await saved;
+          await expectOk(res, 'บันทึกการตั้งค่าประกาศหน้าจอผู้ป่วย');
+          const toast = page.getByText('บันทึกการตั้งค่าแล้ว', { exact: true }).first();
+          await toast.waitFor({ state: 'visible', timeout: 30_000 });
+          if (evidence) {
+            await toast.hover({ trial: true, timeout: 3_000 }).catch(() => undefined);
+            await markEvidence(alerted(toast), expected(switchItem(), (await isOn()) ? 'เปิด' : 'ปิด'));
+            await snapEvidence(page, `หลังกด — ${evidence}`);
+          }
+          note('บันทึกการตั้งค่า', `PATCH ${res.status()} → ${JSON.stringify(await res.json().catch(() => null))}`);
+          return true;
+        };
+        /** จอ TV: รอ Banner (null = ไม่มี) — จอดึงข้อมูลทุก 3 วินาที */
+        const waitBanner = (want: 'มี' | 'ไม่มี', timeout = 30_000) =>
+          expect.poll(async () => ((await bannerOnTv(tv)) ? 'มี' : 'ไม่มี'), { message: `จอ TV ต้อง${want} Banner`, timeout, intervals: [1_000] }).toBe(want);
+        const tvApiText = async () => {
+          const b = (await fetchTvBoard(tv)) as Awaited<ReturnType<typeof fetchTvBoard>> & { banner?: { show: boolean; text: string } };
+          return { b, text: `banner ${b.banner ? JSON.stringify(b.banner) : '(ไม่มี field banner)'} · isResuscitationActive ${b.isResuscitationActive}` };
+        };
+
+        // ---------- TC-013 กำลังกู้ชีพ — ผู้ใช้ตอบ 7 พ.ย.: ปิดสวิตช์ประกาศชั่วคราว → Start / Stop CPR → เปิดคืน ----------
         if (runs(13)) {
-          await startClip(tv, CLIP(13));
-          await checkStep(tv, `${TC(13)} ขั้น 1 เปิดจอ ER TV ค้างไว้ (ยังไม่มีการกู้ชีพ)`, async () => {
-            const board = await fetchTvBoard(tv);
-            note(`${TC(13)} ก่อนเริ่ม`, `isResuscitationActive = ${board.isResuscitationActive}`);
-            await expect(tvResuscitationTag(tv), 'ก่อนเริ่ม CPR ต้องยังไม่มี Tag กำลังกู้ชีพ').toHaveCount(0);
-            await markEvidence(expected(tvPatientsSection(tv).getByRole('heading', { name: 'ดูสถานะผู้ป่วยที่รักษาอยู่' }), 'ยังไม่มี Tag'), expected(tvHeader(tv), 'แถบหัวจอ'));
-            await snapEvidence(tv, 'ก่อนเริ่ม CPR — จอ TV');
-          });
           await startClip(page, `${CLIP(13)}-staff`);
-          const cprToast = page.getByText('บันทึก CPR progression แล้ว', { exact: true });
+          await startClip(tv, CLIP(13));
+          let switchedOff = false;
           let started = false;
+          let otherCpr = false;
+          const cprToast = page.getByText('บันทึก CPR progression แล้ว', { exact: true });
           try {
-            started = await staff.soft(`${TC(13)} ขั้น 2 เจ้าหน้าที่ ER: เปิด Visit ผู้ป่วย A > CPR Progression > Start CPR`, async () => {
-              await gotoVisit(page, A.visit!);
-              const form = await openCprForm(page);
-              const rhythm = form.getByRole('button', { name: 'VF', exact: true });
-              await rhythm.click();
-              await markEvidence(filled(rhythm, 'Rhythm'), clicked(cprButton(form, 'Start CPR')));
-              await snapEvidence(page, 'ก่อนกด — Start CPR');
-              await saveCprEvent(page, form, 'Start CPR', 'Start CPR');
-              if (await cprToast.first().isVisible()) {
-                await markEvidence(alerted(cprToast.first()));
-                await snapEvidence(page, 'หลังกด — Start CPR');
-              }
+            const ready = await staff.soft(`${TC(13)} เตรียม: ประกาศหน้าจอผู้ป่วย > ปิดสวิตช์ "เปิดแสดงข้อความ" ชั่วคราว (ให้เห็นผลของ CPR อย่างเดียว)`, async () => {
+              await openSettings(false);
+              if (await isOn()) switchedOff = await applySettings({ enabled: false }, 'ปิดสวิตช์ชั่วคราว');
+              await expect(settingsSwitch()).toHaveAttribute('aria-checked', 'false');
             });
+            await screen.soft(`${TC(13)} ขั้น 1 เปิดจอ ER TV ค้างไว้ (ยังไม่มีการกู้ชีพ — ไม่มี Banner)`, async () => {
+              await tv.bringToFront();
+              await waitBanner('ไม่มี', 20_000).catch(() => undefined);
+              const { b, text } = await tvApiText();
+              otherCpr = b.isResuscitationActive;
+              note(`${TC(13)} ก่อนเริ่ม CPR (API จอ TV)`, text);
+              const shown = await bannerOnTv(tv);
+              await markEvidence(expected(tvHeader(tv), shown ? `ไม่มี Banner · จริง: มี (CPR ของผู้ป่วยอื่นค้าง)` : 'ยังไม่มี Banner / Tag กู้ชีพ'));
+              await snapEvidence(tv, 'ก่อนเริ่ม CPR — จอ TV');
+              await holdForClip(tv, 1_500);
+              expect(shown, otherCpr ? 'ก่อนเริ่มมี CPR ของผู้ป่วยอื่นค้างอยู่ (isResuscitationActive = true) — แยกผลของ CPR ผู้ป่วย A ไม่ได้' : 'ก่อนเริ่ม CPR ต้องไม่มี Banner').toBeNull();
+            });
+            if (ready) {
+              started = await staff.soft(`${TC(13)} ขั้น 2 เจ้าหน้าที่ ER: เปิด Visit ผู้ป่วย A > CPR Progression > Start CPR`, async () => {
+                await page.bringToFront();
+                await gotoVisit(page, A.visit!);
+                const form = await openCprForm(page);
+                const rhythm = form.getByRole('button', { name: 'VF', exact: true });
+                await rhythm.click();
+                await markEvidence(filled(rhythm, 'Rhythm'), clicked(cprButton(form, 'Start CPR')));
+                await snapEvidence(page, 'ก่อนกด — Start CPR');
+                await saveCprEvent(page, form, 'Start CPR', 'Start CPR');
+                if (await cprToast.first().isVisible()) {
+                  await markEvidence(alerted(cprToast.first()));
+                  await snapEvidence(page, 'หลังกด — Start CPR');
+                }
+              });
+            }
             if (started) {
-              await screen.soft(`${TC(13)} ขั้น 3 จอ TV: Tag สีแดงพร้อมจุดกระพริบ "กำลังกู้ชีพ · การรักษาอาจล่าช้า" ต่อท้ายหัวข้อ "ดูสถานะผู้ป่วยที่รักษาอยู่"`, async () => {
-                const tag = tvResuscitationTag(tv);
-                await expect(tag, 'จอ TV ต้องขึ้น Tag กำลังกู้ชีพ').toBeVisible({ timeout: 30_000 });
+              await screen.soft(`${TC(13)} ขั้น 3 จอ TV: Tag สีแดงพร้อมจุดกระพริบ ขณะกำลังกู้ชีพ`, async () => {
+                await tv.bringToFront();
+                await waitBanner('มี').catch(() => undefined);
+                const tag = tvBanner(tv).first();
+                await expect(tag, 'จอ TV ต้องขึ้น Tag / Banner ขณะกำลังกู้ชีพ').toBeVisible({ timeout: 5_000 });
                 const info = await tag.evaluate((el) => {
                   const dot = el.querySelector('.ant-badge-status-dot') as HTMLElement | null;
                   const s = getComputedStyle(el);
@@ -491,106 +668,91 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
                     afterPatientsHeading: !!heading && (heading.parentElement?.contains(el) ?? false),
                   };
                 });
+                const text = ((await tag.innerText()) || '').trim();
+                const { text: api } = await tvApiText();
+                note(`${TC(13)} API จอ TV ขณะ CPR`, api);
                 const blinking = [info.dotAnimation, info.dotAfterAnimation].some((a) => a && a !== 'none');
                 const rows: CompareRow[] = [
-                  { label: 'ข้อความ', values: ['กำลังกู้ชีพ · การรักษาอาจล่าช้า', (await tag.innerText()).trim()], same: true },
-                  { label: 'สี Tag', values: ['แดง', `ตัวอักษร ${colorName(info.color)} ${toHex(info.color)} · พื้น ${toHex(info.background)}`], same: colorName(info.color) === 'แดง' },
+                  { label: 'ข้อความ', values: [OLD_TAG, text], same: text === OLD_TAG },
+                  { label: 'สี Tag', values: ['แดง', `ตัวอักษร ${colorName(info.color)} ${toHex(info.color)} · พื้น ${toHex(info.background)}`], same: colorName(info.color) === 'แดง' || colorName(info.background) === 'แดง' },
                   { label: 'จุดกระพริบ', values: ['มีจุด + กระพริบ', `${info.hasDot ? `มีจุด ${colorName(info.dotColor)}` : 'ไม่มีจุด'} · animation ${info.dotAnimation || '-'} / ::after ${info.dotAfterAnimation || '-'}`], same: info.hasDot && blinking },
                   { label: 'ตำแหน่ง', values: ['ต่อท้ายหัวข้อ "ดูสถานะผู้ป่วยที่รักษาอยู่"', info.afterPatientsHeading ? 'ต่อท้ายหัวข้อ' : info.inHeader ? 'แถบหัวจอ (ข้างชื่อโรงพยาบาล)' : 'ที่อื่น'], same: info.afterPatientsHeading },
                 ];
                 await showCompareTable(tv, `${ISSUE[13]} Tag กำลังกู้ชีพ`, ['Expected', 'จอ TV'], rows, { side: 'bottom' });
-                await markEvidence(expected(tag, 'Tag กำลังกู้ชีพ'), expected(tvPatientsSection(tv).getByRole('heading', { name: 'ดูสถานะผู้ป่วยที่รักษาอยู่' }), 'หัวข้อที่ Expected อ้าง'));
-                await snapEvidence(tv, 'ผล — Tag กำลังกู้ชีพ');
+                await markEvidence(expected(tag, rows.every((r) => r.same) ? 'Tag กำลังกู้ชีพ' : `Tag กู้ชีพ · จริง: Banner "${text.slice(0, 24)}…" ที่แถบหัวจอ`));
+                await snapEvidence(tv, 'ผล — Tag ขณะกู้ชีพ');
                 await holdForClip(tv, 3_000);
                 await hideCompareTable(tv);
                 note(`${TC(13)} ผล`, rows.map((r) => `${r.label}: ${r.values[1]}`).join(' | '));
-                expect(rows.filter((r) => !r.same).map((r) => `${r.label}: จอ ${r.values[1]} (Expected ${r.values[0]})`), 'Expected: Tag สีแดงพร้อมจุดกระพริบ ต่อท้ายหัวข้อ ดูสถานะผู้ป่วยที่รักษาอยู่').toEqual([]);
+                expect(rows.filter((r) => !r.same).map((r) => `${r.label}: จอ ${r.values[1]} (Expected ${r.values[0]})`), 'Expected: Tag สีแดงพร้อมจุดกระพริบ "กำลังกู้ชีพ · การรักษาอาจล่าช้า" ต่อท้ายหัวข้อ ดูสถานะผู้ป่วยที่รักษาอยู่').toEqual([]);
               });
             }
           } finally {
-            // คืนสภาพ: Stop CPR (จอ TV ของทั้งทีมต้องไม่ค้าง Tag)
+            // คืนสภาพ: Stop CPR → Banner หาย (ถ้าไม่มี CPR อื่น) → เปิดสวิตช์คืน
             if (started) {
-              await staff.soft('คืนสภาพหลัง TC-013: Stop CPR ผู้ป่วย A แล้ว Tag บนจอ TV ต้องหาย', async () => {
+              await staff.soft(`คืนสภาพหลัง TC-013: Stop CPR ผู้ป่วย A แล้ว Tag บนจอ TV ต้องหาย`, async () => {
+                await page.bringToFront();
                 const form = await openCprForm(page);
                 await markEvidence(clicked(cprButton(form, 'Stop CPR')));
                 await snapEvidence(page, 'ก่อนกด — Stop CPR');
                 await saveCprEvent(page, form, 'Stop CPR', 'Stop CPR');
-                await expect(tvResuscitationTag(tv), 'หลัง Stop CPR Tag ต้องหายจากจอ TV').toHaveCount(0, { timeout: 30_000 });
-                await markEvidence(expected(tvHeader(tv), 'Tag หายแล้ว'));
+                if (!otherCpr) await waitBanner('ไม่มี');
+                await markEvidence(expected(tvHeader(tv), otherCpr ? 'ยังมี CPR ของผู้ป่วยอื่น' : 'Tag หายแล้ว'));
                 await snapEvidence(tv, 'หลัง Stop CPR — จอ TV');
+              });
+            }
+            if (switchedOff) {
+              await staff.soft(`คืนสภาพหลัง TC-013: เปิดสวิตช์ "เปิดแสดงข้อความ" คืน`, async () => {
+                await openSettings(false);
+                await applySettings({ enabled: true }, 'เปิดสวิตช์คืน');
+                await waitBanner('มี');
               });
             }
           }
         }
 
-        // ---------- TC-014 Banner ประกาศ — Retest 2 พ.ย. 2026: เปิดหน้า "ตั้งค่าข้อความจอคิว ER" (SBH-3117) อ่านอย่างเดียว ไม่กดบันทึก ----------
+        // ---------- TC-014 Banner ประกาศ — ผู้ใช้ตอบ 7 พ.ย.: พิมพ์ข้อความตาม Expected + บันทึก → ดูจอ → คืนข้อความเดิม ----------
         if (runs(14) && !process.env.SBH1719_OLD_MENU) {
-          await startClip(tv, CLIP(14));
           await startClip(page, `${CLIP(14)}-staff`);
-          let saved: { enabled: boolean; text: string } | undefined;
-          await staff.soft(`${TC(14)} ขั้น 2 เจ้าหน้าที่ ER: ห้องฉุกเฉิน > ตั้งค่า > ตั้งค่าข้อความจอคิว ER (ไม่มีเมนู "ประกาศหน้าจอผู้ป่วย") — ดูว่าเปิดแสดงข้อความอยู่`, async () => {
-            await gotoErDashboard(page);
-            const expand = page.getByRole('button', { name: 'ขยายแถบนำทาง' });
-            if (await expand.isVisible()) await expand.click();
-            const er = page.getByRole('menuitem', { name: /^(\S+ )?ห้องฉุกเฉิน$/ });
-            const group = page.getByRole('menuitem', { name: /^(\S+ )?ตั้งค่า$/ }).first();
-            if (!(await group.isVisible())) await er.click();
-            await expect(group).toBeVisible();
-            const item = page.getByRole('menuitem', { name: 'ตั้งค่าข้อความจอคิว ER' });
-            if (!(await item.isVisible())) await group.click();
-            await expect(item, 'ใต้ ห้องฉุกเฉิน > ตั้งค่า ต้องมีเมนูตั้งค่าข้อความจอคิว ER').toBeVisible();
-            await markEvidence(clicked(item, 'ตั้งค่าข้อความจอคิว ER'));
-            await snapEvidence(page, 'ก่อนกด — เมนูตั้งค่าข้อความ');
-            await item.click();
-            await expect(page).toHaveURL(/\/setting\/admin\/er-tv-queue/);
-            const main = page.getByRole('main');
-            const sw = main.getByRole('switch');
-            await expect(sw).toBeVisible({ timeout: 60_000 });
-            await page.waitForTimeout(3_000);
-            // ค่าที่บันทึกไว้จริง (GET อ่านอย่างเดียว — หน้าตั้งค่าไม่โหลดข้อความเดิมมาแสดง บั๊ก SBH-3606)
-            // อ่านด้วย fetch ของ Node (page.request ได้ "Network.getResponseBody: No resource" ซ้ำ 2 รอบ — Retest 2 พ.ย.)
-            const res = await fetch(new URL('/cortex-api/er/tv-queue/settings', page.url()), { headers: { authorization: authorization() } });
-            expect(res.ok, `อ่านค่าตั้งค่าข้อความจอคิว ER ได้ HTTP ${res.status}`).toBe(true);
-            saved = (await res.json()) as { enabled: boolean; text: string };
-            const on = (await sw.getAttribute('aria-checked')) === 'true';
-            const shown = await main.locator('textarea').inputValue();
-            note(`${TC(14)} ตั้งค่าข้อความจอคิว ER`, `Switch ${on ? 'เปิด' : 'ปิด'} · ช่องข้อความ "${shown}" · ค่าที่บันทึก (API) enabled ${saved!.enabled} · "${saved!.text}"`);
-            const rows: CompareRow[] = [
-              { label: 'เมนู "ประกาศหน้าจอผู้ป่วย"', values: ['มี', 'ไม่มี (ใช้ "ตั้งค่าข้อความจอคิว ER" แทน)'], same: false },
-              { label: 'เปิดแสดงข้อความ', values: ['เปิด', on ? 'เปิด' : 'ปิด'], same: on },
-              { label: 'ช่องข้อความบนหน้า', values: ['ข้อความที่บันทึก', shown ? `"${shown}"` : 'ว่าง (หน้าไม่โหลดค่าเดิม — SBH-3606)'], same: !!shown },
-              { label: 'ค่าที่บันทึก (API)', values: ['enabled true + ข้อความ', `enabled ${saved!.enabled} · "${saved!.text}"`], same: saved!.enabled && !!saved!.text },
-            ];
-            await showCompareTable(page, `${ISSUE[14]} ตั้งค่าข้อความจอคิว`, ['Expected', 'หน้าจอ'], rows, { side: 'right' });
-            await markEvidence(
-              expected(main.locator('.ant-form-item').filter({ hasText: 'เปิดแสดงข้อความ' }), on ? 'เปิดอยู่' : 'เปิด · จริง: ปิด'),
-              expected(main.locator('.ant-form-item').filter({ hasText: 'ข้อความสำหรับผู้ป่วย' }), shown ? 'ข้อความ' : `ข้อความ · จริง: ช่องว่าง (API มีข้อความ)`),
-            );
-            await snapEvidence(page, 'ตั้งค่าข้อความ — เปิดอยู่');
-            await holdForClip(page, 2_500);
-            await hideCompareTable(page);
-            expect(on || saved!.enabled, 'ตั้งค่าข้อความจอคิว ER ต้องเปิดอยู่ (เทสนี้ไม่แก้ค่า)').toBe(true);
-          });
-          await screen.soft(`${TC(14)} ขั้น 3 จอ ER TV: ต้องแสดง Banner ประกาศ`, async () => {
-            await tv.bringToFront();
-            const banner = tvHeader(tv).locator('[class*="_resuscitation_"]');
-            // จอดึงข้อมูลทุก 3 วิ — รอ 15 วิให้ Banner ขึ้น (ถ้ามี)
-            await banner.first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
-            const shown = (await banner.count()) ? (await banner.first().innerText()).trim() : '';
-            const board = (await fetchTvBoard(tv)) as Awaited<ReturnType<typeof fetchTvBoard>> & { banner?: { show: boolean; text: string } };
-            const apiText = `banner ${board.banner ? JSON.stringify(board.banner) : '(ไม่มี field banner)'} · isPatientAnnouncementActive ${board.isPatientAnnouncementActive}`;
-            note(`${TC(14)} API จอ TV`, apiText);
-            const rows: CompareRow[] = [
-              { label: 'Banner บนจอ TV', values: ['แสดงข้อความประกาศ', shown || 'ไม่มี'], same: !!shown },
-              { label: 'API จอ TV', values: ['ส่ง banner.show = true', apiText], same: !!board.banner?.show },
-            ];
-            await showCompareTable(tv, `${ISSUE[14]} Banner ประกาศ`, ['Expected', 'จอ TV'], rows, NARROW);
-            await markEvidence(expected(tvHeader(tv), shown ? `Banner: ${shown.slice(0, 30)}` : 'มี Banner ประกาศ · จริง: ไม่มี'));
-            await snapEvidence(tv, 'ผล — Banner บนจอ TV');
-            await holdForClip(tv, 2_500);
-            await hideCompareTable(tv);
-            expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]}`), 'Expected: จอแสดง Banner ข้อความประกาศ').toEqual([]);
-          });
+          await startClip(tv, CLIP(14));
+          let changed = false;
+          try {
+            const set = await staff.soft(`${TC(14)} ขั้น 2 เจ้าหน้าที่ ER: เมนู "ประกาศหน้าจอผู้ป่วย" > เปิดประกาศ (ข้อความตาม Expected) > บันทึก`, async () => {
+              const menuName = await openSettings(true);
+              note(`${TC(14)} เมนู`, `ห้องฉุกเฉิน > ตั้งค่า > ${menuName} · หัวหน้า "${((await settingsMain().locator('h1, h2, h3, h4').first().innerText().catch(() => '')) || '').trim()}"`);
+              note(`${TC(14)} ค่าก่อนแก้ (หน้าจอ)`, `สวิตช์ ${(await isOn()) ? 'เปิด' : 'ปิด'} · "${await settingsText().inputValue()}"`);
+              changed = await applySettings({ enabled: true, text: EXPECTED_TEXT }, 'เปิดประกาศ ข้อความตาม Expected');
+              await expect(settingsSwitch()).toHaveAttribute('aria-checked', 'true');
+              await expect(settingsText()).toHaveValue(EXPECTED_TEXT);
+            });
+            await screen.soft(`${TC(14)} ขั้น 3 จอ ER TV: แสดง Banner ข้อความประกาศตาม Expected`, async () => {
+              await tv.bringToFront();
+              await expect.poll(() => bannerOnTv(tv), { timeout: 30_000, intervals: [1_000] }).toBe(EXPECTED_TEXT).catch(() => undefined);
+              const shown = (await bannerOnTv(tv)) ?? '';
+              const { text: api } = await tvApiText();
+              note(`${TC(14)} API จอ TV`, api);
+              const rows: CompareRow[] = [
+                { label: 'Banner บนจอ TV', values: ['แสดง', shown ? 'แสดง (แถบหัวจอ)' : 'ไม่มี'], same: !!shown },
+                { label: 'ข้อความ', values: [EXPECTED_TEXT, shown || '(ไม่มี)'], same: shown === EXPECTED_TEXT },
+              ];
+              await showCompareTable(tv, `${ISSUE[14]} Banner ประกาศ`, ['Expected', 'จอ TV'], rows, { side: 'bottom' });
+              await markEvidence(expected(tvBanner(tv).first(), shown === EXPECTED_TEXT ? 'Banner ข้อความตาม Expected' : `Banner ตาม Expected · จริง: ${shown ? 'ข้อความต่าง' : 'ไม่มี'}`));
+              await snapEvidence(tv, 'ผล — Banner ประกาศ');
+              await holdForClip(tv, 3_000);
+              await hideCompareTable(tv);
+              expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]}`), 'Expected: จอแสดง Banner ข้อความประกาศตาม Expected').toEqual([]);
+            });
+            if (!set) note(`${TC(14)}`, 'ขั้น 2 ไม่ผ่าน — ขั้น 3 ดูจอตามค่าที่มี');
+          } finally {
+            if (changed && settingsBefore) {
+              const before = settingsBefore;
+              await staff.soft(`คืนสภาพหลัง TC-014: คืนข้อความประกาศเดิม (สวิตช์ ${before.enabled ? 'เปิด' : 'ปิด'})`, async () => {
+                await openSettings(false);
+                await applySettings({ enabled: before.enabled, text: before.text }, 'คืนข้อความเดิม');
+                await expect.poll(() => bannerOnTv(tv), { timeout: 30_000, intervals: [1_000] }).toBe(before.enabled ? before.text : null);
+              });
+            }
+          }
         }
         // ---------- TC-014 แบบรอบ 29 ต.ค. (หาเมนู "ประกาศหน้าจอผู้ป่วย") — ใช้เมื่อใส่ SBH1719_OLD_MENU=1 ----------
         if (runs(14) && process.env.SBH1719_OLD_MENU) {
@@ -731,12 +893,60 @@ test.describe('SBH-1719 จอ ER TV สำหรับผู้ป่วยแ�
         screen.finish();
         if (staffError) throw staffError;
       } finally {
+        await startClip(page, 'after-test').catch(() => undefined);
         await hideCompareTable(tv).catch(() => undefined);
         await finishVideo(tv);
         await tv.context().close();
+        await hideCompareTable(page).catch(() => undefined);
+        // คืนค่าตั้งค่าประกาศหน้าจอผู้ป่วย ถ้ายังไม่ตรงค่าก่อนเทส (กันจอ TV จริงค้างข้อความ / สวิตช์ปิด)
+        if (settingsBefore) {
+          const before = settingsBefore;
+          const result = await (async () => {
+            const now = await apiSettings(page, authorization);
+            if (now.enabled === before.enabled && now.text === before.text) return 'ตรงค่าก่อนเทสแล้ว';
+            await apiSettings(page, authorization, before);
+            return `คืนค่าแล้ว (เดิม enabled ${now.enabled} · "${now.text.slice(0, 30)}…")`;
+          })().catch((error: Error) => `คืนค่าไม่สำเร็จ — ${error.message.split('\n')[0]}`);
+          note('หลังเทส: ตั้งค่าประกาศหน้าจอผู้ป่วย', result);
+          console.log(`    หลังเทส: ตั้งค่าประกาศหน้าจอผู้ป่วย: ${result}`);
+        }
+        // จบคิวผู้ป่วย AUTO ที่เทสเรียกทุกราย — ไม่ให้คิวทดสอบค้างบนจอ TV (Prod = จอจริงของห้องฉุกเฉิน)
+        for (const p of calledByTest) {
+          const result = await (async () => {
+            await gotoErPatientList(page);
+            await filterErListByHn(page, p.visit!.hn);
+            const row = erListRow(page, p.visit!.en);
+            await expect(row).toBeVisible({ timeout: 60_000 });
+            const cell = await erListCell(page, row, 'คิว');
+            const button = cell.getByRole('button', { name: `จบคิว ${p.queue}`, exact: true });
+            if (!(await button.isVisible().catch(() => false))) return `ไม่มีปุ่มจบคิว (${((await cell.innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim()})`;
+            const done = waitForApi(page, 'POST', /\/cortex-api\/er\/encounters\/[^/]+\/queue-complete$/, 30_000);
+            await button.click();
+            const confirm = page.locator('.ant-popconfirm-buttons .ant-btn-primary, .ant-modal-confirm-btns .ant-btn-primary').filter({ visible: true }).first();
+            if (await confirm.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)) await confirm.click();
+            await expectOk(await done, `จบคิว ${p.queue}`);
+            return 'จบคิวแล้ว';
+          })().catch((error: Error) => `จบคิวไม่สำเร็จ — ${error.message.split('\n')[0]}`);
+          note(`หลังเทส: ผู้ป่วย ${p.key} คิว ${p.queue}`, result);
+          console.log(`    หลังเทส: ผู้ป่วย ${p.key} คิว ${p.queue}: ${result}`);
+        }
       }
     },
   );
+
+  // ปิด Visit ผู้ป่วย AUTO ของ SBH-1719 ที่การเงิน (SBH Prod — ผู้ใช้ตอบ 7 พ.ย. 2026 "ปิด Visit ที่การเงินท้ายงาน")
+  test('ปิด Visit ผู้ป่วย AUTO ของ SBH-1719 ที่การเงิน (SBH1719_VISITS)', { tag: ['@SBH-1719-CLOSE'] }, async ({ page }) => {
+    const visits = (process.env.SBH1719_VISITS ?? '').split(';').filter(Boolean).map((v) => v.split(','));
+    test.skip(!visits.length, 'ต้องใส่ SBH1719_VISITS=<HN>,<VN>,<EN>;…');
+    for (const [hn, vn, en] of visits) {
+      const result = await closeVisitAtCashier(page, hn, vn).then(
+        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+        (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+      );
+      test.info().annotations.push({ type: 'ปิด Visit', description: `HN ${hn} · ${vn} · ${en}: ${result}` });
+      console.log(`    HN ${hn} · ${vn} · ${en}: ${result}`);
+    }
+  });
 
   test(
     'TC-018: ไม่มีผู้ป่วยบน ER Board (หลังปิด Visit ทั้ง Board) — จอ TV แสดง "0 ราย" และ "ไม่มีผู้ป่วยที่กำลังรับการรักษา"',

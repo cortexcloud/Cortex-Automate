@@ -104,6 +104,7 @@
 - ผลที่ต่างจาก dev-x: ER Summary ไม่มีส่วน GCS / MEWS / Suspect Fast Track (+ PE ของ Non-Trauma) · Primary Survey แสดงเฉพาะกลุ่ม D (ไม่มี A·B·C·E · D ไม่มี RTL) · แพ้ยาแสดง "(Anaphylaxis)" · Body chart ที่วาด + บันทึกฟอร์ม 200 แสดง "ไม่มีการบันทึก Body chart"
 - IPD Discharge (คืนเตียง) หน้าต่าง "ยืนยันการจำหน่ายผู้ป่วย" มีช่องบังคับ `data-testid` nurse-discharge-type / nurse-discharge-status — เลือกประเภทก่อน (เลือกแล้วช่องสถานะถูกล้าง) · ปุ่ม ⋮ ของแถว = `admission-bed-actions-<AN>` (แก้ใน `ipdDischarge` แล้ว) · ผู้ป่วยทดสอบของทีมที่ยังอยู่ใน ER ข้ามวันใช้ตรวจรูปแบบ "x วัน y ชม." แบบอ่านอย่างเดียวได้ (GET /er/dashboard/encounters?date= สถานะ current_in_er)
 - **ฟอร์ม CPR Progression บน Prod (7 พ.ย. 2026 · index-BkJczri0.js)**: `/cortex-form/sbh-er-cpr-progression-v1.js` Last-Modified 20 ต.ค. (132 KB) = รุ่นก่อน SBH-2530 — ไม่มี Post-CPR update (`post-box`) / Nurse note / ชิปยา / `restart-box` (dev-x รุ่น 2 พ.ย. 206 KB มีครบ) → เทส SBH-2530 / บั๊ก SBH-3284 ยังรันบน Prod ไม่ได้ · ตรวจซ้ำด้วย curl + grep `post-box` ก่อนสร้างผู้ป่วย (R153)
+  - **อัปเดต 8 พ.ย. 2026 (index-BVfsMIKN.js)**: ฟอร์มบน Prod = ไฟล์เดียวกับ dev-x (Last-Modified 7 พ.ย. 06:09 GMT · 211,971 byte · มี post-box / restart-box / drug-chip ครบ) → รัน SBH-2530 ผ่าน `playwright.sbh-prod.cards.config.ts` แล้ว (R172) · พฤติกรรมที่ต่างจาก dev-x เพราะ Prod ช้ากว่า: Start CPR บันทึกด้วยเวลาที่ค้างในช่องตั้งแต่เปิดฟอร์ม แต่ countdown / chip "+2 นาที" นับจากตอนกด Start → Cycle (+2 นาที) ได้ T+02:07 แทน T+02:00 (TC-021) · เวลาเริ่ม Cycle ถัดไป = เวลาที่บันทึกสำเร็จ (ช้ากว่าเวลาที่เลือก ~7 วิ · TC-002) · แผงประวัติการรักษา › แท็บ CPR Progression หมุนโหลด ~24 วิ (ตัดออกจากคลิป) · Vital Signs ของ Post-CPR update เข้าแถบสัญญาณชีพหัวผู้ป่วยแล้วแต่ไม่แสดงในแท็บประวัติ (บั๊ก SBH-3284 ยังพบ)
 
 ### Order Summary ปุ่มงานพยาบาล (SBH-3158) บน SBH Prod (7 พ.ย. 2026 · `index-BkJczri0.js` deploy 22:45 6 พ.ย.)
 
@@ -112,3 +113,34 @@
 - **Order Summary แยกการ์ด Lab ตามหมวด** (`ห้องปฏิบัติการ - Chemistry - วันนี้ - …` / `- Hematology - …`) — TC ที่ต้องการหลายแถวในตาราง Lab เดียวกันต้องสั่งหมวดเดียวกัน · Lab แต่ละตัวเกิดงานพยาบาลแยกกัน (หลอดต่างกัน)
 - แพทย์ผู้สั่งในงานพยาบาลแสดงเป็น ดร. วิชัย เอื้อเฟื้อ (แพทย์ตอนเปิด Visit) · บัญชี Nurse = "Nurse SBH" · หน้าต่างบันทึกเสร็จสิ้นตัวเลือก ทำโดย คนแรก = นาง พยาบาล 1 มานะ
 - ER Nurse Task List: งานที่รับแล้ว "กำลังทำ" ย้ายลงล่าง กลุ่มสลับที่หลังรับงาน
+
+### ER Physician Note / Trauma Exam Form บน SBH Prod (7 พ.ย. 2026 · `index-BkJczri0.js` · emr-form-artifacts 6 พ.ย. 22:58 · การ์ด SBH-2058 / 3839 — decisions R159)
+
+- หัว Chief Complaint เป็น **"Chief complaint general"** (dev-x: "Chief Complaint - General") — จับด้วย regex `/^Chief complaint(\s*-\s*|\s+)general$/i` + `filter({ visible: true })` (มี element ซ่อนชื่อเดียวกัน)
+- ชื่อแพทย์บัญชี Doctor บน Prod = "นาย กันตวิทย์ สวนทวี" (ไม่มี ดร.) — แถวรับทราบ Fast Track: "รับทราบ · นาย กันตวิทย์ สวนทวี · 07/11/2569 11:09" + ปุ่ม ถอนการตอบรับ
+- AVPU มีตัวเลือกหัว "เลือก AVPU / Choose AVPU" เพิ่ม (6 ตัว) · Diagnosis general มี * (บังคับ) ต้องเลือกก่อนบันทึกฟอร์มแพทย์ · `diagnosis-onset-general-v2.js` มีบน Prod (dev-x 404)
+- **บันทึกโรคประจำตัว (Underlying Disease) ไม่ได้**: กด บันทึก ของส่วน → `mutation UpsertUnderlyingDisease` 400 `Cannot query field "clinicallyRecognisedAt" on type "UnderlyingDisease"` · หน้าจอขึ้นข้อความแดง "ไม่สามารถอัปเดตโรคประจำตัวได้" แถวค้างชั่วคราว โหลดใหม่หาย — helper คัดกรองที่ใส่ I10 จะ "ผ่าน" ทั้งที่ไม่บันทึก
+- ฟอร์มคัดกรองครั้งแรกบน Prod ขึ้น "เก็บร่างไม่สำเร็จ" ได้หลายครั้ง (สคริปต์กด ลองเก็บร่างอีกครั้ง แล้วบันทึกได้)
+
+### ฟอร์มคัดกรอง ER แบบ Trauma (SBH-1678) บน SBH Prod (7 พ.ย. 2026 · `index-BkJczri0.js` · decisions R163)
+
+- Suspect Fast Track Type มี 5 ตัวเลือกตาม AC เดิม: Not Suspect Fast Track · Stroke Fast Track · STEMI / ACS Fast Track · Sepsis Fast Track · Trauma Fast Track (dev-x: STEMI · STROKE · SEPSIS · HEAD TRAUMA · TRAUMA WITH SHOCK)
+- ผู้นำส่ง (`/er/registration-options` accompanyingPersons) ยังชุดเก่า 4 ตัว (none / relative / caregiver / ems_personnel) · เลือก EMS แล้ว**ไม่เติม**ผู้นำส่งให้ · ER Summary แสดง "เจ้าหน้าที่ EMS"
+- ไม่เลือกระดับความเร่งด่วน: ปุ่มบันทึก**กดได้** (dev-x disabled + tooltip) → กดแล้วขึ้นข้อความแดงใต้ช่อง "กรุณาระบุ ระดับความเร่งด่วน" + "กรุณาระบุ โซน" ไม่บันทึก (triage-assessments = 0)
+- RTS คำนวณตามสูตร ทศนิยม 2 ตำแหน่ง + ช่อง GCS / Systolic BP / RR แล้ว (ตัวแก้ SBH-3355 อยู่ใน chunk `PatientEMarDispenseSummary-*.js` — grep `er-rts-result` / `0.9368`)
+- บันทึก U/D ในฟอร์มคัดกรองได้ 400 (POST graphql) + ข้อความแดง "ไม่สามารถอัปเดตโรคประจำตัวได้" — แถวค้างบนจอ ต้องตรวจข้อความแดง / response ไม่ใช่แถว (ข้อความอยู่นอก section ที่จับด้วยหัว Underlying Disease)
+- บันทึกคัดกรองแต่ละครั้งขึ้น "เก็บร่างไม่สำเร็จ" 3–4 ครั้ง (กด ลองเก็บร่างอีกครั้ง แล้วบันทึกได้) · แจ้งเตือนสำเร็จมุมขวาบนบังชิปโซน "Isolation n" บน Patient banner → ปิด `.ant-notification-notice-close` ก่อนตีกรอบ
+- เลือกระดับ 5 ระบบขึ้น "แนะนำ: Isolation 1" แต่คงโซนที่เลือกไว้ (Urgency) · กดโซนซ้ำเอาออกไม่ได้ (TC-039 ถือว่าผ่านตาม R75)
+- ลงทะเบียนผู้ป่วยแล้วหน้าต่างเปิด Visit ไม่ขึ้นได้ (HN 6904824) — รันใหม่ด้วยผู้ป่วยใหม่
+
+### SBH Prod 8 พ.ย. 2026 17:09 — U/D บันทึกได้แล้ว (index-BVfsMIKN.js · deploy 16:43)
+
+- บั๊ก SBH-3928 (UpsertUnderlyingDisease 400 `clinicallyRecognisedAt`) แก้แล้วด้วย PR cortex-ui#2765 — บันทึก U/D ในฟอร์มคัดกรอง ER ได้ 200 · ข้อความเขียว "บันทึกโรคประจำตัวแล้ว" · U/D ที่แถบผู้ป่วยขึ้นทันที → ข้อความเรื่อง 400 ด้านบนใช้กับไฟล์แอปก่อน 16:43 เท่านั้น
+- หลังบันทึก U/D แล้วกดบันทึกคัดกรอง ยังขึ้นแถบเหลือง "ร่างถูกแก้ไขจากที่อื่น…" + "เก็บร่างไม่สำเร็จ" หลายครั้งก่อนสำเร็จ (~40 วิ) — helper กด ลองเก็บร่างอีกครั้ง ให้เอง
+
+### SBH Prod 8 พ.ย. 2026 19:00–19:20 (index-BVfsMIKN.js) — U/D ตัวที่ 2 · ประวัติทางการแพทย์ · ฟอร์มแพทย์
+
+- **U/D ตัวที่ 2 บันทึกไม่ได้**: ผู้ป่วยที่มี U/D แล้ว → เพิ่ม / แก้ U/D แล้วกดบันทึกของส่วน → `UpsertUnderlyingDisease` ตอบ 200 แต่ body `underlying disease version conflict` (expectedVersionUid: null — query GetUnderlyingDisease ไม่ขอ version) · ข้อความแดง "ไม่สามารถอัปเดตโรคประจำตัวได้" · แถวค้างสร้างโดย "-" · โหลดหน้าใหม่ก็ไม่หาย → spec ที่ต้องการ U/D หลายรายการ ใส่ทุกโรค (และปรับ Inactive) ก่อนกดบันทึกครั้งเดียวกับผู้ป่วยที่ยังไม่มี U/D (ยังไม่ได้ลองว่าทำได้) · การ์ดบั๊ก SBH-3960
+- **เมนูซ้าย ประวัติทางการแพทย์ แครชเป็นบางครั้ง**: "Unexpected Application Error! … .filter is not a function" (5/9 ครั้ง · ครั้งที่แครช = เปิดหน้า Visit รอบเดียวแล้วกดเมนู · โหลดหน้า Visit ซ้ำก่อนกด = ไม่แครช · ไม่เกี่ยว cache) — helper ที่เปิดหน้านี้ให้เช็คข้อความแครชแล้วโหลดหน้าใหม่ · การ์ดบั๊ก SBH-3961 (รอบแครชแอปเรียก GetUnderlyingDiseaseSnapshotByHN ที่คืน object {versionUid, items})
+- **ER Physician Note ส่วน Diagnosis general มีช่องบังคับใหม่ "Doctor diagnosis note"** (ไม่กรอก = แจ้ง "Diagnosis general: บันทึกไม่สำเร็จ … Doctor diagnosis note is required" · กดบันทึกแล้วไม่มีคำขอ saves) — `fillNoteA` ใน spec SBH-2079 ยังไม่กรอก (ยังไม่แก้)
+- **8 พ.ย. 2026 (SBH-3896 · index-BVfsMIKN.js)**: ER Physician Note ส่วน "Diagnosis general" ไม่มีกล่อง "Diagnosis" ครอบรายการแล้ว (ตัวแก้ AC 1) — แถว `[data-dx-index="0"]` อยู่ใต้หัวโดยตรง · ช่องในแถว = ค้นหา ICD-10 * · Diagnosis * · Principal (placeholder ประเภท: Principal / Comorbid / Complication) · Confirm (Status: Provisional / Confirmed) · Severity (Mild / Moderate / Severe) · Onset (วันที่) · ปุ่ม `remove diagnosis` · `+ เพิ่มรายการ` — **ไม่มีช่อง Category** · ชื่อโซนฟอร์มคัดกรองรายเดียว = Resuscitation / Urgency / Isolation 1 / Isolation 2 / Observation (มี "ใช้ n") · ESI 4 → ป้าย "แนะนำ" ที่ Urgency + ข้อความ "แนะนำ: Urgency" · หน้า MC แถบ ส่งเข้าโซน / ปุ่มโซนฟอร์ม = Resuscitation / Urgency / Observation · ป้ายแถว DRAFT หลังเลือก ESI 4 = "Urgency" (ยังไม่เลือก = "ยังไม่ระบุโซน") · หลังกด Patient Card ผู้ป่วยยังไม่คัดกรอง ฟอร์มคัดกรองโหลดเกิน 30 วิ (ระบบเปิดแท็บ คัดกรอง ER เอง)

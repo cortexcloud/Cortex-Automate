@@ -595,6 +595,7 @@
 - Active bleeding / Pelvic hematoma at / Open pneumothorax at = DV_TEXT ไม่มีค่าสูงสุด
 - ผู้ป่วยที่คัดกรอง Non-Trauma: ฟอร์มแพทย์ไม่มีส่วน Primary Survey (ทั้ง Doctor และ user1) · ฟอร์มคัดกรองที่บันทึกแล้วฝั่งซ้ายแสดงแบบอ่านอย่างเดียว ไม่มีปุ่ม Trauma / Non-Trauma ให้สลับ
 - สเปก reproduce: `tests/modules/er/BUG-primary-survey-max10.spec.ts` (`@BUG-PS10` · env `BUGPS10_USE=HN,VN,EN` ใช้ผู้ป่วยเดิมด้วย user1)
+- **แก้แล้วบน SBH Prod (7 พ.ย. 2026 · Retest SBH-3893 ผ่าน → Done)**: ไฟล์ฟอร์ม Prod `Last-Modified` 6 พ.ย. 15:58 UTC — `right_pupil_size` / `left_pupil_size` เหลือ `range:{min:0,minOp:">="}` ทั้งตัวเลขและหน่วย mm · กรอก 23 / 45 · 12.5 / 15 บันทึกได้ 200 + toast "บันทึก ER Physician Note สำเร็จ" · dev-x ยังรุ่น 5 พ.ย. (max 10 ครบ 4 จุด) · สเปกเปลี่ยนเป็นเทส Retest `@SBH-3893` (env `BUGPS10_USE` / `BUGPS10_ROLE` / `BUGPS10_CLOSE` / `BUGPS10_KEEP`) · Prod 7 พ.ย. Diagnosis ฟอร์มแพทย์เป็นช่องบังคับ
 
 ### ประวัติการรักษา + Treatment Timeline บน SBH Prod (5 พ.ย. 2026 · ไฟล์แอป `index-Dtb4RIBo.js` v2.8.1 · locale er.json เหมือน dev-x ทุกคีย์ · การ์ด SBH-1038 — decisions R121)
 - หน้าประวัติการรักษา (เมนูซ้าย): แถบตัวกรอง `วันที่เริ่ม – วันที่สิ้นสุด` · select คลินิก / หอผู้ป่วย / โรค / แพทย์ · checkbox **OPD · IPD · ER** · การตรวจของฉัน · Clear (ชุดเดียวกันทั้งบริบท ER / OPD / IPD) · รายการซ้าย = `button[class*="_medication-history-item-clickable_"]` (badge `.ant-tag-solid` I rgb(19,194,194) · O rgb(250,173,20) · ER rgb(255,87,34) · บรรทัด 2 = สถานะ / โซน ("โซนแดง ER") / แพทย์ · `_medication-history-item-diagnosis_` = Dx) เรียงใหม่ → เก่า · ไม่มีแถบสีซ้าย / ESI ในแถว ER · แถว AN มี "จาก ER: <EN>" · แถว ER ที่ได้ AN มี "รับไว้ในโรงพยาบาล: <AN>"
@@ -620,3 +621,44 @@
 - คัดกรอง Trauma + Suspect Fast Track Type "Trauma Fast Track" บันทึกได้แล้ว (เดิม 422) แต่ ER Summary ช่องประเภทฉุกเฉินแสดง "Trauma · Trauma" · ส่วน slots-fast-track ไม่แสดง
 - ผู้ป่วย Admit ปิด Visit แล้ว ยัง `departedAt: null` → "ไม่ทราบเวลา" / "-" (SBH-3842 ข้อ 7 · PR cortex-api #3046 ผูกการ์ดแต่ยังไม่เห็นผลบน dev-x)
 - ช่วงนี้ฟอร์ม ER Physician Note / ER Trauma Exam เรียก `/emr-form-artifacts/diagnosis-onset-general-v2.js` → 404 (มี v1) = ส่วน Diagnosis ไม่ขึ้น บันทึกไม่ได้ (เช็คด้วย `curl -o /dev/null -w '%{http_code}'` ก่อนรันเทสที่ใช้ฟอร์มแพทย์)
+
+### ER Physician Note รุ่น 7 พ.ย. 2026 (dev-x · ไฟล์แอป `index-CgKmiuKR.js` · emr-form-artifacts 5 พ.ย. 11:47 · Retest SBH-3839)
+
+- ส่วน Chief Complaint เป็น **"Chief Complaint - General"**: ชิปอาการ (ปวดไหล่ คอ · ปวดแขน …) + textarea **ไม่มี placeholder** + Onset (datetime) / Duration — ไม่มี `textarea[placeholder="สรุปอาการและอื่น ๆ"]` แล้ว · ช่อง "ความคิดเห็น (ไม่บังคับ)" ของ **การรับทราบของแพทย์ › Fast Track** เป็น textarea ที่อยู่**ก่อน**ใน DOM → จับช่อง CC ด้วย `textarea:not([placeholder*="ความคิดเห็น"])` แรกของแผง (`note().cc` ใน SBH-2058 · `ccOf()` ใน SBH-3839)
+- MEWS ปุ่ม `?` (`MEWS scoring table`): กดแล้ว**ตาราง Parameter / Score band ขยายในการ์ด MEWS** (ไม่ใช่ popover / tooltip) — จับด้วย div ที่มี "Score band" + "AVPU" · ป้ายที่วางชิดขอบบนของตารางถูกขอบการ์ดตัด → ป้ายไว้ข้างปุ่ม ?
+- Physical examination: ช่อง System เป็นช่องพิมพ์ (placeholder "ระบุระบบ" · มี ▼ รายการแนะนำตอนโฟกัส) · ครบ 7 ระบบยังกด + เพิ่มรายการได้ (SBH-3839 ข้อ 6 หาย)
+- GCS: ป้าย Eye Opening (E) / Verbal Response (V) / Motor Response (M) ยังไม่มี * (SBH-3839 ข้อ 8)
+- RTS ในฟอร์มแพทย์แสดง "Revised Trauma Score - 7.84 คะแนน" (GCS 15 · SBP 120 · RR 20) — **ถูกต้อง** ผู้ใช้ยืนยันว่าแสดงทศนิยมตามสูตร ไม่ใช่ 8 (R158)
+- `diagnosis-onset-general-v2.js` ยัง 404 แต่บันทึกฟอร์มแพทย์ได้ (POST saves 200 หลังเลือก Diagnosis)
+
+### การ์ด RTS ฟอร์มคัดกรอง ER หลังแก้ SBH-3355 — dev-x 7 พ.ย. 2026 · ไฟล์แอป `index-CgKmiuKR.js` (ไฟล์ย่อย deploy 6 พ.ย. 08:08 UTC)
+- ฟอร์มคัดกรอง (พยาบาล) ใช้การ์ด RTS ตัวเดียวกับฟอร์มแพทย์แล้ว: แถว `GCS <n> · Systolic BP <n> · RR <n>` (ยังไม่กรอก = "-") + แถบผล `data-testid=er-rts-result`
+  ครบ = "Revised Trauma Score - 7.84 คะแนน" พื้นเขียว rgb(246,255,237) · ไม่ครบ = "Incomplete - GCS, SBP, RR" (เฉพาะรายการที่ขาด) พื้นเทา rgba(0,0,0,0.04) · locale `physicianRtsWeightedPoints` = "{{score}} คะแนน" (ไม่ใช่ Points)
+- สูตรในโค้ด (`useErLegacyCompositions-*.js`): GCS ≥13=4 · 9–12=3 · 6–8=2 · 4–5=1 · <4=0 · SBP >89=4 · 76–89=3 · 50–75=2 · 1–49=1 · 0=0 · RR 10–29=4 · >29=3 · 6–9=2 · 1–5=1 · 0=0 → round((0.9368·G + 0.7326·S + 0.2908·R)×100)/100 แล้ว toFixed(2) (13/90/10 = 7.84 · 12/89/30 = 5.88 · 6/50/6 = 3.92 · 5/49/5 = 1.96 · 3/0/0 = 0.00)
+- การ์ด RTS ไม่ได้อยู่ใน `index-*.js` หรือ emr-form-artifacts — หาด้วยการไล่ไฟล์ย่อยจาก index (คำ `er-rts` / `.9368`) · ไฟล์ฟอร์มคัดกรอง `ErTriageForm-*.js` (layout Trauma = gcs · mews-general · er-rts · urgency)
+- แถบ "ร่างล่าสุดยังไม่ถูกเก็บถาวร อย่าปิดหน้าจนกว่าจะเก็บร่างสำเร็จ" โผล่ / หายเองหลังแก้ค่าในฟอร์ม → ฟอร์มเลื่อน ~30px (รอให้หายก่อนตีกรอบ)
+
+### ER Overview: ประวัติการคัดกรอง (ดู / แก้ไข) + ER Physician Note ช่องบังคับ — SBH Prod 7 พ.ย. 2026 (index-BkJczri0.js · หลังแก้ SBH-3837)
+- **ดู** รายการประวัติการคัดกรอง: ฟอร์มคัดกรองสลับเป็นโหมดอ่าน (ปุ่ม `กลับไปการคัดกรองปัจจุบัน`) · แสดง `โซน : <ชื่อโซน>` ใต้หัวรายการ · ระดับความเร่งด่วนเป็น **ชื่อระดับ** ในหัว "ระดับความเร่งด่วน › Triage level › Level <Resuscitation|Emergency|Urgency|…>" ไม่ใช่เลข ESI · ค่าอยู่ใน shadow DOM (อ่านด้วย deepText) · dev-x index-CgKmiuKR.js ยังไม่มีโซน / ระดับ
+- **แก้ไข** เวลาที่ประเมิน: PUT `…/triage-assessments/<uid encode %3A%3A>` ตอบ 200 + แจ้งเตือน "อัปเดตการประเมินแล้ว" (dev-x ยัง 400 "is not an anchor version uid")
+- ฟอร์มคัดกรองบน Prod: Clinical Summary มีช่อง `TRIAGE LEVEL` (ESI n) / `TRIAGE ZONE` · ไม่มี radiogroup โซนบนหน้า (อ่านโซนจาก TRIAGE ZONE)
+- **ER Physician Note (Non-Trauma) ช่องบังคับ**: หัว `Diagnosis general *` (img "จำเป็น") · กดบันทึกโดยไม่เลือก → ไม่ส่ง `saves` · กล่อง Section (ancestor ของ `.ant-collapse-item`) ขอบ `#ff4d4f` + ข้อความ `กรุณาระบุ Diagnosis general` **เหนือกล่อง** (ช่องค้นหายังขอบ #171920) · Section ที่พับขยายเอง · เลือก Diagnosis แล้ว error หายทันที · เลื่อนจอไปที่ Section แต่ Body chart (Asset Loading → ภาพ) ขยายทีหลังดันหลุดจอ · focus ค้างที่ปุ่มบันทึก
+- แถว Diagnosis: ปุ่มลบแถว `getByRole('button', { name: 'remove diagnosis' })` · ร่างเก็บ Diagnosis ข้ามการโหลดหน้า · แถบ "ร่างล่าสุดยังไม่ถูกเก็บถาวร…" ขึ้นชั่วครู่หลังกรอก
+
+### จอ ER TV รุ่น V2.10.0 — Banner กู้ชีพ = Banner ประกาศ (7 พ.ย. 2026 · Retest SBH-1719 · dev-x `index-uLyQVlHx.js` (จอ TV chunk `index-BjJpb73E.js`) · SBH Prod `index-BkJczri0.js`)
+- **ไม่มี Tag "กำลังกู้ชีพ · การรักษาอาจล่าช้า" แล้ว** — แถบหัวจอแสดง Banner (`header [class*=_resuscitation_]` สีแดง + จุดกระพริบ `.ant-badge-status-processing`) เมื่อ API `banner.show` (= สวิตช์ประกาศเปิด **หรือ** มี CPR) · ข้อความ = ข้อความในหน้าตั้งค่าเมื่อเปิดประกาศ · ปิดประกาศแต่มี CPR = ข้อความ Default ของ CPR "ขณะนี้มีผู้ป่วยฉุกเฉินจำนวนมาก การรักษาอาจล่าช้ากว่าปกติ ทีมงานดูแลตามความรุนแรงอาการอย่างเต็มที่ หากอาการท่านเปลี่ยนแปลง กรุณาแจ้งเจ้าหน้าที่ทันที ขออภัยในความไม่สะดวก" · ทั้ง 2 ระบบสวิตช์ประกาศเปิดอยู่ (ข้อความ Default สั้น) → จะพิสูจน์ผลของ CPR ต้องปิดสวิตช์ชั่วคราว · dev-x 7 พ.ย. มี CPR ของผู้ป่วยอื่นค้าง (`isResuscitationActive` true)
+- เมนู ห้องฉุกเฉิน > ตั้งค่า > **ประกาศหน้าจอผู้ป่วย** (หัวหน้ายังเป็น "ตั้งค่าข้อความจอคิว ER") · ฟอร์มเติมค่าที่บันทึกแล้ว · `GET/PATCH /cortex-api/er/tv-queue/settings` ด้วย token ของแอป (spec คืนค่าด้วย API ท้ายเทส)
+- Banner ยาว 2 บรรทัด: ชื่อโรงพยาบาล / แผนกแตกบรรทัดถูกทับ · นาฬิกาหาย · หัวจอสูงขึ้น ตารางเหลือ 4 แถวต่อหน้า · ป้าย "หน้า 1 / 2" ของ "เรียกแล้ว" ทับเลขคิว (ลงข้อสังเกตใน TC-013 / 014 · ยังไม่เปิดบั๊ก)
+- ไม่เร่งด่วน (ESI 5) เป็นสีเทาแล้ว (เดิมเขียว) · ผู้ป่วยไม่คัดกรอง = "ไม่ระบุระดับคัดกรอง" เทา · สถานะ `unknown` = "กำลังอัปเดตสถานะ" · คิว "เรียกแล้ว" รีเซ็ตรายวัน (ต้นวันว่าง = ทำ TC Empty state "ยังไม่มีคิวที่เรียกแล้ว" ได้) · ตารางผู้ป่วยมีคอลัมน์ หมายเลขคิว
+- จอหมุนหน้าทุก 15 วิ — อ่านค่าตาราง + ถ่ายภาพต้องอยู่ในรอบเดียวกัน (Prod 7 พ.ย. ตาราง TC-006 / 009 อ่านชนจังหวะหมุน)
+
+### แผงค่าแพทย์ (ค่าตรวจแพทย์) ของผู้ป่วย ER — SBH-3909 (SBH Prod 8 พ.ย. 2026 · index-BVfsMIKN.js)
+
+- หน้าผู้ป่วย ER › เมนูขวา "การดำเนินการดูแลผู้ป่วย" กลุ่ม **OPD** › `ค่าตรวจแพทย์` → เปิดแท็บ "ค่าตรวจแพทย์" (มี X) มีแผง `[class*="doctor-fee-form"]` หัว `h3` "ค่าแพทย์" · component เดียวกับแผงค่าแพทย์ OPD (locale namespace `common`)
+- หัวแผง (`[class*="rightSection"]`): ป้ายสถานะ `[class*="saveStateText"]` (ยังไม่ได้บันทึก / บันทึกแล้ว / อัปเดตไม่ได้) · ปุ่ม `บันทึก` (ไอคอน save) · ปุ่มปิด = button ที่มี `[aria-label="close"]` · แถบเมนูขวากางค้างบังปุ่มบันทึก → คลิกหัวแผงให้หุบ
+- **ป้ายสถานะ = ผลการกดบันทึกในหน้านั้นเท่านั้น** (`isSuccess ? saved : notSaved`) — เปิดแผงใหม่จึงเป็น "ยังไม่ได้บันทึก" เสมอแม้มีค่าที่บันทึกไว้ (ค่าการเรียกเก็บ / จำนวนเงินโหลดกลับมาจากรายการการเงิน)
+- ฟอร์ม: radio `collect` = `collectDoctorFee` "ต้องการเก็บ" (ตั้งต้น) / `notCollectDoctorFee` "ไม่ต้องการเก็บ" (เลือกแล้วช่องจำนวนเงินซ่อน) · ปุ่ม `คิดค่าธรรมเนียมแพทย์ตามสิทธิการรักษา` · InputNumber `#amount` (min 0 · ตั้งต้น 200) · help `#amount_help` "ราคาที่กำหนด 0 - 800" → เกินช่วง "จำนวนเงินมากกว่าราคาสูงสุด" + ปุ่มบันทึก disabled · ปุ่มลัด = `ant-tag` `[class*="option-tag"]` 200 / 400 / 600
+- บันทึก = graphql `UpsertDoctorFee` input `{amount, en, productCode, byCoverage}` → แจ้งเตือน "บันทึกข้อมูลสำเร็จ" · การเงินได้แถว `MED058 - ค่าตรวจแพทย์` (รอชำระ · สิทธิ UC) ตาม amount
+- รหัสสินค้ามาจาก**ตั้งค่าคลินิก** (`clinic.allowDoctorFee` · `doctorFeeProductCode` · `noDoctorFeeProductCode`) — คลินิก ห้องตรวจแผนกฉุกเฉิน บน Prod = `true · MED058 · null` → "ไม่ต้องการเก็บ" ปุ่มบันทึก disabled (ไม่มีรหัสไม่เก็บ)
+- พฤติกรรมที่เจอ (Prod): บันทึก 0 → API error "amount is required and must be greater than 0" + หัวแผง "อัปเดตไม่ได้" · กรอก -1 แล้วกดบันทึก → ช่องเด้งเป็น 0 แต่ส่ง amount ค่าเดิมของฟอร์ม (เช่น 800) แล้วขึ้น "บันทึกแล้ว"
+- หน้าการเงิน: `/cortex/cashier/patients/<HN>/accounts/<VN>/charge-items` ตาราง "รหัส - ชื่อ" (ใช้ `chargeItems` แบบ bizsim-opd.ts) · ปิด Visit ที่มีค่าแพทย์ค้างชำระได้ (dialog แจ้งคงเหลือ)

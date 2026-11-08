@@ -55,7 +55,7 @@ node .claude/skills/cortex-card-test/scripts/image-stats.mjs --clip "<คลิ�
 node .claude/skills/cortex-card-test/scripts/clip-sheet.mjs "<คลิป.webm>" ".cache/evidence-check/<ชื่อ>-sheet.png"
 ```
 
-**ห้าม**: แก้ / ลบ / เปลี่ยนชื่อไฟล์หลักฐาน · รันเทสใหม่ · เรียก Linear · เขียนไฟล์นอก `.cache/evidence-check/` · ตัดสิน "ผ่าน" โดยไม่ได้เปิดภาพ
+**ห้าม**: แก้ / ลบ / เปลี่ยนชื่อไฟล์หลักฐาน · รันเทสใหม่ · เรียก Linear · เขียนไฟล์นอก `.cache/evidence-check/` · ตัดสิน "ผ่าน" โดยไม่ได้เปิดภาพ · **ปิดโปรเซสด้วยชื่อ (`taskkill /IM …`) — ปิดได้เฉพาะ PID ที่ตัวเองเปิด** (7 พ.ย. 2026 รอบ SBH-1719 เคยปิด python.exe ทุกตัวรวมงานของผู้ใช้) · ใช้ python (ใช้ node แทน)
 
 ## ผลลัพธ์ที่ต้องคืน (ภาษาไทย)
 

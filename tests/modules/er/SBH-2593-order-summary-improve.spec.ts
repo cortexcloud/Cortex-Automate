@@ -493,27 +493,55 @@ async function runTc027(page: Page, visit: ErVisit, note: (t: string, d: string)
     const sign = btn(dup, 'Sign');
     await markEvidence(clicked(sign, 'Sign ยาซ้ำ'));
     await snapEvidence(page, 'ก่อนกด — Sign ยาซ้ำ');
-    const signed = page.waitForResponse((r) => /SignOPDOrders/.test(r.request().postData() ?? ''), { timeout: 15_000 }).then(() => 'signed', () => 'none');
+    // นับว่าลงนามเฉพาะ accepted=true (Prod 5 พ.ย.: SignOPDOrders ของ Order Form ตอบ accepted=false ก่อนหน้าต่าง Drug Alert ขึ้น)
+    const signedOk = async (r: { json(): Promise<unknown> }) => !!((await r.json().catch(() => ({}))) as { data?: { signOPDOrders?: { accepted?: boolean } } }).data?.signOPDOrders?.accepted;
+    const waitSigned = (ms: number) => page.waitForResponse((r) => /SignOPDOrders/.test(r.request().postData() ?? ''), { timeout: ms }).then(async (r) => ((await signedOk(r)) ? 'signed' : new Promise<string>(() => undefined)), () => 'none');
+    const signed = waitSigned(20_000);
     await sign.click();
     const dialog = page.getByRole('dialog').filter({ visible: true }).last();
-    const outcome = await Promise.race([dialog.waitFor({ state: 'visible', timeout: 15_000 }).then(() => 'dialog', () => 'none'), signed]);
+    const outcome = await Promise.race([dialog.waitFor({ state: 'visible', timeout: 20_000 }).then(() => 'dialog', () => 'none'), signed]);
     note(`${TC(27)} หลังกด Sign`, outcome === 'dialog' ? `หน้าต่าง: ${(await dialog.innerText()).replace(/\s+/g, ' ').slice(0, 250)}` : outcome === 'signed' ? 'ลงนามทันที ไม่มีหน้าต่างยืนยันยาซ้ำ' : 'ไม่มีอะไรเกิดขึ้น');
+    let summary = outcome === 'signed' ? 'ลงนามทันที' : outcome === 'dialog' ? 'ยืนยันก่อนลงนาม' : 'ไม่มีอะไรเกิดขึ้น';
     if (outcome === 'dialog') {
-      // ต่างจาก dev-x (ลงนามทันที) — เก็บภาพหน้าต่างไว้ แล้วปิดโดยไม่ลงนาม
+      // Retest SBH-3906 ข้อ 2 (7 พ.ย.): Sign จาก Order Summary ถามยืนยันยาซ้ำ → ใส่เหตุผลแล้วยืนยันให้ลงนามจนจบ (แบบเดียวกับ Order Form)
       await markEvidence(alerted(dialog, 'หน้าต่างตอน Sign ยาซ้ำ'));
       await snapEvidence(page, 'หน้าต่างตอน Sign ยาซ้ำ');
-      await dialog.getByRole('button', { name: /ยกเลิก|ปิด|กลับไปแก้ไข|Cancel/ }).first().click().catch(() => undefined);
+      if (await orderAlert(page).isVisible()) {
+        const after = waitSigned(30_000);
+        await confirmOrderAlert(page);
+        if ((await after) !== 'signed') summary = 'ยืนยันแล้วไม่ลงนาม';
+      } else {
+        await dialog.getByRole('button', { name: /ยืนยัน|ตกลง|สั่งต่อ/ }).first().click().catch(() => undefined);
+        await page.waitForTimeout(3_000);
+      }
     }
-    expect(outcome, 'Sign ยาซ้ำจาก Order Summary ต้องลงนามได้เหมือน OPD Order Form (ยืนยันยาซ้ำแล้วตอนเพิ่มลงตะกร้า)').toBe('signed');
     await toast(page, 'ส่งคำสั่งสำเร็จ').waitFor({ timeout: 15_000 }).catch(() => undefined);
     await showMedCard(page);
-    await markEvidence(alerted(toast(page, 'ส่งคำสั่งสำเร็จ')), expected(await cellOf(medCard(page), rowOf(page, MED.m6, idx), /^ลงนาม$/), 'ลงนามแล้ว (ยืนยันยาซ้ำตอนเพิ่มลงตะกร้า)'));
+    const state = await signedState(page, rowOf(page, MED.m6, idx));
+    await markEvidence(alerted(toast(page, 'ส่งคำสั่งสำเร็จ')), expected(await cellOf(medCard(page), rowOf(page, MED.m6, idx), /^ลงนาม$/), state === 'ลงนามแล้ว' ? 'ลงนามแล้ว' : `ลงนามแล้ว · จริง: ${state}`));
     await snapEvidence(page, 'หลังกด — ลงนามแล้ว');
     // เทียบปุ่ม Sign ของ OPD Order Form (= ส่งคำสั่ง ใน One Day Order) กับยาซ้ำแบบเดียวกัน
     const form = await orderFormSendCheck(page, visit, note);
     note(`${TC(27)} เทียบ ส่งคำสั่ง (Order Form)`, form);
+    const formMode = /ลงนามทันที/.test(form) ? 'ลงนามทันที' : /หน้าต่างยืนยัน/.test(form) ? 'ยืนยันก่อนลงนาม' : form;
+    await showOrderSummaryCompare(page, visit, [
+      { label: 'ตอนเพิ่มยาซ้ำลงตะกร้า', values: [alertAtAdd ? 'มี Drug Alert' : 'ไม่มี', 'มี Drug Alert'], same: !!alertAtAdd },
+      { label: 'Sign ยาซ้ำ (Order Summary)', values: [summary, formMode], same: summary === formMode },
+      { label: 'ส่งคำสั่งยาซ้ำ (Order Form)', values: [formMode, summary], same: summary === formMode },
+      { label: 'แถวยาซ้ำหลัง Sign (Order Summary)', values: [state, 'ลงนามแล้ว'], same: state === 'ลงนามแล้ว' },
+    ]);
     expect(alertAtAdd, 'ตอนเพิ่มยาซ้ำลงตะกร้าต้องมี Drug Alert ยืนยันยาซ้ำ').not.toBe('');
-    expect(form, 'ส่งคำสั่ง (OPD Order Form) ยาซ้ำต้องลงนามแบบเดียวกับ Sign ใน Order Summary').toMatch(/ลงนามทันที/);
+    expect(summary, 'Sign ยาซ้ำจาก Order Summary ต้องผ่านเงื่อนไขยาซ้ำแบบเดียวกับ ส่งคำสั่ง ใน OPD Order Form').toBe(formMode);
+    expect(state, 'แถวยาซ้ำต้องลงนามแล้วหลัง Sign').toBe('ลงนามแล้ว');
+    await hideCompareTable(page);
+}
+
+/** TC-027: กลับไป Order Summary แล้วขึ้นตารางเทียบ Order Summary กับ Order Form */
+async function showOrderSummaryCompare(page: Page, visit: ErVisit, rows: CompareRow[]) {
+  await openOrderSummary(page, visit);
+  await showMedCard(page);
+  await showCompareTable(page, 'TC-027 Sign ยาซ้ำ: Order Summary เทียบ Order Form', ['ผล', 'ต้องเหมือน'], rows, { side: 'bottom' });
+  await snapEvidence(page, 'เทียบ Order Summary กับ Order Form');
 }
 
 /** One Day Order: เพิ่ม med0000006 ซ้ำลงตะกร้า (Drug Alert ตอนเพิ่ม → ยืนยัน) · คืนข้อความ Drug Alert ที่เห็น ('' = ไม่มี) */
@@ -1519,6 +1547,11 @@ test.describe(`SBH-2593 Improve Order Summary ER (${SYSTEM})`, () => {
     await openOrderSummary(n, visit, false);
     await resolveMedNames(n, () => auth(), visit.en, note);
 
+    // Retest SBH-3906 ข้อ 1 (7 พ.ย. 2026): จดสถานะ HTTP ของคำขอรับทุกคำขอ (รอบ 5 พ.ย. 1 ใน 3 ตอบ 500)
+    const accepts: string[] = [];
+    n.on('response', (r) => {
+      if (/\/er\/nurse-tasks\/[^/]+\/accept/.test(r.url()) && r.request().method() === 'POST') accepts.push(`${r.url().match(/medication:([0-9a-f]{8})/)?.[1] ?? '?'}=${r.status()}`);
+    });
     await startClip(n, 'TC-018');
     await nr.soft(`${TC(18)} รับ Order ทั้งหมด → ยาทุกรายการที่รอรับเป็น กำลังให้ยา ไม่มีปุ่ม รับ Order เหลือ`, async () => {
       await showMedCard(n);
@@ -1527,14 +1560,27 @@ test.describe(`SBH-2593 Improve Order Summary ER (${SYSTEM})`, () => {
       await markEvidence(clicked(all));
       await snapEvidence(n, 'ก่อนกด — รับ Order ทั้งหมด');
       await all.click();
-      await snapToast(n, 'รับ Order แล้ว 3 รายการ', 'หลังกด — รับ Order ทั้งหมด');
-      await expect(medCard(n).getByRole('button', { name: 'รับ Order', exact: true }), 'ต้องไม่มีปุ่ม รับ Order เหลือในตารางยา').toHaveCount(0, { timeout: 20_000 });
+      const notice = n.locator('.ant-notification-notice, .ant-message-notice').first();
+      await notice.waitFor({ timeout: 20_000 }).catch(() => undefined);
+      await notice.hover({ trial: true, timeout: 3_000 }).catch(() => undefined);
+      const noticeText = (await n.locator('.ant-notification-notice, .ant-message-notice').allInnerTexts().catch(() => [] as string[])).join(' / ').replace(/\s+/g, ' ') || '(ไม่มีแจ้งเตือน)';
+      await markEvidence(alerted(notice));
+      await snapEvidence(n, 'หลังกด — รับ Order ทั้งหมด');
+      await expect(medCard(n).getByRole('button', { name: 'รับ Order', exact: true }), 'ต้องไม่มีปุ่ม รับ Order เหลือในตารางยา').toHaveCount(0, { timeout: 20_000 }).catch(() => undefined);
+      await n.waitForTimeout(2_000);
+      const left = await medCard(n).getByRole('button', { name: 'รับ Order', exact: true }).count();
       const after = await medTasks(n, () => auth(), visit.en);
-      const rows: CompareRow[] = ALL_MEDS.map((m) => {
-        const st = after.filter((t) => t.name === m.name).map((t) => TASK_STATUS[t.status]).join(' ');
-        return { label: m.code, values: [st, 'กำลังให้ยา'], same: st === 'กำลังให้ยา' };
-      });
-      await markEvidence(expected(medCard(n).locator('tbody'), 'ไม่มี รับ Order เหลือ'));
+      note(`${TC(18)} หลังกด`, `แจ้งเตือน: ${noticeText} · คำขอรับ: ${accepts.join(' ')} · ปุ่ม รับ Order ในตาราง ${left}`);
+      const rows: CompareRow[] = [
+        { label: 'คำขอรับ (สถานะ HTTP)', values: [accepts.join(' · ') || '(ไม่มี)', '200 ทุกคำขอ'], same: accepts.length === 3 && accepts.every((a) => a.endsWith('=200')) },
+        { label: 'แจ้งเตือน', values: [noticeText.slice(0, 60), 'รับ Order แล้ว 3 รายการ'], same: noticeText.includes('รับ Order แล้ว 3 รายการ') && !/ไม่สำเร็จ/.test(noticeText) },
+        ...ALL_MEDS.map((m) => {
+          const st = after.filter((t) => t.name === m.name).map((t) => TASK_STATUS[t.status]).join(' ');
+          return { label: m.code, values: [st, 'กำลังให้ยา'], same: st === 'กำลังให้ยา' };
+        }),
+        { label: 'ปุ่ม รับ Order ในตารางยา', values: [`${left}`, '0'], same: left === 0 },
+      ];
+      await markEvidence(expected(medCard(n).locator('tbody'), left === 0 ? 'ไม่มี รับ Order เหลือ' : `ไม่มี รับ Order เหลือ · จริง: เหลือ ${left}`));
       await showCompareTable(n, 'TC-018 สถานะงานยา (API)', ['หลังกด', 'Expected'], rows, { side: 'bottom' });
       for (const x of rows) expect(x.same, x.label).toBe(true);
       await hideCompareTable(n);

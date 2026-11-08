@@ -3,7 +3,7 @@ import { closeVisitAtCashier } from '../../../helpers/functions/cashier';
 import { dismissToast, gotoErDashboard, trackOpenedErVisits, type ErVisit } from '../../../helpers/functions/er';
 import { physicianNotePanel, physicianNoteSaveButton } from '../../../helpers/functions/er-physician-note';
 import { erTriagePanel, erTriageSaveButton, saveErTriageForm } from '../../../helpers/functions/er-triage';
-import { alerted, clearEvidenceMarks, clicked, expected, filled, hideCompareTable, holdForClip, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
+import { alerted, clearEvidenceMarks, clicked, expected, filled, hideCompareTable, holdForClip, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow, type EvidenceMark } from '../../../helpers/functions/evidence';
 import { finishVideo, restartVideo, startClip, trackVideo } from '../../../helpers/functions/fixtures';
 import { recordNotices } from '../../../helpers/functions/notices';
 import { newTestPatient } from '../../../helpers/functions/test-data';
@@ -38,6 +38,8 @@ const meta = (...tcs: number[]) => ({ tag: ['@SBH-3350', ...tcs.map((n) => `@${I
 
 const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
 const bad = (rows: CompareRow[]) => rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`);
+/** ชื่อหัว Section Chief Complaint (dev-x "Chief Complaint - General" · SBH Prod "Chief complaint general") — ตั้งจากหัวจริงหลังเปิด ER Physician Note */
+let CC = 'Chief Complaint - General';
 const TRIAGE_SAVED = 'กรอกข้อมูล คัดกรอง ER สำเร็จ';
 const SAVES = /\/cortex-api\/clinical-form-groups\/[^/]+\/saves$/;
 
@@ -266,6 +268,8 @@ const deepText = async (l: Locator) =>
  * ปุ่ม "ดู" ของประวัติการคัดกรอง (dev-x 3 พ.ย. 2026): ไม่เปิดหน้าต่าง — ฟอร์มคัดกรองบน Overview สลับเป็นโหมดอ่าน "ข้อมูลที่ผูกกับการประเมิน"
  * (ค่าเป็นข้อความ เช่น "Systolic 120 mm[Hg]") + ปุ่ม "← กลับไปการคัดกรองปัจจุบัน"
  */
+/** ชื่อระดับ ESI (เกณฑ์ MOPH: 1 Resuscitation · 2 Emergency · 3 Urgency · 4 Semi-urgency · 5 Non-urgency) */
+const ESI_NAME: Record<string, string> = { resuscitation: '1', emergency: '2', urgency: '3', urgent: '3', 'semi-urgency': '4', 'semi urgency': '4', semi: '4', 'less urgency': '4', 'non-urgency': '5', 'non urgency': '5', non: '5' };
 async function readTriageView(page: Page) {
   const back = page.getByRole('button', { name: /กลับไปการคัดกรองปัจจุบัน/ }).first();
   await expect(back, 'กด "ดู" แล้วต้องเข้าโหมดดูรายการคัดกรอง').toBeVisible({ timeout: 30_000 });
@@ -285,7 +289,9 @@ async function readTriageView(page: Page) {
     rr: num(/\bRR\s*(\d+)/),
     // โหมดดู: "Total score (1) 15" (เลขในวงเล็บคือลำดับการวัด)
     gcs: num(/Total score\s*(?:\(\d+\)\s*)?(\d{1,2})\b/i) || num(/GCS\s*:?\s*(\d{1,2})\b/i),
-    esi: num(/ESI\s*:?\s*([1-5])\b/) || num(/ระดับความเร่งด่วน[^0-9]{0,20}([1-5])\b/) || num(/Triage level[^0-9]{0,20}([1-5])\b/i),
+    esi: num(/ESI\s*:?\s*([1-5])\b/) || num(/ระดับความเร่งด่วน[^0-9]{0,20}([1-5])\b/) || num(/Triage level[^0-9]{0,20}([1-5])\b/i) || ESI_NAME[(text.match(/Triage level\s*Level\s*([A-Za-z]+(?:[ -][Uu]rgen\w*)?)/)?.[1] ?? '').toLowerCase()] || '',
+    /** ชื่อระดับที่โหมดดูแสดง (SBH Prod 7 พ.ย. 2026: "ระดับความเร่งด่วน Triage level Level Emergency") */
+    esiName: text.match(/Triage level\s*Level\s*([A-Za-z]+(?:[ -][Uu]rgen\w*)?)/)?.[1] ?? '',
   };
 }
 async function backToCurrentTriage(page: Page) {
@@ -359,6 +365,12 @@ const inView = (l: Locator) =>
     const r = el.getBoundingClientRect();
     return r.top >= 0 && r.bottom <= window.innerHeight && r.height > 0;
   }).catch(() => false);
+/** ตีกรอบเฉพาะตัวที่อยู่บนจอ (กันกรอบของ element ที่เลื่อนพ้นจอไปค้างขอบบน — Sub Agent 7 พ.ย. SBH Prod) */
+async function markVisible(...marks: EvidenceMark[]) {
+  const keep: EvidenceMark[] = [];
+  for (const m of marks) if (await inView(m.target.first())) keep.push(m);
+  if (keep.length) await markEvidence(...keep);
+}
 /** กรอบแดง / ข้อความ error ในส่วน Diagnosis */
 async function diagnosisError(p: Phys) {
   const dxInputCss = await css(p.dxInput).catch(() => null);
@@ -375,8 +387,31 @@ async function diagnosisError(p: Phys) {
     return found.join(' | ');
   }).catch(() => '');
   const invalid = await p.pn.locator('[aria-invalid="true"]').count();
-  return { border: dxInputCss ? hex(dxInputCss.borderTop) : '-', errText, invalid };
+  // SBH Prod 7 พ.ย. 2026 (หลังแก้ SBH-3837): error แสดงที่ระดับ Section — กล่องรอบ "Diagnosis general" ขอบแดง + ข้อความ "กรุณาระบุ Diagnosis general" เหนือกล่อง
+  const box = await p.item('Diagnosis general').evaluate((item) => {
+    document.querySelectorAll('[data-dx-error]').forEach((el) => el.removeAttribute('data-dx-error'));
+    const red = (c: string) => {
+      const m = c.match(/rgba?\((\d+), (\d+), (\d+)/);
+      return !!m && Number(m[1]) > 200 && Number(m[2]) < 130 && Number(m[3]) < 130;
+    };
+    let el: Element | null = item;
+    for (let i = 0; i < 5 && el; i++, el = el.parentElement) {
+      const s = getComputedStyle(el);
+      if (s.borderTopStyle !== 'none' && parseFloat(s.borderTopWidth) > 0 && red(s.borderTopColor)) {
+        el.setAttribute('data-dx-error', '1');
+        const msg = Array.from(el.querySelectorAll('*')).map((x) => Array.from(x.childNodes).filter((c) => c.nodeType === 3).map((c) => c.textContent?.trim()).join(' ').trim()).filter((t) => /กรุณา/.test(t));
+        return { color: s.borderTopColor, msg: msg.join(' | ') };
+      }
+    }
+    return null;
+  }).catch(() => null);
+  const sectionBorder = box ? hex(box.color) : '';
+  return { border: dxInputCss ? hex(dxInputCss.borderTop) : '-', errText: [errText, box?.msg].filter(Boolean).join(' | '), invalid, sectionBorder };
 }
+/** กรอบแดงที่ระบบวาดรอบ Section ที่มี error (ตั้งโดย diagnosisError) */
+const dxErrorBox = (doc: Page) => doc.locator('[data-dx-error="1"]').first();
+/** ข้อความ "กรุณาระบุ …" ในกล่อง Section ที่มี error (ตีกรอบที่ข้อความแทนกล่อง ไม่ให้ทับขอบแดงของระบบ) */
+const dxErrorMsg = (doc: Page) => dxErrorBox(doc).getByText(/^กรุณาระบุ/).first();
 
 // ------------------------------------------------------------------------------------------------
 test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () => {
@@ -401,6 +436,20 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       );
       test.info().annotations.push({ type: 'หลังเทส', description: `HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}` });
       console.log(`    หลังเทส: HN ${visit.hn} · ${visit.vn} · ${visit.en}: ${result}`);
+    }
+  });
+
+  // ปิด Visit ของผู้ป่วยที่รันด้วย SBH3350_KEEP=1 (Retest SBH-3837 บน SBH Prod 7 พ.ย. 2026) — SBH3350_CLOSE="HN,VN;HN,VN"
+  test('ปิด Visit ผู้ป่วยที่เก็บไว้ (SBH3350_CLOSE)', { tag: ['@SBH-3350-CLOSE'] }, async ({ page }) => {
+    const list = (process.env.SBH3350_CLOSE ?? '').split(';').map((x) => x.split(',')).filter((x) => x.length === 2 && x[0] && x[1]);
+    test.skip(!list.length, 'ไม่ได้ระบุ SBH3350_CLOSE');
+    for (const [hn, vn] of list) {
+      const result = await closeVisitAtCashier(page, hn, vn).then(
+        (closed) => (closed.result === 'closed' ? 'ปิด Visit ที่การเงินแล้ว' : 'Visit ปิดอยู่ก่อนแล้ว'),
+        (error: Error) => `ปิด Visit ไม่สำเร็จ — ${error.message.split('\n')[0]}`,
+      );
+      console.log(`    ปิด Visit: HN ${hn} · ${vn}: ${result}`);
+      test.info().annotations.push({ type: 'ปิด Visit', description: `HN ${hn} · ${vn}: ${result}` });
     }
   });
 
@@ -475,8 +524,16 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     }
     if (!chosen) throw new Error('ค้น Underlying Disease ไม่เจอตัวเลือก');
     say('Underlying Disease', `${chosen} (${chosen.length} ตัวอักษร)`);
-    await section.getByRole('button', { name: /บันทึก/ }).first().click();
+    const saveUd = section.getByRole('button', { name: /บันทึก/ }).first();
+    await saveUd.click();
     await expect(section.locator('table tbody tr').filter({ hasNotText: 'ไม่พบข้อมูล' }).first()).toBeVisible({ timeout: 20_000 });
+    // SBH Prod 7 พ.ย. 2026: แถวขึ้นในตารางก่อนบันทึกจริง (ปุ่มยังฟ้า "สร้างโดย -") → รอปุ่มเทา · ไม่เทาให้กดซ้ำ 1 ครั้ง
+    const saved = await expect(saveUd).toBeDisabled({ timeout: 15_000 }).then(() => true, () => false);
+    if (!saved) {
+      await saveUd.click().catch(() => undefined);
+      await expect(saveUd, 'ปุ่มบันทึก Underlying Disease ต้องเป็นสีเทาหลังบันทึก').toBeDisabled({ timeout: 20_000 });
+    }
+    say('Underlying Disease', 'บันทึกส่วน Underlying Disease แล้ว (ปุ่มเทา)');
   }
 
   const onlyFilter = () => (process.env.SBH3350_ONLY ? process.env.SBH3350_ONLY.split(',').filter(Boolean).map((s) => tcId(Number(s))) : undefined);
@@ -557,18 +614,38 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       await hideCompareTable(nurse);
       const item = history.locator('[class*="_triage-history-item_"]').first();
       const view = item.getByRole('button', { name: /ดู/ }).first();
+      // SBH-3837 ข้อ 3 (Retest 7 พ.ย.): โซนที่บันทึกในฟอร์มคัดกรองปัจจุบัน ไว้เทียบกับโหมดดู
+      // ช่อง TRIAGE ZONE ของ Clinical Summary (ฟอร์มคัดกรองบน Prod ไม่มี radiogroup โซนบนหน้า)
+      const zoneSaved = norm(
+        await nurse.getByRole('main').evaluate((root) => {
+          const label = [...root.querySelectorAll('*')].find((el) => el.children.length === 0 && /^TRIAGE ZONE$/i.test((el.textContent ?? '').trim()));
+          let box: Element | null | undefined = label?.parentElement;
+          for (let i = 0; i < 3 && box; i++, box = box.parentElement) {
+            const input = box.querySelector('input') as HTMLInputElement | null;
+            if (input?.value) return input.value;
+            const rest = (box.textContent ?? '').replace(/TRIAGE ZONE/i, '').trim();
+            if (rest && !/TRIAGE LEVEL/i.test(rest)) return rest;
+          }
+          return '';
+        }).catch(() => ''),
+      );
+      N.note('SBH-3837 โซนที่บันทึก', zoneSaved || '(อ่านไม่ได้)');
       await markEvidence(clicked(view, 'ดู'));
       await snapEvidence(nurse, 'ก่อนกด — ดู');
       await clearEvidenceMarks(nurse);
       await view.click();
       const r = await readTriageView(nurse);
+      const zoneInView = zoneSaved ? r.text.includes(zoneSaved) : /โซน/.test(r.text);
+      const noData = /ไม่มีข้อมูลที่บันทึกพร้อมการประเมินนี้/.test(r.text);
       N.note('TC-003 ข้อความโหมดดู', r.text.replace(/:host\{[^}]*\}\S*/g, '').replace(/\.[\w-]+\.svelte[^ ]*\{[^}]*\}/g, '').slice(0, 3000));
       const rows: CompareRow[] = [
-        { label: 'ESI', values: ['2', r.esi || '(ไม่แสดงในโหมดดู)'], same: r.esi === '2' },
+        { label: 'ESI', values: ['2', r.esi ? `${r.esi}${r.esiName ? ` (แสดงเป็น "${r.esiName}")` : ''}` : '(ไม่แสดงในโหมดดู)'], same: r.esi === '2' },
         { label: 'BP', values: ['120/80', `${r.sys || '-'}/${r.dia || '-'}`], same: r.sys === '120' && r.dia === '80' },
         { label: 'PR', values: ['80', r.pr || '-'], same: r.pr === '80' },
         { label: 'RR', values: ['14', r.rr || '-'], same: r.rr === '14' },
         { label: 'GCS', values: ['15', r.gcs || '-'], same: r.gcs === '15' },
+        { label: 'โซน (SBH-3837 ข้อ 3)', values: [zoneSaved || 'โซนที่บันทึก', zoneInView ? `แสดง${zoneSaved ? ` ${zoneSaved}` : ''}` : '(ไม่แสดงในโหมดดู)'], same: zoneInView },
+        { label: '"ไม่มีข้อมูลที่บันทึก…" (SBH-3837 ข้อ 3)', values: ['ไม่มี', noData ? 'มี' : 'ไม่มี'], same: !noData },
       ];
       await compareN(3, rows, 'right');
       await r.vitals.scrollIntoViewIfNeeded().catch(() => undefined);
@@ -578,7 +655,24 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       const total = r.view.getByText('Total score', { exact: false }).first();
       await total.evaluate((el) => el.scrollIntoView({ block: 'center' })).catch(() => undefined);
       await markEvidence(expected(total.locator('xpath=ancestor::*[contains(normalize-space(.),"15")][1]'), `GCS ${r.gcs || '-'}`));
-      expect(bad(rows)).toEqual([]);
+      // SBH-3837 ข้อ 3: โซน + ระดับความเร่งด่วนในโหมดดู
+      const zoneLine = r.view.getByText(/โซน\s*:/).first();
+      if (await zoneLine.count()) {
+        await snapEvidence(nurse, 'TC-003 โหมดดู GCS');
+        await clearEvidenceMarks(nurse);
+        await zoneLine.evaluate((el) => el.scrollIntoView({ block: 'center' })).catch(() => undefined);
+        await markEvidence(expected(zoneLine.locator('xpath=..'), `โซน ${zoneSaved || ''}`.trim()));
+        await snapEvidence(nurse, 'TC-003 โหมดดู โซน');
+      }
+      const level = r.view.getByText('Triage level', { exact: false }).first();
+      if (await level.count()) {
+        await clearEvidenceMarks(nurse);
+        await level.evaluate((el) => el.scrollIntoView({ block: 'center' })).catch(() => undefined);
+        await markEvidence(expected(level.locator('xpath=ancestor::*[contains(normalize-space(.),"Level ")][1]'), r.esiName ? `${r.esiName} = ESI ${r.esi || '?'}` : 'ระดับความเร่งด่วน'));
+      }
+      // แถว SBH-3837 เป็นของการ์ดบั๊ก (ไม่อยู่ใน Expected ของ TC-003) — แยกจดผล ไม่ให้กระทบ TC-003
+      N.note('SBH-3837 ข้อ 3 ผล', bad(rows.filter((x) => /ESI|BP|SBH-3837/.test(x.label))).join(' | ') || 'ผ่าน (ESI · โซน · Vital signs แสดง)');
+      expect(bad(rows.filter((x) => !/SBH-3837/.test(x.label)))).toEqual([]);
     });
     await backToCurrentTriage(nurse);
     await hideCompareTable(nurse);
@@ -604,7 +698,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       triageHeaders = await headersIn(t.panel);
       const ud = triageHeaders.find((h) => h.title === 'Underlying Disease');
       const others = triageHeaders.filter((h) => h.kind === 'section' && h.title !== 'Underlying Disease');
-      const ref = others.find((h) => h.title === 'Chief Complaint - General') ?? others[0];
+      const ref = others.find((h) => /^chief complaint/i.test(h.title)) ?? others[0];
       const formHead = await css(t.heading);
       const rows: CompareRow[] = [
         { label: 'หัว Underlying Disease', values: ['มี (หัว Section)', ud ? `${ud.kind} · อักษร ${font(ud.title_css)}` : 'ไม่พบ'], same: !!ud && ud.kind === 'section' },
@@ -768,6 +862,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     windows = windows.filter((w) => w !== nurse);
 
     // ---------------- หน้าต่าง Doctor ----------------
+    if (process.env.SBH3350_NO_DOCTOR) return; // ถ่ายซ้ำเฉพาะ TC ฝั่ง Nurse กับผู้ป่วยเดิม (ไม่บันทึก Physician Note เพิ่ม)
     const doc = await openRoleWindow(browser, 'Doctor');
     windows.push(doc);
     const D = runner(doc);
@@ -775,7 +870,8 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     await startClip(doc, 'prep-A-physician-note');
     await openFromBoard(doc, visit, D.note);
     let p = await waitPhysician(doc);
-    await test.step('เตรียมข้อมูล: แพทย์บันทึก ER Physician Note (Diagnosis K30) แล้วแก้ไขบันทึกซ้ำ 1 ครั้ง', async () => {
+    // SBH3350_A_NOTED=1 = ผู้ป่วย A รายเดิมบันทึก Physician Note 2 ฉบับไว้แล้ว (รันซ้ำบางข้อ ไม่บันทึกเพิ่ม)
+    if (!process.env.SBH3350_A_NOTED) await test.step('เตรียมข้อมูล: แพทย์บันทึก ER Physician Note (Diagnosis K30) แล้วแก้ไขบันทึกซ้ำ 1 ครั้ง', async () => {
       await p.pi.click();
       await p.pi.fill('บันทึกครั้งที่ 1 (SBH-3350)');
       await chooseDiagnosis(doc, p);
@@ -794,6 +890,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     await gotoVisit(doc, visit);
     p = await waitPhysician(doc);
     const phHeaders = await headersIn(p.pn);
+    CC = phHeaders.find((h) => /^chief complaint/i.test(h.title))?.title ?? CC;
 
     await startClip(doc, tcId(6));
     await D.soft(`${TC(6)} หัวฟอร์ม "ER Physician Note" #0d4ad9 หนา 700 พื้น #e8f4ff`, async () => {
@@ -812,7 +909,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     await D.soft(`${TC(8)} Verified Underlying Disease เป็นหัว Section ไม่ใช่ป้ายหัวฟอร์ม`, async () => {
       await hideCompareTable(doc);
       const ud = phHeaders.find((h) => h.title === 'Verified Underlying Disease');
-      const ref = phHeaders.find((h) => h.title === 'Chief Complaint - General') ?? phHeaders.find((h) => h.kind === 'section' && h.title !== 'Verified Underlying Disease');
+      const ref = phHeaders.find((h) => /^chief complaint/i.test(h.title)) ?? phHeaders.find((h) => h.kind === 'section' && h.title !== 'Verified Underlying Disease');
       const formHead = await css(p.heading);
       const rows: CompareRow[] = [
         { label: 'หัว Verified Underlying Disease', values: ['มี (หัว Section)', ud ? `${ud.kind} · อักษร ${font(ud.title_css)}` : 'ไม่พบ'], same: !!ud && ud.kind === 'section' },
@@ -824,8 +921,13 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       }
       await compareD(8, rows);
       const udHead = p.pn.locator('[class*="_section_"]').filter({ hasText: 'Verified Underlying Disease' }).first();
-      await udHead.scrollIntoViewIfNeeded();
-      await markEvidence(expected(udHead, 'หัว Verified Underlying Disease'));
+      await p.header(CC).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await doc.waitForTimeout(600);
+      const okFont = !!ud && !!ref && font(ref.title_css) === font(ud.title_css);
+      await markVisible(
+        expected(udHead, okFont ? 'เท่าหัว Section อื่น' : `เท่าหัวอื่น · จริง: ${ud ? `${ud.title_css.fontSize}` : '-'} (หัวอื่น ${ref ? ref.title_css.fontSize : '-'})`),
+        ...(ref && !okFont ? [expected(p.header(ref.title), `หัวอื่น ${ref.title_css.fontSize}`)] : []),
+      );
       expect(bad(rows)).toEqual([]);
     });
 
@@ -860,8 +962,12 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       const rows = sectionRows(phHeaders.filter((h) => h.kind === 'section'));
       await compareD(12, rows, 'bottom');
       const heads = p.pn.locator('.ant-collapse-header:not(:has(h4[class*="_group_"]))');
-      await heads.first().evaluate((el) => el.scrollIntoView({ block: "center" }));
-      await markEvidence(...(await heads.all()).slice(0, 3).map((h) => expected(h, 'หัว Section')));
+      await heads.first().evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await doc.waitForTimeout(600);
+      const secs = phHeaders.filter((h) => h.kind === 'section');
+      const sz = secs[0] ? `${secs[0].title_css.fontSize} ${secs[0].title_css.fontWeight}` : '-';
+      const lbl = bad(rows).length ? `14px 600 · จริง: ${sz}` : 'หัว Section แบบเดียวกัน';
+      await markVisible(...(await heads.all()).slice(0, 3).map((h, i) => expected(h, i === 0 ? lbl : '')));
       expect(bad(rows)).toEqual([]);
     });
 
@@ -893,23 +999,25 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     await startClip(doc, tcId(41));
     await D.soft(`${TC(41)} ลำดับ Section ของ ER Physician Note`, async () => {
       await hideCompareTable(doc);
-      const want = ['การจำแนกผู้ป่วย', 'Chief Complaint - General', 'Present illness general', 'Verified Underlying Disease', 'Vital signs', 'Body metric general', 'Glasgow Coma Scale', 'MEWS', 'Physical examination', 'Body chart', 'Diagnosis general', 'Note to nurse'];
+      const want = ['การจำแนกผู้ป่วย', CC, 'Present illness general', 'Verified Underlying Disease', 'Vital signs', 'Body metric general', 'Glasgow Coma Scale', 'MEWS', 'Physical examination', 'Body chart', 'Diagnosis general', 'Note to nurse'];
       const all = (await headersIn(p.pn)).map((h) => h.title);
       const pos = want.map((w) => all.indexOf(w));
-      const rows: CompareRow[] = want.map((w, i) => ({ label: `${i + 1}. ${w}`, values: [`ลำดับ ${i + 1}`, pos[i] < 0 ? 'ไม่พบ' : `หัวที่ ${pos[i] + 1}`], same: pos[i] >= 0 && (i === 0 || pos[i] > pos[i - 1]) }));
+      // ลำดับจริงเฉพาะหัวที่ AC ระบุ (ตัดหัวที่ไม่มีใน AC ออก) เทียบตำแหน่งตรงๆ
+      const order = all.filter((x) => want.includes(x));
+      const rows: CompareRow[] = want.map((w, i) => ({ label: `${i + 1}. ${w}`, values: [`ลำดับ ${i + 1}`, pos[i] < 0 ? 'ไม่พบ' : `ลำดับ ${order.indexOf(w) + 1} (หัวที่ ${pos[i] + 1})`], same: order[i] === w }));
+      const lab = (i: number) => (order[i] === want[i] ? `ลำดับ ${i + 1}` : `ลำดับ ${i + 1} · จริง: ${order.indexOf(want[i]) + 1}`);
       rows.push({ label: 'หัวทั้งหมดบนจอ (ตามลำดับ)', values: ['-', all.join(' → ').slice(0, 300)], same: true });
       D.note('TC-041 หัวทั้งหมด', all.join(' → '));
       await compareD(41, rows);
-      await markEvidence(expected(p.title('การจำแนกผู้ป่วย'), 'ลำดับ 1'), expected(p.title('Chief Complaint - General'), 'ลำดับ 2'), expected(p.title('Present illness general'), 'ลำดับ 3'));
-      await snapEvidence(doc, 'TC-041 ลำดับ 1–3');
-      await clearEvidenceMarks(doc);
-      for (const [a, b] of [[3, 5], [6, 8], [9, 11]] as const) {
-        await p.title(want[a]).evaluate((el) => el.scrollIntoView({ block: 'start' }));
-        await doc.waitForTimeout(600);
-        const marks = want.slice(a, b + 1).map((w, i) => expected(p.title(w), `ลำดับ ${a + i + 1}`));
-        await markEvidence(...marks);
-        if (b < 11) {
-          await snapEvidence(doc, `TC-041 ลำดับ ${a + 1}–${b + 1}`);
+      // ไล่ตามลำดับที่เห็นบนจอจริง ทีละ 3 หัว · ป้าย = ลำดับตาม AC (+ ลำดับจริงถ้าไม่ตรง) · ตีกรอบเฉพาะหัวที่อยู่บนจอ
+      for (let a = 0; a < order.length; a += 3) {
+        const chunk = order.slice(a, a + 3);
+        await p.title(chunk[0]).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await doc.waitForTimeout(800);
+        await markVisible(...chunk.map((w) => expected(p.title(w), lab(want.indexOf(w)))));
+        await holdForClip(doc, 2_000);
+        if (a + 3 < order.length) {
+          await snapEvidence(doc, `TC-041 จอจริง หัวที่ ${a + 1}–${a + chunk.length}`);
           await clearEvidenceMarks(doc);
         }
       }
@@ -936,7 +1044,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
         ];
         await compareD(f.n, rows);
         await p.header('Present illness general').evaluate((el) => el.scrollIntoView({ block: 'center' }));
-        await markEvidence(expected(p.header('Present illness general'), 'หัวมีแค่ชื่อ'), expected(p.header('Chief Complaint - General'), 'หัวมีแค่ชื่อ'));
+        await markEvidence(expected(p.header('Present illness general'), 'หัวมีแค่ชื่อ'), expected(p.header(CC), 'หัวมีแค่ชื่อ'));
         expect(bad(rows)).toEqual([]);
       });
     }
@@ -1009,7 +1117,9 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       const erGroupEl = p.pn.locator('h4[class*="_group_"]').filter({ hasText: /^Vital signs$/ }).first();
       await erGroupEl.evaluate((el) => el.scrollIntoView({ block: 'center' }));
       await doc.waitForTimeout(500);
-      await markEvidence(expected(erGroupEl, 'หัวกลุ่ม ER'), expected(p.header('Body metric general'), 'การ์ด Section ER'));
+      const erSz = erSection ? erSection.title_css.fontSize : '-';
+      await markVisible(expected(erGroupEl, 'หัวกลุ่ม ER'), expected(p.header('Body metric general'), `การ์ด Section ER · ชื่อ ${erSz}`));
+      await holdForClip(doc, 2_000);
       await snapEvidence(doc, 'TC-013 ER Physician Note');
       await clearEvidenceMarks(doc);
       const [hn, vn, en] = (process.env.SBH3350_OPD ?? '6932076,V69102227588,E69102232369').split(',');
@@ -1017,14 +1127,28 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       const opdTab = doc.getByRole('tab', { name: 'OPD Note' }).first();
       if (await opdTab.isVisible({ timeout: 60_000 }).catch(() => false)) await opdTab.click().catch(() => undefined);
       const opd = doc.getByRole('main');
-      await expect(opd.locator('.ant-collapse-header').first(), 'OPD Note ต้องมีหัว Section').toBeVisible({ timeout: 120_000 });
+      // SBH Prod 7 พ.ย. 2026: OPD Note ไม่ใช้ .ant-collapse-header (หัว "Present Illness" เป็นแถบของฟอร์มเอง) → รอข้อความหัวแทน
+      const opdPi = opd.getByText(/^Present Illness$/i).first();
+      await expect(opd.locator('.ant-collapse-header').first().or(opdPi), 'OPD Note ต้องมีหัว Section').toBeVisible({ timeout: 120_000 });
       await doc.waitForTimeout(4_000);
       await restartVideo(doc);
       const opdHeaders = await headersIn(opd);
       const opdGroup = opdHeaders.find((h) => h.kind === 'group');
-      const opdSection = opdHeaders.find((h) => h.kind === 'section' && /illness|Present/i.test(h.title)) ?? opdHeaders.find((h) => h.kind === 'section' && !!h.header_css && h.header_css.bg !== 'rgba(0, 0, 0, 0)');
+      let opdSection = opdHeaders.find((h) => h.kind === 'section' && /illness|Present/i.test(h.title)) ?? opdHeaders.find((h) => h.kind === 'section' && !!h.header_css && h.header_css.bg !== 'rgba(0, 0, 0, 0)');
+      if (!opdSection && (await opdPi.count())) {
+        // แถบหัว = element แม่ที่มีพื้นหลัง / เส้น · การ์ด = แม่ถัดขึ้นไปที่มีขอบ
+        const hdr = await opdPi.evaluate((el) => {
+          let h: Element | null = el.parentElement;
+          for (let i = 0; i < 4 && h; i++, h = h.parentElement) if (getComputedStyle(h).backgroundColor !== 'rgba(0, 0, 0, 0)') break;
+          h?.setAttribute('data-opd-head', '1');
+          let c: Element | null = h?.parentElement ?? null;
+          for (let i = 0; i < 4 && c; i++, c = c.parentElement) if (parseFloat(getComputedStyle(c).borderTopWidth) > 0) break;
+          c?.setAttribute('data-opd-card', '1');
+          return !!h;
+        });
+        if (hdr) opdSection = { kind: 'section', title: norm(await opdPi.innerText()), text: '', title_css: await css(opdPi), header_css: await css(opd.locator('[data-opd-head="1"]').first()), card_css: await css(opd.locator('[data-opd-card="1"]').first()).catch(() => null), buttons: [], y: 0, collapsed: null };
+      }
       const pair = (label: string, a: string | undefined, b: string | undefined): CompareRow => ({ label, values: [a ?? '-', b ?? '-'], same: !!a && a === b });
-      const fam = async (sel: string) => doc.evaluate((s) => { const el = document.querySelector(s); return el ? getComputedStyle(el).fontFamily.slice(0, 40) : '-'; }, sel);
       const rows: CompareRow[] = [
         pair('หัวกลุ่ม: สี ขนาด น้ำหนัก', erGroup && font(erGroup.title_css), opdGroup && font(opdGroup.title_css)),
         pair('หัวกลุ่ม: พื้น / เส้น', erGroup && `${hex(erGroup.title_css.bg)} / ${erGroup.title_css.borderBottomWidth}`, opdGroup && `${hex(opdGroup.title_css.bg)} / ${opdGroup.title_css.borderBottomWidth}`),
@@ -1032,14 +1156,15 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
         pair('หัว Section: พื้น', erSection && hex(erSection.header_css?.bg ?? ''), opdSection && hex(opdSection.header_css?.bg ?? '')),
         pair('หัว Section: เส้นใต้', erSection && `${hex(erSection.header_css?.borderBottom ?? '')}/${erSection.header_css?.borderBottomWidth}`, opdSection && `${hex(opdSection.header_css?.borderBottom ?? '')}/${opdSection.header_css?.borderBottomWidth}`),
         pair('การ์ด: ขอบ / มุม', erSection?.card_css ? `${hex(erSection.card_css.borderTop)} ${erSection.card_css.radius}` : undefined, opdSection?.card_css ? `${hex(opdSection.card_css.borderTop)} ${opdSection.card_css.radius}` : undefined),
-        { label: 'ฟอนต์ (OPD Note)', values: ['-', await fam('h4[class*="_group_"]')], same: true },
       ];
       D.note('TC-013 OPD Note', `HN ${hn} · ${vn} · หัวกลุ่ม "${opdGroup?.title ?? '-'}" · Section "${opdSection?.title ?? '-'}"`);
       await showCompareTable(doc, `${ISSUE[13]} TC-013 (ER Physician Note เทียบ OPD Note)`, ['ER Physician Note', 'OPD Note'], rows, { side: 'right' });
       const og = opd.locator('h4[class*="_group_"]').first();
-      const os = opdSection ? opd.locator('.ant-collapse-header').filter({ hasText: opdSection.title }).first() : opd.locator('.ant-collapse-header').first();
+      const os = (await opd.locator('[data-opd-head="1"]').count()) ? opd.locator('[data-opd-head="1"]').first() : opdSection ? opd.locator('.ant-collapse-header').filter({ hasText: opdSection.title }).first() : opd.locator('.ant-collapse-header').first();
       await os.scrollIntoViewIfNeeded().catch(() => undefined);
-      await markEvidence(...((await og.count()) ? [expected(og, 'หัวกลุ่ม OPD')] : []), expected(os, 'การ์ด Section OPD'));
+      const opdSz = opdSection ? opdSection.title_css.fontSize : '-';
+      await markVisible(...((await og.count()) ? [expected(og, 'หัวกลุ่ม OPD')] : []), expected(os, opdSz === erSz && (await og.count()) ? 'เหมือน ER' : `เหมือน ER · จริง: OPD ${opdSz} / ER ${erSz}${(await og.count()) ? '' : ' · OPD ไม่มีหัวกลุ่ม'}`));
+      await holdForClip(doc, 2_000);
       expect(bad(rows)).toEqual([]);
     });
 
@@ -1371,7 +1496,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
         { label: 'ป้ายแนะนำ: โซน (ต้นแบบ) → ESI 1', values: [zoneCss ? `${hex(zoneCss.color)} บน ${hex(zoneCss.bg)} ขอบ ${hex(zoneCss.borderTop)}` : '(ไม่พบป้ายโซน)', esiCss ? `${hex(esiCss.color)} บน ${hex(esiCss.bg)} ขอบ ${hex(esiCss.borderTop)}` : '-'], same: !!zoneCss && !!esiCss && zoneCss.color === esiCss.color && zoneCss.bg === esiCss.bg && zoneCss.borderTop === esiCss.borderTop },
       ];
       await compare(36, rows);
-      await markEvidence(expected(t.levels.locator('label').first(), 'ESI 1 ป้ายแนะนำ (มีขอบ)'), ...(zoneBadge ? [expected(zoneBadge.locator('xpath=..'), 'ป้ายแนะนำของโซน (ไม่มีขอบ)')] : []));
+      await markEvidence(expected(t.levels.locator('label').first(), esiCss && zoneCss && esiCss.borderTop !== zoneCss.borderTop ? `ป้ายแบบโซน · จริง: ขอบ ${hex(esiCss.borderTop)}` : 'ป้ายแนะนำแบบโซน'), ...(zoneBadge ? [expected(zoneBadge.locator('xpath=..'), 'ต้นแบบ: ป้ายแนะนำของโซน')] : []));
       await holdForClip(nurse, 1_500);
       expect(bad(rows)).toEqual([]);
     });
@@ -1524,8 +1649,41 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     await startClip(nurse, tcId(54));
     await N.soft(`${TC(54)} ผู้ป่วย E: Display ยาวในตาราง Underlying Disease ขึ้นบรรทัดใหม่ ไม่มี scroll แนวนอน`, async () => {
       await hideCompareTable(nurse);
+      if (!N.run(21)) {
+        // SBH3350_ONLY ข้าม TC-021 (ขั้นเปิดหน้าผู้ป่วย) → เปิดหน้าเอง
+        await openFromBoard(nurse, visit, N.note);
+        await expect(t.vital('RR').input).toBeVisible({ timeout: 120_000 });
+        await nurse.waitForTimeout(4_000);
+      }
       const table = t.panel.locator('[class*="_underlying-disease-table_"]').first();
       await table.scrollIntoViewIfNeeded();
+      // ผู้ป่วยรายเดิมที่ตอนเตรียมยังไม่ได้บันทึก Underlying Disease จริง (SBH Prod 7 พ.ย.) → เพิ่มที่ Overview ก่อนตรวจ
+      if (!(await table.locator('tbody tr').filter({ hasNotText: 'ไม่พบข้อมูล' }).count())) {
+        // จดผลคำสั่งบันทึก (Prod 7 พ.ย.: mutation UpsertUnderlyingDisease ตอบ 400 — SBH-3928)
+        const upsert = nurse.waitForResponse((r) => r.request().method() === 'POST' && /UpsertUnderlyingDisease/.test(r.request().postData() ?? ''), { timeout: 30_000 }).catch(() => null);
+        await addUnderlying(nurse, 'long', N.note).catch((e: Error) => N.note('TC-054 เพิ่ม Underlying Disease', e.message.split('\n')[0]));
+        const u = await upsert;
+        const uMsg = u ? `${u.status()} ${(await u.text().catch(() => '')).match(/"message":"([^"]+)"/)?.[1] ?? ''}` : 'ไม่มีคำขอ';
+        N.note('TC-054 คำสั่งบันทึก Underlying Disease', uMsg);
+        await gotoVisit(nurse, visit);
+        await expect(t.vital('RR').input).toBeVisible({ timeout: 120_000 });
+        await nurse.waitForTimeout(4_000);
+        const ok = await table.locator('tbody tr').filter({ hasNotText: 'ไม่พบข้อมูล' }).first().isVisible().catch(() => false);
+        if (!ok) {
+          await table.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+          await restartVideo(nurse);
+          const rowsE: CompareRow[] = [
+            { label: 'Pre-condition: Display ยาวในตาราง', values: ['มี 1 แถว', 'ไม่พบข้อมูลโรคประจำตัว'], same: false },
+            { label: 'คำสั่งบันทึก Underlying Disease', values: ['สำเร็จ', uMsg.replace(/\\"/g, '"').slice(0, 120)], same: false },
+          ];
+          await compare(54, rowsE, 'right');
+          await markEvidence(expected(table, 'Display ยาวขึ้นบรรทัดใหม่ · จริง: บันทึกไม่ได้ ตารางว่าง'));
+          await holdForClip(nurse, 2_000);
+          throw new Error(`บันทึก Underlying Disease ไม่ได้ (${uMsg.slice(0, 120)}) — ตารางว่าง`);
+        }
+        await table.scrollIntoViewIfNeeded();
+        await restartVideo(nurse);
+      }
       const cell = table.locator('tbody tr').filter({ hasNotText: 'ไม่พบข้อมูล' }).first().locator('td').first();
       const info = await cell.evaluate((td) => {
         const s = getComputedStyle(td);
@@ -1579,7 +1737,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     await D.soft(`${TC(37)} ชิปที่ยังไม่เลือก (Chief Complaint / Present illness) #1c67ff 12px พื้น #eef3ff`, async () => {
       const rows: CompareRow[] = [];
       const marks = [];
-      for (const title of ['Chief Complaint - General', 'Present illness general']) {
+      for (const title of [CC, 'Present illness general']) {
         const chips = chipsIn(title);
         const n = await chips.count();
         if (!n) {
@@ -1592,7 +1750,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
         marks.push(expected(first, 'ชิปที่ยังไม่เลือก'));
       }
       await compare(37, rows, 'left');
-      await p.header('Chief Complaint - General').evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      await p.header(CC).evaluate((el) => el.scrollIntoView({ block: 'center' }));
       await markEvidence(...marks, expected(p.header('Present illness general'), 'มีชิป · จริง: ไม่มีชิป'));
       expect(bad(rows)).toEqual([]);
     });
@@ -1602,7 +1760,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       await hideCompareTable(doc);
       const rows: CompareRow[] = [];
       const marks = [];
-      for (const title of ['Chief Complaint - General', 'Present illness general']) {
+      for (const title of [CC, 'Present illness general']) {
         const chips = chipsIn(title);
         if (!(await chips.count())) {
           rows.push({ label: `${title}: ชิป`, values: ['มีชิปตัวเลือก', '(ไม่มีชิป)'], same: false });
@@ -1619,7 +1777,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
         marks.push(clicked(chip, 'เลือกชิป'));
       }
       await compare(38, rows, 'left');
-      await p.header('Chief Complaint - General').scrollIntoViewIfNeeded();
+      await p.header(CC).scrollIntoViewIfNeeded();
       await markEvidence(...marks);
       expect(bad(rows)).toEqual([]);
     });
@@ -1627,13 +1785,30 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
 
     /** เริ่ม TC ของ UHP: โหลดหน้าใหม่ (ล้างค่าที่ยังไม่บันทึก) แล้วกรอก Present illness ไม่เลือก Diagnosis */
     const freshForm = async (n: number) => {
-      gotoVisit(doc, visit);
+      await gotoVisit(doc, visit);
       p = await waitPhysician(doc);
+      // ร่างเก็บ Diagnosis จากรอบก่อน (TC-051 เลือก K30) → ลบแถวออกก่อน · ยังค้าง = ห้ามกดบันทึก (กันบันทึกจริงบน Prod)
+      if (norm(await p.dxInput.inputValue().catch(() => ''))) {
+        const row = p.pn.locator('[data-dx-index="0"]').first();
+        await row.scrollIntoViewIfNeeded().catch(() => undefined);
+        await p.pn.getByRole('button', { name: 'remove diagnosis' }).first().click(); // ปุ่มถังขยะของแถว (Prod 7 พ.ย. 2026)
+        await doc.waitForTimeout(1_500);
+        if (!(await p.pn.locator('input[placeholder="Diagnosis"]').count())) {
+          await p.pn.getByText('เพิ่มรายการ', { exact: false }).first().click().catch(() => undefined);
+          await doc.waitForTimeout(1_000);
+        }
+        D.note(`${tcId(n)} ล้างร่าง`, 'ลบแถว Diagnosis ที่ค้างในร่างจากรอบก่อน');
+      }
+      const left = norm(await p.pn.locator('input[placeholder="Diagnosis"]').first().inputValue().catch(() => ''));
+      if (left) throw new Error(`ร่างยังมี Diagnosis "${left}" — ไม่กดบันทึก (กันบันทึกจริง)`);
       await restartVideo(doc);
       await p.pi.scrollIntoViewIfNeeded();
       await p.pi.click();
       await p.pi.fill(`${tcId(n)} กรอก Present illness ไม่เลือก Diagnosis`);
       await doc.waitForTimeout(1_500);
+      // แถบ "ร่างล่าสุดยังไม่ถูกเก็บถาวร…" ขึ้นแล้วหายเอง (เนื้อหาเลื่อน ~30px) → รอหายก่อนตีกรอบ (Sub Agent รอบ 2 · F4-02)
+      await expect(p.pn.getByText(/ร่างล่าสุดยังไม่ถูกเก็บถาวร/).first()).toBeHidden({ timeout: 15_000 }).catch(() => undefined);
+      await doc.waitForTimeout(500);
     };
     const scrollTop = () => p.pn.evaluate((el) => {
       let n: HTMLElement | null = el as HTMLElement;
@@ -1665,7 +1840,7 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       if (await savedLine.isVisible().catch(() => false)) {
         await savedLine.evaluate((el) => el.scrollIntoView({ block: 'center' }));
         await markEvidence(expected(savedLine, 'ไม่บันทึก · จริง: บันทึกแล้ว'));
-      } else await markEvidence(expected(p.heading, 'หัวแผงหลังกดบันทึก'));
+      } else await markEvidence(expected(p.heading, 'ไม่บันทึก — ไม่มีบรรทัด "บันทึกจากแบบฟอร์มนี้"'));
       expect(bad(rows)).toEqual([]);
     });
 
@@ -1673,16 +1848,22 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
     await D.soft(`${TC(49)} กดบันทึกไม่เลือก Diagnosis → ช่อง Diagnosis กรอบแดง #ff4d4f + "กรุณาระบุ …"`, async () => {
       await hideCompareTable(doc);
       await freshForm(49);
+      await markEvidence(filled(p.pi, 'Present illness'), clicked(p.save, 'บันทึก'));
+      await snapEvidence(doc, 'ก่อนกด — TC-049 บันทึก');
+      await clearEvidenceMarks(doc);
       const r = await savePhysician(doc, p);
       await p.dx.scrollIntoViewIfNeeded();
       const e = await diagnosisError(p);
       const rows: CompareRow[] = [
-        { label: 'ขอบช่อง Diagnosis', values: ['#ff4d4f', e.border], same: e.border === '#ff4d4f' },
-        { label: 'ข้อความใต้ช่อง', values: ['กรุณาระบุ [ชื่อช่อง]', e.errText || '(ไม่มี)'], same: /กรุณาระบุ/.test(e.errText) },
+        { label: 'ขอบช่อง Diagnosis', values: ['#ff4d4f', e.sectionBorder ? `ช่องค้นหา ${e.border} · กล่อง Section ${e.sectionBorder}` : e.border], same: e.border === '#ff4d4f' || e.sectionBorder === '#ff4d4f' },
+        { label: 'ข้อความ error', values: ['กรุณาระบุ [ชื่อช่อง]', e.errText || '(ไม่มี)'], same: /กรุณาระบุ/.test(e.errText) },
         { label: 'ผลการกดบันทึก (ข้อมูล)', values: ['-', `saves ${r.status ?? 'ไม่ส่ง'} · ${r.toastText || 'ไม่มีแจ้งเตือน'}`], same: true },
       ];
       await compare(49, rows, 'left');
-      await markEvidence(expected(p.dx, 'กรอบแดง + กรุณาระบุ · จริง: ไม่มี'));
+      // ไม่ตีกรอบรอบกล่อง (กรอบสคริปต์จะทับขอบแดงของระบบ — Sub Agent 7 พ.ย.) → ตีเฉพาะข้อความ · ขอบแดงยืนยันด้วยตารางเทียบ
+      // Expected = กรอบแดงของระบบเอง → ไม่ตีกรอบสคริปต์ในกล่อง (ข้อความห่างขอบระบบแค่ 2–5px กรอบจะติดขอบ — Sub Agent รอบ 2) · ตารางเทียบยืนยัน #ff4d4f
+      if (e.sectionBorder) await snapEvidence(doc, 'TC-049 หลังกด — ขอบแดงของระบบ (ไม่มีกรอบสคริปต์)');
+      else await markEvidence(expected(p.dx, 'กรอบแดง + กรุณาระบุ · จริง: ไม่มี'));
       expect(bad(rows)).toEqual([]);
     });
 
@@ -1694,18 +1875,38 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       await doc.waitForTimeout(800);
       await markEvidence(clicked(p.save, 'บันทึก (อยู่บนสุดของฟอร์ม)'));
       await snapEvidence(doc, 'ก่อนกด — บนสุดของฟอร์ม');
+      await holdForClip(doc, 1_500);
       await clearEvidenceMarks(doc);
-      const r = await savePhysician(doc, p, 15_000);
-      await doc.waitForTimeout(1_000);
+      // ตรวจ 2 จังหวะ (Sub Agent 7 พ.ย.: จอเลื่อนไป Diagnosis จริง แล้ว Body chart โหลดภาพเสร็จทีหลังดัน Diagnosis หลุดจอ)
+      const res = doc.waitForResponse((x) => x.request().method() === 'POST' && SAVES.test(x.url()), { timeout: 12_000 }).catch(() => null);
+      const t0 = Date.now();
+      await p.save.click();
+      const early = await expect.poll(() => inView(p.dx), { timeout: 4_000, intervals: [100] }).toBe(true).then(() => true, () => false);
+      const earlyMs = Date.now() - t0;
+      const focusEarly = await activeInfo(doc);
+      const bodyChart = p.item('Body chart');
+      const loadingEarly = /Asset Loading/i.test(await bodyChart.innerText({ timeout: 2_000 }).catch(() => ''));
+      if (early) {
+        const eEarly = await diagnosisError(p); // ติด data-dx-error ให้ dxErrorMsg หาเจอ
+        if (!eEarly.sectionBorder) await markEvidence(expected(p.header('Diagnosis general'), `ทันทีหลังกด (${(earlyMs / 1000).toFixed(1)} วิ): เลื่อนมาที่ Diagnosis`));
+        D.note('TC-050 ทันทีหลังกด', `${(earlyMs / 1000).toFixed(1)} วิ — จอเลื่อนมาที่ Diagnosis general`);
+        await snapEvidence(doc, `TC-050 ทันทีหลังกด ${(earlyMs / 1000).toFixed(1)} วิ`);
+        await clearEvidenceMarks(doc);
+      }
+      const resp = await res;
+      await doc.waitForTimeout(3_000);
       const visible = await inView(p.dx);
       const focus = await activeInfo(doc);
       const rows: CompareRow[] = [
-        { label: 'ช่อง Diagnosis อยู่ในจอ', values: ['ใช่ (เลื่อนไปเอง)', visible ? 'ใช่' : 'ไม่'], same: visible },
-        { label: 'focus', values: ['ช่อง Diagnosis', focus], same: /Diagnosis|ค้นหา/.test(focus) },
-        { label: 'ผลการกดบันทึก (ข้อมูล)', values: ['-', `saves ${r.status ?? 'ไม่ส่ง'} · ${r.toastText || 'ไม่มีแจ้งเตือน'}`], same: true },
+        { label: 'ทันทีหลังกด: เลื่อนไป Diagnosis', values: ['ใช่', early ? `ใช่ (${(earlyMs / 1000).toFixed(1)} วิ${loadingEarly ? ' · Body chart ยัง Asset Loading' : ''})` : 'ไม่'], same: early },
+        // ผู้ใช้ตัดสิน 7 พ.ย. 2026 (SBH-3837 · R164): ผ่านเมื่อเลื่อนไปทันที — ถูก Body chart ดันหลุดจอ / focus ที่ปุ่ม = จังหวะโหลดช้า ไม่นับเป็นไม่ผ่าน (แสดงเป็นข้อมูล)
+        { label: 'หลังหน้านิ่ง: Diagnosis ยังอยู่ในจอ (ข้อมูล)', values: ['-', visible ? 'ใช่' : 'ไม่ (Body chart โหลดช้าดันลง)'], same: true },
+        { label: 'focus (ข้อมูล)', values: ['-', focusEarly === focus ? focus : `${focusEarly} → ${focus}`], same: true },
+        { label: 'ผลการกดบันทึก (ข้อมูล)', values: ['-', `saves ${resp ? resp.status() : 'ไม่ส่ง'}`], same: true },
       ];
       await compare(50, rows, 'left');
-      await markEvidence(...((await r.toast.isVisible().catch(() => false)) ? [alerted(r.toast, 'แจ้งเตือน')] : []), expected(p.heading, 'เลื่อนไป Diagnosis · จริง: ไม่เลื่อน'));
+      if (visible) await markEvidence(expected(p.header('Diagnosis general'), 'ยังอยู่ที่ Diagnosis'));
+      else await markEvidence(expected(p.header('Body chart'), 'ข้อมูล: Body chart โหลดช้าดัน Diagnosis ลง (ผ่าน — เลื่อนไปแล้ว)'));
       expect(bad(rows)).toEqual([]);
     });
 
@@ -1723,8 +1924,14 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       await toggle.click();
       await doc.waitForTimeout(800);
       const collapsedBefore = !(await item.evaluate((el) => el.classList.contains('ant-collapse-item-active')));
+      await markEvidence(expected(item.locator('.ant-collapse-header').first(), 'ก่อนกด: พับอยู่'));
+      await snapEvidence(doc, 'TC-052 พับแล้ว');
+      await clearEvidenceMarks(doc);
       await scrollTop();
       await doc.waitForTimeout(800);
+      await markEvidence(clicked(p.save, 'บันทึก (บนสุด)'));
+      await snapEvidence(doc, 'ก่อนกด — TC-052 บันทึก');
+      await clearEvidenceMarks(doc);
       const r = await savePhysician(doc, p, 15_000);
       await doc.waitForTimeout(1_000);
       const expanded = await item.evaluate((el) => el.classList.contains('ant-collapse-item-active'));
@@ -1734,15 +1941,20 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
         { label: 'ก่อนกด: Diagnosis general พับอยู่', values: ['พับ', collapsedBefore ? 'พับ' : 'ยังขยาย'], same: collapsedBefore },
         { label: 'หลังกด: ขยายออกเอง', values: ['ขยาย', expanded ? 'ขยาย' : 'ยังพับ'], same: expanded },
         { label: 'หน้าจอเลื่อนไป Diagnosis', values: ['ใช่', visible ? 'ใช่' : 'ไม่'], same: visible },
-        { label: 'กรอบแดง + ข้อความ', values: ['#ff4d4f + กรุณาระบุ …', `${e.border} · ${e.errText || 'ไม่มีข้อความ'}`], same: e.border === '#ff4d4f' && /กรุณาระบุ/.test(e.errText) },
+        { label: 'กรอบแดง + ข้อความ', values: ['#ff4d4f + กรุณาระบุ …', `${e.sectionBorder ? `กล่อง Section ${e.sectionBorder}` : e.border} · ${e.errText || 'ไม่มีข้อความ'}`], same: (e.border === '#ff4d4f' || e.sectionBorder === '#ff4d4f') && /กรุณาระบุ/.test(e.errText) },
         { label: 'ผลการกดบันทึก (ข้อมูล)', values: ['-', `saves ${r.status ?? 'ไม่ส่ง'} · ${r.toastText || 'ไม่มีแจ้งเตือน'}`], same: true },
       ];
       await compare(52, rows, 'left');
-      await markEvidence(...((await r.toast.isVisible().catch(() => false)) ? [alerted(r.toast, 'แจ้งเตือน')] : []), expected(p.heading, 'เลื่อนไป Diagnosis + error · จริง: ไม่เลื่อน'));
-      await snapEvidence(doc, 'TC-052 หลังกด หัวแผง');
-      await clearEvidenceMarks(doc);
-      await item.evaluate((el) => el.scrollIntoView({ block: 'center' }));
-      await markEvidence(expected(item.locator('.ant-collapse-header').first(), `${expanded ? 'ขยายอยู่' : 'ยังพับ'} · ไม่มีกรอบแดง / ข้อความ`));
+      if (e.sectionBorder && expanded && visible) {
+        // ถ่ายทันทีตามที่ระบบเลื่อนให้ (ไม่เลื่อนเอง)
+        await snapEvidence(doc, 'TC-052 หลังกด — ขยายเอง + ขอบแดงของระบบ');
+      } else {
+        await markEvidence(...((await r.toast.isVisible().catch(() => false)) ? [alerted(r.toast, 'แจ้งเตือน')] : []), expected(p.heading, `เลื่อนไป Diagnosis + error · จริง: ${visible ? 'เลื่อน' : 'ไม่เลื่อน'}`));
+        await snapEvidence(doc, 'TC-052 หลังกด หัวแผง');
+        await clearEvidenceMarks(doc);
+        await item.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        await markEvidence(expected(item.locator('.ant-collapse-header').first(), `${expanded ? 'ขยายอยู่' : 'ยังพับ'} · ${e.sectionBorder ? 'มีกรอบแดง' : 'ไม่มีกรอบแดง / ข้อความ'}`));
+      }
       expect(bad(rows)).toEqual([]);
     });
 
@@ -1753,15 +1965,22 @@ test.describe('SBH-3350 ER Cosmetic Overview + ER Physician Note (dev-x)', () =>
       const r = await savePhysician(doc, p);
       await p.dx.scrollIntoViewIfNeeded();
       const before = await diagnosisError(p);
+      if (before.sectionBorder) {
+        await snapEvidence(doc, 'TC-051 ก่อนเลือก Diagnosis — ขอบแดงของระบบ');
+        await clearEvidenceMarks(doc);
+      }
       await chooseDiagnosis(doc, p);
+      await markEvidence(filled(p.dx, 'เลือก Diagnosis K30'));
+      await snapEvidence(doc, 'TC-051 หลังเลือก Diagnosis');
+      await clearEvidenceMarks(doc);
       const after = await diagnosisError(p);
       const rows: CompareRow[] = [
-        { label: 'ก่อนเลือก: error ที่ช่อง Diagnosis (Pre-condition)', values: ['มี (กรอบแดง + ข้อความ)', `ขอบ ${before.border} · ${before.errText || 'ไม่มีข้อความ'}`], same: before.border === '#ff4d4f' || /กรุณา/.test(before.errText) },
-        { label: 'หลังเลือก Diagnosis', values: ['กรอบแดง / ข้อความหาย', `ขอบ ${after.border} · ${after.errText || 'ไม่มีข้อความ'}`], same: after.border !== '#ff4d4f' && !/กรุณา/.test(after.errText) },
+        { label: 'ก่อนเลือก: error ที่ช่อง Diagnosis (Pre-condition)', values: ['มี (กรอบแดง + ข้อความ)', `ขอบ ${before.sectionBorder ? `กล่อง Section ${before.sectionBorder}` : before.border} · ${before.errText || 'ไม่มีข้อความ'}`], same: before.border === '#ff4d4f' || before.sectionBorder === '#ff4d4f' || /กรุณา/.test(before.errText) },
+        { label: 'หลังเลือก Diagnosis', values: ['กรอบแดง / ข้อความหาย', `ขอบ ${after.sectionBorder ? `กล่อง Section ${after.sectionBorder}` : after.border} · ${after.errText || 'ไม่มีข้อความ'}`], same: after.border !== '#ff4d4f' && !after.sectionBorder && !/กรุณา/.test(after.errText) },
         { label: 'ผลการกดบันทึก (ข้อมูล)', values: ['-', `saves ${r.status ?? 'ไม่ส่ง'} · ${r.toastText || 'ไม่มีแจ้งเตือน'}`], same: true },
       ];
       await compare(51, rows, 'left');
-      await markEvidence(filled(p.dx, 'เลือก Diagnosis K30'));
+      await markEvidence(expected(p.header('Diagnosis general'), after.sectionBorder || /กรุณา/.test(after.errText) ? 'error หาย · จริง: ยังมี' : 'ไม่มี "กรุณาระบุ…" · ขอบไม่แดงแล้ว'));
       expect(bad(rows)).toEqual([]);
     });
 

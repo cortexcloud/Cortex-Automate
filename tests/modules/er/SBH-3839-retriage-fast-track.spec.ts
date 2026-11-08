@@ -34,6 +34,8 @@ async function openDoctor(browser: Browser): Promise<Page> {
   return page;
 }
 
+// dev-x 7 พ.ย. 2026: ส่วน Chief Complaint เป็นรุ่น General (ไม่มี placeholder เดิม) → textarea แรกของแผงที่ไม่ใช่ช่องความคิดเห็น Fast Track (การรับทราบของแพทย์ — อยู่ก่อนใน DOM)ฟอร์มแพทย์
+const ccOf = (p: Page) => physicianNotePanel(p).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').or(physicianNotePanel(p).locator('textarea:not([placeholder*="ความคิดเห็น"])').first()).first();
 const ftSelects = (page: Page) => physicianNotePanel(page).getByRole('combobox', { name: 'Suspect Fast Track Type' });
 const selectedText = (select: Locator) => select.evaluate((el) => (el as HTMLSelectElement).options[(el as HTMLSelectElement).selectedIndex]?.text ?? '');
 
@@ -47,7 +49,7 @@ async function doctorOpens(doc: Page, hn: string) {
   await expect(doc.getByRole('main').getByText(`HN ${hn}`, { exact: true }).first()).toBeVisible({ timeout: 90_000 });
   const pn = physicianNotePanel(doc);
   await expect(pn.getByRole('heading', { name: 'ER Physician Note', exact: true })).toBeVisible({ timeout: 90_000 });
-  await expect(pn.locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first(), 'ฟอร์มแพทย์ต้องโหลดเสร็จ').toBeVisible({ timeout: 120_000 });
+  await expect(ccOf(doc), 'ฟอร์มแพทย์ต้องโหลดเสร็จ').toBeVisible({ timeout: 120_000 });
   await doc.waitForTimeout(4_000);
 }
 
@@ -185,7 +187,7 @@ test.describe('SBH-3839 คัดกรองซ้ำ + เปลี่ยน S
       await doctorOpens(doc!, visit.hn);
       const ft = await readFt(doc!);
       say('ก่อนคัดกรองซ้ำ', `ช่อง Suspect Fast Track Type ในฟอร์มแพทย์ ${ft.count} ช่อง: ${ft.values.join(' | ')}`);
-      const cc = physicianNotePanel(doc!).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first();
+      const cc = ccOf(doc!);
       await cc.click();
       await cc.pressSequentially('ปวดศีรษะหลังอุบัติเหตุ', { delay: 30 });
       await doc!.waitForTimeout(2_000);
@@ -290,7 +292,7 @@ test.describe('SBH-3839 คัดกรองซ้ำ + เปลี่ยน S
     doc = await openDoctor(browser);
     await soft('แพทย์เปิดผู้ป่วย กรอก Chief Complaint + Diagnosis แล้วบันทึกฟอร์ม (ก่อนคัดกรองซ้ำ)', async () => {
       await doctorOpens(doc!, visit.hn);
-      const cc = physicianNotePanel(doc!).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first();
+      const cc = ccOf(doc!);
       await cc.click();
       await cc.pressSequentially('ปวดศีรษะหลังอุบัติเหตุ', { delay: 30 });
       say('Diagnosis', await chooseDx(doc!, 'S06.0'));
@@ -302,7 +304,7 @@ test.describe('SBH-3839 คัดกรองซ้ำ + เปลี่ยน S
     await soft(`คัดกรองซ้ำในหน้าเดียวกับ ER Physician Note: เปลี่ยนเป็น ${NEW_FT} (ไม่โหลดหน้า)`, async () => {
       await gotoVisit(page, visit);
       await expect(physicianNotePanel(page).getByRole('heading', { name: 'ER Physician Note', exact: true })).toBeVisible({ timeout: 90_000 });
-      await expect(physicianNotePanel(page).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first()).toBeVisible({ timeout: 120_000 });
+      await expect(ccOf(page)).toBeVisible({ timeout: 120_000 });
       await page.waitForTimeout(3_000);
       const before = await readFt(page);
       say('หน้าหลัก ก่อนคัดกรองซ้ำ', `ฟอร์มแพทย์แผงขวามี Suspect Fast Track Type ${before.count} ช่อง: ${before.values.join(' | ')}`);
@@ -345,7 +347,7 @@ test.describe('SBH-3839 คัดกรองซ้ำ + เปลี่ยน S
       if (ft.count) await ft.all.first().scrollIntoViewIfNeeded();
       await markEvidence(...Array.from({ length: ft.count }, (_, i) => expected(ft.all.nth(i), `Suspect Fast Track Type ${i + 1}: ${ft.values[i]}`)));
       await snapEvidence(doc!, `แพทย์เปิดค้าง — Fast Track ${ft.count} ช่อง`);
-      const cc = physicianNotePanel(doc!).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first();
+      const cc = ccOf(doc!);
       await cc.click();
       await cc.pressSequentially(' เพิ่มเติม', { delay: 30 });
       const status = await trySaveNote(doc!, 'แพทย์เปิดค้าง', say);
@@ -361,7 +363,7 @@ test.describe('SBH-3839 คัดกรองซ้ำ + เปลี่ยน S
       if (ft.count) await ft.all.first().scrollIntoViewIfNeeded();
       await markEvidence(...Array.from({ length: ft.count }, (_, i) => expected(ft.all.nth(i), `Suspect Fast Track Type ${i + 1}: ${ft.values[i]}`)));
       await snapEvidence(doc!, `แพทย์โหลดใหม่ — Fast Track ${ft.count} ช่อง`);
-      const cc = physicianNotePanel(doc!).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first();
+      const cc = ccOf(doc!);
       await cc.click();
       await cc.pressSequentially(' ครั้งที่สอง', { delay: 30 });
       const status = await trySaveNote(doc!, 'แพทย์โหลดใหม่', say);
@@ -392,7 +394,7 @@ test.describe('SBH-3839 คัดกรองซ้ำ + เปลี่ยน S
     doc = await openDoctor(browser);
     await checkStep(doc, 'แพทย์กรอก Chief Complaint + Diagnosis แล้วบันทึกฟอร์ม (ก่อนคัดกรองซ้ำ)', async () => {
       await doctorOpens(doc!, visit.hn);
-      const cc = physicianNotePanel(doc!).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first();
+      const cc = ccOf(doc!);
       await cc.click();
       await cc.pressSequentially('ปวดศีรษะหลังอุบัติเหตุ', { delay: 30 });
       say('Diagnosis', await chooseDx(doc!, 'S06.0'));
@@ -441,7 +443,7 @@ test.describe('SBH-3839 คัดกรองซ้ำ + เปลี่ยน S
     await soft('แพทย์โหลดหน้าใหม่ แก้ Chief Complaint แล้วกดบันทึก → 409', async () => {
       await clearEvidenceMarks(doc!);
       await doctorOpens(doc!, visit.hn);
-      const cc = physicianNotePanel(doc!).locator('textarea[placeholder="สรุปอาการและอื่น ๆ"]').first();
+      const cc = ccOf(doc!);
       await cc.click();
       await cc.pressSequentially(' เพิ่มเติม', { delay: 30 });
       await doc!.waitForTimeout(2_000);

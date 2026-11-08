@@ -4,7 +4,8 @@ import { dismissToast, gotoErDashboard, trackOpenedErVisits, type ErVisit } from
 import { trackAuthorization } from '../../../helpers/functions/er-report';
 import { erTriagePanel, erTriageSaveButton, saveErTriageForm, type VitalSigns } from '../../../helpers/functions/er-triage';
 import { alerted, checkStep, clicked, expected, filled, hideCompareTable, makeRunner, markEvidence, showCompareTable, snapEvidence, type CompareRow } from '../../../helpers/functions/evidence';
-import { startClip } from '../../../helpers/functions/fixtures';
+import { erSummarySection, fieldOf, openErSummary, readFields } from '../../../helpers/functions/er-summary';
+import { startClip, startClip as startClipAll } from '../../../helpers/functions/fixtures';
 import { newTestPatient } from '../../../helpers/functions/test-data';
 import { expect, test } from '../../../mock-data/fixtures';
 import { registerAndOpenErVisit } from '../../../mock-data/uat-er';
@@ -20,6 +21,9 @@ import { gotoVisit } from '../../../mock-data/uat-play';
 //   ไม่เลือกระดับ = ปุ่มบันทึก disabled + tooltip · เลือกระดับแล้วระบบเลือกโซนแนะนำให้เสมอ (กดซ้ำไม่หลุด)
 // หลังเทส: ปิด Visit ที่การเงิน (afterEach) · SBH1678_KEEP=1 = ไม่ปิด
 // รัน (dev-x): npx playwright test --headed --grep @SBH-1678   (เทสเดียว: --grep "@SBH-3281" ฯลฯ)
+// รัน (SBH Prod · ผู้ใช้อนุญาต 7 พ.ย. 2026): SBH1678_ONLY=<TC ที่ไม่ Canceled> npx playwright test -c playwright.sbh-prod.cards.config.ts --headed --grep "@SBH-3281( |$)" ทีละเทส
+//   Prod: master data ผู้นำส่งยังเป็นชุดเก่า (none / relative / caregiver / ems_personnel) → TC-004 / 006 / 009 ลง Fail ตามจริง (ผู้ใช้เลือก) ·
+//   TC-009 Expected ใหม่ (4 พ.ย.) ดูที่ ER Summary → เลือก Trauma ในขั้น 4 เพราะส่วนการนำส่งแสดงเฉพาะ Trauma (ผู้ใช้เลือก 7 พ.ย.)
 
 const linear = (id: string) => ({ type: 'issue', description: `https://linear.app/cortexcloud/issue/${id}` });
 const ISSUE: Record<number, string> = {
@@ -39,6 +43,9 @@ const TRIAGE_SAVED = 'กรอกข้อมูล คัดกรอง ER �
 const VITALS_TC: VitalSigns = { systolic: '120', diastolic: '80', pr: '80', rr: '16', temp: '37', spo2: '98', painScore: '0' };
 const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
 const yes = (b: boolean) => (b ? 'มี' : 'ไม่มี');
+// SBH1678_ONLY=20,21,22,23,33,34,35,36,37 = เล่นเฉพาะ TC ที่ระบุ (Retest SBH-3355 — RTS) · ขั้นที่ TC ถัดไปพึ่ง (เลือก Trauma · GCS 15) ยังทำให้แต่ไม่เก็บผล
+const ONLY = process.env.SBH1678_ONLY?.split(',').map((s) => Number(s.trim())).filter(Boolean);
+const want = (n: number) => !ONLY?.length || ONLY.includes(n);
 
 /** locator ของฟอร์มคัดกรอง ER (แผงที่ทำงานอยู่) */
 function form(page: Page) {
@@ -61,7 +68,9 @@ function form(page: Page) {
     gcsCard: cardWith(page.getByRole('combobox', { name: 'Eye Opening (E)' })),
     mewsCard: cardWith(page.getByRole('combobox', { name: 'AVPU' })),
     avpu: panel.getByRole('combobox', { name: 'AVPU' }).first(),
-    rtsCard: panel.locator('div').filter({ has: page.getByText('Revised Trauma Score (RTS)', { exact: true }) }).filter({ hasText: /RTS =|Incomplete|Points|Complete/ }).last(),
+    // รุ่นหลังแก้ SBH-3355 (dev-x 6 พ.ย.): ช่อง GCS / Systolic BP / RR + แถบ "Revised Trauma Score - 7.84 คะแนน" (data-testid=er-rts-result)
+    rtsCard: panel.locator('div').filter({ has: page.getByText('Revised Trauma Score (RTS)', { exact: true }) }).filter({ hasText: /RTS =|Incomplete|Points|Complete|คะแนน/ }).last(),
+    rtsResult: panel.locator('[data-testid="er-rts-result"]').first(),
     levels: panel.getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' }).first(),
     zones: panel.locator('[class*="er-triage-zone-options"] button'),
     zoneArea: panel.locator('[class*="er-triage-zone-options"]').first(),
@@ -119,6 +128,12 @@ async function pickGcs(f: Form, e: number, v: number, m: number) {
 async function fillVitals(f: Form, v: Partial<VitalSigns>) {
   const map: [string, string | undefined][] = [['Systolic', v.systolic], ['Diastolic', v.diastolic], ['PR', v.pr], ['RR', v.rr], ['Temp', v.temp], ['SpO2', v.spo2]];
   for (const [name, value] of map) if (value !== undefined) await f.panel.getByRole('spinbutton', { name }).first().fill(value);
+}
+
+/** แถบ "ร่างล่าสุดยังไม่ถูกเก็บถาวร…" โผล่ / หายเองหลังแก้ค่า ทำให้ฟอร์มเลื่อน ~30px → รอหายก่อนตีกรอบ (กรอบเป็น fixed ไม่เลื่อนตาม · 7 พ.ย. 2026) */
+async function waitDraftBannerGone(page: Page) {
+  await expect(page.getByText(/ร่างล่าสุดยังไม่ถูกเก็บถาวร/).first()).toBeHidden({ timeout: 15_000 }).catch(() => undefined);
+  await page.waitForTimeout(500);
 }
 
 /** ช่องค้นหาโรคในส่วน Underlying Disease + ปุ่มบันทึกของส่วนนั้น */
@@ -235,7 +250,12 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
     meta(1, 2, 3, 4, 5, 6, 7, 8, 16, 18, 28, 29, 30, 31),
     async ({ page }) => {
       const run = makeRunner(page);
-      const { note, soft } = run;
+      const { note } = run;
+      // SBH1678_ONLY=4,6 (Retest SBH-3929 บน Prod 8 พ.ย. 2026): TC ที่ไม่ได้เลือกไม่เก็บผล · ช่วงคลิปของ TC นั้นตัดเป็น gap
+      //   ขั้นที่ TC ถัดไปพึ่ง (TC-006 กด EMS เอง · TC-008 กด รับ Refer เอง) อยู่ใน TC นั้นเอง จึงข้าม TC อื่นได้
+      const tcOf = (s: string) => Number(/^TC-(\d{3})/.exec(s)?.[1] ?? 0);
+      const soft = (title: string, body: () => Promise<void>) => (tcOf(title) && !want(tcOf(title)) ? Promise.resolve(true) : run.soft(title, body));
+      const startClip = (p: Page, name: string) => startClipAll(p, /^TC-\d{3}$/.test(name) && !want(tcOf(name)) ? 'gap' : name);
       const visit = await preparePatient(page, 'A', note);
       const f = form(page);
       const compare = async (n: number, rows: CompareRow[], side: 'left' | 'right' | 'bottom' = 'right') =>
@@ -244,17 +264,19 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       note('ผู้ป่วยที่ใช้', `HN ${visit.hn} · ${visit.vn} · ${visit.en}`);
 
       // TC-001 Suspect Fast Track Type
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(1));
       await soft(`${TC(1)} ขั้น 3 ช่อง Suspect Fast Track Type: เครื่องหมาย * · ค่าเริ่มต้น · ตัวเลือก`, async () => {
         const options = (await f.fastTrack.locator('option').allTextContents()).map(norm);
-        const expectedOptions = ['Not Suspect Fast Track', 'Stroke Fast Track', 'STEMI / ACS Fast Track', 'Sepsis Fast Track', 'Trauma Fast Track'];
+        // Expected ใน TC แก้แล้ว 4 พ.ย. 2026 (BA ยืนยันชุดตัวเลือกจริง — decisions R117): 6 ตัวเลือก
+        const expectedOptions = ['Not Suspect Fast Track', 'STEMI', 'STROKE', 'SEPSIS', 'HEAD TRAUMA', 'TRAUMA WITH SHOCK'];
         const star = await hasRequiredMark(f.fastTrackLabel);
         const current = norm(await selectedText(f.fastTrack));
         await f.fastTrack.click();
         const rows: CompareRow[] = [
           { label: 'เครื่องหมาย *', values: ['มี', yes(star)], same: star },
           { label: 'ค่าเริ่มต้น', values: ['Not Suspect Fast Track', current], same: current === 'Not Suspect Fast Track' },
-          { label: 'จำนวนตัวเลือก', values: ['5', String(options.length)], same: options.length === 5 },
+          { label: 'จำนวนตัวเลือก', values: [String(expectedOptions.length), String(options.length)], same: options.length === expectedOptions.length },
           ...expectedOptions.map((o, i) => ({ label: `ตัวเลือก ${i + 1}`, values: [o, options[i] ?? '(ไม่มี)'], same: options[i] === o })),
           ...options.slice(expectedOptions.length).map((o, i) => ({ label: `ตัวเลือกเกิน ${i + 1}`, values: ['(ไม่มี)', o], same: false })),
         ];
@@ -262,10 +284,11 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await page.keyboard.press('Escape');
         await compare(1, rows);
         await markEvidence(expected(f.fastTrack, `ค่าเริ่มต้น ${current}`), expected(f.fastTrackLabel, `* ${yes(star)}`));
-        expect(bad(rows), 'Expected: * · ค่าเริ่มต้น Not Suspect Fast Track · 5 ตัวเลือกตาม AC').toEqual([]);
+        expect(bad(rows), 'Expected: * · ค่าเริ่มต้น Not Suspect Fast Track · 6 ตัวเลือกตาม TC').toEqual([]);
       });
 
       // TC-002 ประเภทฉุกเฉิน
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(2));
       await soft(`${TC(2)} ขั้น 2 ช่องประเภทฉุกเฉิน: * · segmented 2 ตัวเลือก · ค่าเริ่มต้น Non-Trauma`, async () => {
         await hideCompareTable(page);
@@ -286,6 +309,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-003 วิธีการมาถึง
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(3));
       await soft(`${TC(3)} ขั้น 2 วิธีการมาถึง: segmented 3 ตัวเลือก · ค่าเริ่มต้น Walk-in`, async () => {
         await hideCompareTable(page);
@@ -302,8 +326,9 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-004 ผู้นำส่ง
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(4));
-      await soft(`${TC(4)} ขั้น 2 ผู้นำส่ง (Walk-in): ค่าว่าง + placeholder · dropdown 6 ตัวเลือก`, async () => {
+      await soft(`${TC(4)} ขั้น 2 ผู้นำส่ง (Walk-in): ค่าว่าง + placeholder · dropdown 9 ตัวเลือก`, async () => {
         await hideCompareTable(page);
         const shown = norm(await f.escort.innerText());
         const isPlaceholder = (await f.escort.locator('[class*="placeholder"]').filter({ visible: true }).count()) > 0;
@@ -313,28 +338,40 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         const dropdown = page.locator('.ant-select-dropdown:visible').first();
         await expect(dropdown).toBeVisible();
         const options = (await dropdown.locator('.ant-select-item-option').allInnerTexts()).map(norm);
-        const wanted = ['ไม่มีผู้นำส่ง/มาเอง', 'ตำรวจ/ทหาร', 'EMS ขึ้นทะเบียน', 'องค์กรไม่ขึ้นทะเบียน (มูลนิธิ/อาสา)', 'ญาติ/ผู้พบเห็น/อื่นๆ', 'ไม่ทราบ'];
+        // Expected ใน TC แก้แล้ว 4 พ.ย. 2026: 9 ตัวเลือก (AC 6 ตัว + ไม่มีผู้มาด้วย · ผู้ดูแล · เจ้าหน้าที่ EMS)
+        const wanted = ['ไม่มีผู้นำส่ง/มาเอง', 'ตำรวจ/ทหาร', 'EMS ขึ้นทะเบียน', 'องค์กรไม่ขึ้นทะเบียน (มูลนิธิ/อาสา)', 'ญาติ/ผู้พบเห็น/อื่นๆ', 'ไม่ทราบ', 'ไม่มีผู้มาด้วย', 'ผู้ดูแล', 'เจ้าหน้าที่ EMS'];
         const key = (s: string) => s.replace(/\s/g, '').replace(/^[^-]+-/, '');
         const match = (w: string) => options.find((o) => key(o).includes(w.replace(/\s/g, '').replace('องค์กรไม่ขึ้นทะเบียน', 'องค์กรอื่นที่ไม่ขึ้นทะเบียน').replace('(มูลนิธิ/อาสา)', '(มูลนิธิ/อาสาสมัคร)')));
         const used = new Set<string>();
+        // ผู้ใช้ตัดสิน 8 พ.ย. 2026 (Retest SBH-3929 บน Prod): ถ้ามีครบ 6 ตัวตามรหัส PHER+ (AC) แต่ไม่มี 3 ตัวชุดเก่า
+        //   (ไม่มีผู้มาด้วย · ผู้ดูแล · เจ้าหน้าที่ EMS — BA บอกว่า "มีได้" ไม่ได้บังคับ) = Pass + ข้อสังเกต
+        const LEGACY = wanted.slice(6);
+        const acAll = wanted.slice(0, 6).every((w) => match(w));
         const rows: CompareRow[] = [
           { label: 'ค่าเริ่มต้น', values: ['ว่าง · placeholder "เลือกผู้นำส่ง"', value ? `มีค่า ${value}` : `ว่าง · placeholder "${placeholder}"`], same: !value && placeholder === 'เลือกผู้นำส่ง' },
-          { label: 'จำนวนตัวเลือก', values: ['6', String(options.length)], same: options.length === 6 },
+          { label: 'จำนวนตัวเลือก', values: [`${wanted.length} (6 ตัว PHER+ ครบ = ผ่าน)`, String(options.length)], same: options.length === wanted.length || (acAll && options.length === 6) },
           ...wanted.map((w) => {
             const m = match(w);
             if (m) used.add(m);
-            return { label: 'ตัวเลือก', values: [w, m ?? '(ไม่มี)'], same: !!m };
+            const legacy = LEGACY.includes(w);
+            return { label: legacy ? 'ตัวเลือกชุดเก่า (ไม่บังคับ)' : 'ตัวเลือก', values: [w, m ?? '(ไม่มี)'], same: !!m || (legacy && acAll) };
           }),
         ];
-        rows.push(...options.filter((o) => !used.has(o)).map((o) => ({ label: 'ตัวเลือกเกิน', values: ['(ไม่มีใน AC)', o], same: false })));
+        rows.push(...options.filter((o) => !used.has(o)).map((o) => ({ label: 'ตัวเลือกเกิน', values: ['(ไม่มีใน TC)', o], same: false })));
         note(`${TC(4)} ตัวเลือกผู้นำส่ง`, options.join(' · '));
         await compare(4, rows, 'right');
-        await markEvidence(expected(f.escort, value ? value : `placeholder ${placeholder}`), expected(dropdown, `${options.length} ตัวเลือก`));
-        expect(bad(rows), 'Expected: ผู้นำส่งว่าง + 6 ตัวเลือกตาม AC').toEqual([]);
+        // ป้ายของ TC ที่ไม่ผ่าน = "<ที่ต้องการ> · จริง: <ที่เห็น>" (ไม่ใช่ค่าจริงหลัง Expected:)
+        await markEvidence(
+          expected(f.escort, value ? `ว่าง · จริง: ${value}` : `placeholder ${placeholder}`),
+          expected(dropdown, options.length === wanted.length || (acAll && options.length === 6) ? `${options.length} ตัวเลือก` : `${wanted.length} ตัวเลือก · จริง: ${options.length} ตัวเลือก`),
+        );
+        if (acAll && options.length === 6) note(`${TC(4)} ข้อสังเกต`, `มีครบ 6 ตัวตามรหัส PHER+ · ไม่มีชุดเก่า ${LEGACY.join(' · ')} (ผู้ใช้ให้ผ่าน + ข้อสังเกต)`);
+        expect(bad(rows), 'Expected: ผู้นำส่งว่าง + 9 ตัวเลือกตาม TC').toEqual([]);
       });
       await page.keyboard.press('Escape');
 
       // TC-030 Walk-in ไม่แสดงช่อง EMS
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(30));
       await soft(`${TC(30)} ขั้น 2–3 Walk-in: ไม่มีระดับความเร่งด่วน EMS / ข้อมูลก่อนถึงโรงพยาบาล`, async () => {
         await hideCompareTable(page);
@@ -355,6 +392,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-028 Non-Trauma ไม่มีการดูแลระหว่างนำส่ง
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(28));
       await soft(`${TC(28)} ขั้น 2–3 Non-Trauma: ไม่มีหัวข้อ "การดูแลระหว่างนำส่ง" ใน ER Arrival`, async () => {
         await hideCompareTable(page);
@@ -366,6 +404,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-029 Non-Trauma ไม่มีการ์ด RTS
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(29));
       await soft(`${TC(29)} ขั้น 2–3 Non-Trauma: score card ฝั่งขวามี GCS + MEWS ไม่มี RTS`, async () => {
         await hideCompareTable(page);
@@ -383,6 +422,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-016 MEWS ไม่มีช่อง Vital sign
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(16));
       await soft(`${TC(16)} ขั้น 2 การ์ด MEWS: มีช่อง AVPU + แถบผล ไม่มีช่องกรอก Vital sign`, async () => {
         await hideCompareTable(page);
@@ -402,6 +442,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-018 MEWS Incomplete
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(18));
       await soft(`${TC(18)} ขั้น 2–3 ยังไม่กรอก Vital signs / GCS: แถบผล MEWS = Incomplete - SBP, PR, RR, Temp, AVPU`, async () => {
         await hideCompareTable(page);
@@ -413,6 +454,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-006 ผู้นำส่ง AUTO เมื่อเลือก EMS
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(6));
       await soft(`${TC(6)} ขั้น 2–4 ผู้นำส่งว่าง → เลือก EMS → ผู้นำส่งเป็น EMS ขึ้นทะเบียนเอง`, async () => {
         await hideCompareTable(page);
@@ -421,18 +463,20 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await snapEvidence(page, 'ก่อนกด — EMS');
         await f.arrival.getByText('EMS', { exact: true }).click();
         await expect(f.arrivalRadio('EMS')).toBeChecked();
-        await expect(f.escort, 'ผู้นำส่งต้องถูกตั้งค่าเอง').toContainText('EMS', { timeout: 15_000 }).catch(() => undefined);
+        await expect(f.escort, 'ผู้นำส่งต้องถูกตั้งค่าเอง').toContainText('EMS', { timeout: 8_000 }).catch(() => undefined);
         const value = norm(await f.escort.innerText());
+        const ok = value.includes('EMS ขึ้นทะเบียน');
         const rows: CompareRow[] = [
           { label: 'ผู้นำส่งก่อนเลือก EMS', values: ['ว่าง', before || 'ว่าง'], same: !before },
-          { label: 'ผู้นำส่งหลังเลือก EMS', values: ['EMS ขึ้นทะเบียน (บนจอมีรหัส "3 - หน่วยบริการ…" — ผู้ใช้ให้ถือว่าผ่าน)', value], same: value.includes('EMS ขึ้นทะเบียน') },
+          { label: 'ผู้นำส่งหลังเลือก EMS', values: ['EMS ขึ้นทะเบียน (ระบบเติมให้เอง)', /เลือกผู้นำส่ง|^$/.test(value) ? 'ว่าง (เลือกผู้นำส่ง)' : value], same: ok },
         ];
         await compare(6, rows);
-        await markEvidence(clicked(f.arrival.getByText('EMS', { exact: true }), 'EMS'), expected(f.escort, value));
+        await markEvidence(clicked(f.arrival.getByText('EMS', { exact: true }), 'EMS'), expected(f.escort, ok ? value : `EMS ขึ้นทะเบียน · จริง: ${/เลือกผู้นำส่ง|^$/.test(value) ? 'ว่าง' : value}`));
         expect(bad(rows)).toEqual([]);
       });
 
       // TC-005 ระดับความเร่งด่วน EMS
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(5));
       await soft(`${TC(5)} ขั้น 2–3 เลือก EMS → ระดับความเร่งด่วน EMS 5 ตัวเลือก ค่าเริ่มต้น ไม่ระบุ`, async () => {
         await hideCompareTable(page);
@@ -451,6 +495,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-007 ข้อมูลก่อนถึงโรงพยาบาล (EMS)
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(7));
       await soft(`${TC(7)} ขั้น 2–3 EMS: ช่องข้อมูลก่อนถึงโรงพยาบาล (textarea 2 บรรทัด) ว่าง + placeholder`, async () => {
         await hideCompareTable(page);
@@ -468,6 +513,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-008 ข้อมูลก่อนถึงโรงพยาบาล (Refer)
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(8));
       await soft(`${TC(8)} ขั้น 2–3 เลือก รับ Refer → ช่องข้อมูลก่อนถึงโรงพยาบาล + placeholder`, async () => {
         await hideCompareTable(page);
@@ -489,6 +535,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-031 Refer ไม่มีระดับ EMS
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(31));
       await soft(`${TC(31)} ขั้น 2–3 รับ Refer: ไม่มีช่องระดับความเร่งด่วน EMS`, async () => {
         await hideCompareTable(page);
@@ -499,6 +546,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         expect(ems).toBe(0);
       });
 
+      await startClip(page, 'after'); // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
       run.finish();
     },
   );
@@ -517,8 +565,22 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         showCompareTable(page, `${ISSUE[n]} ${tcId(n)}`, ['Expected', 'หน้าจอ'], rows, { side });
       const bad = (rows: CompareRow[]) => rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`);
       const rtsText = async () => norm(await f.rtsCard.innerText().catch(() => '(ไม่มีการ์ด RTS)'));
+      // แถบผลอย่างเดียว (รุ่นหลังแก้ SBH-3355 มี data-testid) — รุ่นเก่าไม่มีก็ใช้ข้อความทั้งการ์ด
+      const rtsResultText = async () => ((await f.rtsResult.count()) ? norm(await f.rtsResult.innerText()) : (await rtsText()).replace(/^Revised Trauma Score \(RTS\) ?/, ''));
+      /** ค่าในช่อง GCS / Systolic BP / RR ของการ์ด RTS (ไม่มีช่อง = null) */
+      const rtsFields = async () => {
+        const m = (await rtsText()).match(/GCS\s+(\S+)\s+Systolic BP\s+(\S+)\s+RR\s+(\S+)/);
+        return m ? { gcs: m[1], sbp: m[2], rr: m[3] } : null;
+      };
 
       // TC-010 การดูแลระหว่างนำส่ง
+      if (!want(10)) {
+        // TC ถัดไปต้องเป็น Trauma — เลือกให้โดยไม่เก็บผลของ TC-010
+        await f.emergency.getByText('Trauma', { exact: true }).click();
+        await expect(f.emergency.getByRole('radio', { name: 'Trauma', exact: true })).toBeChecked();
+        await page.waitForTimeout(1_500);
+      } else {
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(10));
       await soft(`${TC(10)} ขั้น 2–3 เลือก Trauma → หัวข้อ "การดูแลระหว่างนำส่ง" แบบย่อใน ER Arrival`, async () => {
         const trauma = f.emergency.getByText('Trauma', { exact: true });
@@ -532,8 +594,11 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await markEvidence(expected(f.emergency, 'Trauma'), expected(f.arrival, care ? 'มีการดูแลระหว่างนำส่ง' : 'ไม่มีการดูแลระหว่างนำส่ง'));
         expect(care, 'Trauma ต้องมีหัวข้อการดูแลระหว่างนำส่งใน ER Arrival').toBeGreaterThan(0);
       });
+      }
 
       // TC-011 ช่องในการดูแลระหว่างนำส่ง
+      if (want(11)) {
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(11));
       await soft(`${TC(11)} ขั้น 2–3 กดขยาย "การดูแลระหว่างนำส่ง" → 5 dropdown ค่าว่าง ตัวเลือกเหมือนกัน`, async () => {
         await hideCompareTable(page);
@@ -543,16 +608,22 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await f.care.first().click();
         for (const name of ['ดูแลการหายใจ', 'ห้ามเลือด', 'Splint/Slap C-Spine', 'Splint/Slap อื่นๆ', 'IV Fluid']) await expect(f.panel.getByText(name, { exact: true }).first()).toBeVisible();
       });
+      }
 
       // TC-012 บันทึกการดูแลระหว่างนำส่ง — ไม่มีส่วนนี้ให้เลือก
+      if (want(12)) {
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(12));
       await soft(`${TC(12)} ขั้น 2–3 เลือกค่าในการดูแลระหว่างนำส่ง 5 ช่อง`, async () => {
         const care = await f.care.count();
         await markEvidence(expected(f.arrival, care ? 'ส่วนการดูแลระหว่างนำส่ง' : 'ไม่มีส่วนการดูแลระหว่างนำส่งให้เลือกค่า'));
         expect(care, 'ต้องมีส่วน "การดูแลระหว่างนำส่ง" ให้เลือกค่า — ไม่มี จึงเลือก / บันทึก / ตรวจผลไม่ได้').toBeGreaterThan(0);
       });
+      }
 
       // TC-032 ไม่มี Trauma Detail
+      if (want(32)) {
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(32));
       await soft(`${TC(32)} ขั้น 2–3 Trauma: ไม่มีส่วน Trauma Detail ในฟอร์ม`, async () => {
         await hideCompareTable(page);
@@ -563,8 +634,10 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await markEvidence(expected(f.emergency, 'Trauma'), expected(f.panel.getByRole('button', { name: 'expanded การจำแนกผู้ป่วย' }), 'ไม่มี Trauma Detail'));
         expect(detail).toBe(0);
       });
+      }
 
       // TC-020 การ์ด RTS
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(20));
       await soft(`${TC(20)} ขั้น 2–3 Trauma: การ์ด Revised Trauma Score (RTS) มีช่อง GCS · Systolic BP · RR`, async () => {
         await hideCompareTable(page);
@@ -580,11 +653,13 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
           { label: 'ข้อความในการ์ด', values: ['-', text], same: true },
         ];
         await compare(20, rows);
+        await waitDraftBannerGone(page);
         await markEvidence(expected(f.rtsCard, 'การ์ด RTS'));
         expect(bad(rows)).toEqual([]);
       });
 
       // TC-021 RTS Incomplete ทั้งหมด
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(21));
       await soft(`${TC(21)} ขั้น 2–3 ยังไม่กรอก: ช่อง GCS / SBP / RR = "-" · แถบผล Incomplete - GCS, SBP, RR (สีเทา)`, async () => {
         await hideCompareTable(page);
@@ -594,7 +669,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         const dashes = await f.rtsCard.getByText('-', { exact: true }).count();
         const rows: CompareRow[] = [
           { label: 'ช่อง GCS / SBP / RR', values: ['"-" ทั้ง 3 ช่อง', dashes >= 3 ? `"-" ${dashes} ช่อง` : 'ไม่มีช่องแยก'], same: dashes >= 3 },
-          { label: 'แถบผล', values: ['Incomplete - GCS, SBP, RR', text.replace(/^Revised Trauma Score \(RTS\) ?/, '')], same: /Incomplete - GCS, SBP, RR/.test(text) },
+          { label: 'แถบผล', values: ['Incomplete - GCS, SBP, RR', await rtsResultText()], same: /Incomplete - GCS, SBP, RR/.test(text) },
           { label: 'สีแถบผล', values: ['เทา', tone], same: tone.startsWith('เทา') },
         ];
         await compare(21, rows);
@@ -602,7 +677,9 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         expect(bad(rows)).toEqual([]);
       });
 
-      // TC-017 AVPU จาก GCS
+      // TC-017 AVPU จาก GCS (ไม่ได้รัน TC-017 → TC-022 เลือก GCS 15 เองในคลิปของตัวเอง)
+      if (want(17)) {
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(17));
       await soft(`${TC(17)} ขั้น 2–4 AVPU ก่อน / หลังเลือก GCS E4 V5 M6 (15)`, async () => {
         await hideCompareTable(page);
@@ -623,16 +700,29 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await markEvidence(filled(f.gcsCard, 'GCS E4 V5 M6'), expected(f.avpu, `AVPU = ${after}`));
         expect(bad(rows)).toEqual([]);
       });
+      }
 
       // TC-022 RTS ขาด SBP / RR
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(22));
       await soft(`${TC(22)} ขั้น 2–4 GCS 15 ยังไม่กรอก SBP / RR: ช่อง GCS 15 · แถบผล Incomplete - SBP, RR`, async () => {
         await hideCompareTable(page);
+        if (!want(17)) {
+          // ขั้น 3 ของ TC-022: เลือก GCS E4 V5 M6 (รอบเต็มทำไว้ใน TC-017)
+          await pickGcs(f, 4, 5, 6);
+          await expect(f.gcsCard.getByRole('status').first()).toContainText('15', { timeout: 15_000 });
+          await expect.poll(async () => rtsText(), { timeout: 15_000 }).toMatch(/Incomplete - SBP, RR$/);
+          await waitDraftBannerGone(page);
+          await markEvidence(filled(f.gcsCard, 'GCS E4 V5 M6 (15)'));
+          await snapEvidence(page, 'หลังเลือก GCS 15');
+        }
         const text = await rtsText();
         const gcsField = await f.rtsCard.getByText('15', { exact: true }).count();
+        const fv = await rtsFields();
         const rows: CompareRow[] = [
-          { label: 'ช่อง GCS', values: ['15', gcsField ? '15' : 'ไม่มีช่องแยก'], same: gcsField > 0 },
-          { label: 'แถบผล', values: ['Incomplete - SBP, RR', text.replace(/^Revised Trauma Score \(RTS\) ?/, '')], same: /Incomplete - SBP, RR$/.test(text) },
+          { label: 'ช่อง GCS', values: ['15', fv ? fv.gcs : gcsField ? '15' : 'ไม่มีช่องแยก'], same: fv ? fv.gcs === '15' : gcsField > 0 },
+          ...(fv ? [{ label: 'ช่อง Systolic BP / RR', values: ['- / -', `${fv.sbp} / ${fv.rr}`], same: fv.sbp === '-' && fv.rr === '-' }] : []),
+          { label: 'แถบผล', values: ['Incomplete - SBP, RR', await rtsResultText()], same: /Incomplete - SBP, RR$/.test(text) },
         ];
         await compare(22, rows);
         await markEvidence(expected(f.rtsCard, 'Incomplete - SBP, RR'));
@@ -640,6 +730,8 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       });
 
       // TC-015 GCS E4 V5 M5
+      if (want(15)) {
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(15));
       await soft(`${TC(15)} ขั้น 2–3 GCS E4 V5 M5 → ผลรวม 14 ระดับเล็กน้อย (Mild)`, async () => {
         await hideCompareTable(page);
@@ -656,19 +748,24 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await markEvidence(filled(f.gcsCard.getByRole('combobox', { name: 'Motor Response (M)' }), 'M5'), expected(status, text));
         expect(bad(rows)).toEqual([]);
       });
+      }
 
       // TC-023 + 033–037 RTS ครบ
-      const rtsCases: { n: number; gcs: [number, number, number]; total: number; sbp: string; rr: string; coded: [number, number, number]; points: number; raw: string }[] = [
-        { n: 23, gcs: [4, 5, 6], total: 15, sbp: '120', rr: '20', coded: [4, 4, 4], points: 8, raw: '7.8408' },
-        { n: 33, gcs: [4, 4, 5], total: 13, sbp: '90', rr: '10', coded: [4, 4, 4], points: 8, raw: '7.8408' },
-        { n: 34, gcs: [3, 4, 5], total: 12, sbp: '89', rr: '30', coded: [3, 3, 3], points: 6, raw: '5.8806' },
-        { n: 35, gcs: [1, 1, 4], total: 6, sbp: '50', rr: '6', coded: [2, 2, 2], points: 4, raw: '3.9204' },
-        { n: 36, gcs: [1, 1, 3], total: 5, sbp: '49', rr: '5', coded: [1, 1, 1], points: 2, raw: '1.9602' },
-        { n: 37, gcs: [1, 1, 1], total: 3, sbp: '0', rr: '0', coded: [0, 0, 0], points: 0, raw: '0' },
+      // Expected ตาม BA 4 พ.ย. 2026 (R117 · การ์ดบั๊ก SBH-3355): RTS = 0.9368×GCS + 0.7326×SBP + 0.2908×RR แสดงทศนิยม 2 ตำแหน่ง
+      //   (TC เขียนไว้เป็นจำนวนเต็ม 8 / 6 / 4 / 2 Points · TC-037 แก้เป็น "RTS = 0 (GCS:0, …)" ตามรุ่นเก่า 29 ต.ค.)
+      const rtsCases: { n: number; gcs: [number, number, number]; total: number; sbp: string; rr: string; coded: [number, number, number]; points: string; tc: string }[] = [
+        { n: 23, gcs: [4, 5, 6], total: 15, sbp: '120', rr: '20', coded: [4, 4, 4], points: '7.84', tc: '8 Points' },
+        { n: 33, gcs: [4, 4, 5], total: 13, sbp: '90', rr: '10', coded: [4, 4, 4], points: '7.84', tc: '8 Points' },
+        { n: 34, gcs: [3, 4, 5], total: 12, sbp: '89', rr: '30', coded: [3, 3, 3], points: '5.88', tc: '6 Points' },
+        { n: 35, gcs: [1, 1, 4], total: 6, sbp: '50', rr: '6', coded: [2, 2, 2], points: '3.92', tc: '4 Points' },
+        { n: 36, gcs: [1, 1, 3], total: 5, sbp: '49', rr: '5', coded: [1, 1, 1], points: '1.96', tc: '2 Points' },
+        { n: 37, gcs: [1, 1, 1], total: 3, sbp: '0', rr: '0', coded: [0, 0, 0], points: '0.00', tc: 'RTS = 0 (GCS:0, SBP:0, RR:0)' },
       ];
       for (const c of rtsCases) {
+        if (!want(c.n)) continue;
+        await hideCompareTable(page).catch(() => undefined);
         await startClip(page, tcId(c.n));
-        await soft(`${TC(c.n)} GCS E${c.gcs[0]} V${c.gcs[1]} M${c.gcs[2]} (${c.total}) · SBP ${c.sbp} · RR ${c.rr} → RTS Complete ${c.points} Points`, async () => {
+        await soft(`${TC(c.n)} GCS E${c.gcs[0]} V${c.gcs[1]} M${c.gcs[2]} (${c.total}) · SBP ${c.sbp} · RR ${c.rr} → RTS ${c.points}`, async () => {
           await hideCompareTable(page);
           await pickGcs(f, ...c.gcs);
           await fillVitals(f, { systolic: c.sbp, rr: c.rr });
@@ -678,27 +775,31 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
           await page.waitForTimeout(1_500);
           await expect.poll(async () => rtsText(), { timeout: 15_000 }).not.toMatch(/Incomplete/);
           const text = await rtsText();
+          const result = await rtsResultText();
           const sbpValue = await f.panel.getByRole('spinbutton', { name: 'Systolic' }).first().inputValue();
           const rrValue = await f.panel.getByRole('spinbutton', { name: 'RR' }).first().inputValue();
-          const got = (k: string) => text.match(new RegExp(`${k}:(\\d+)`))?.[1] ?? '-';
-          const shown = Number(text.match(/RTS = ([\d.]+)/)?.[1] ?? text.match(/([\d.]+) Points/)?.[1] ?? NaN);
-          const tone = await toneOf(f.rtsCard.getByText(/RTS =|Points/).first()).catch(() => '-');
+          const fv = await rtsFields();
+          const shown = result.match(/Revised Trauma Score\s*-\s*([\d.]+)/)?.[1] ?? result.match(/RTS = ([\d.]+)/)?.[1] ?? '-';
+          const tone = (await f.rtsResult.count()) ? await toneOf(f.rtsResult).catch(() => '-') : await toneOf(f.rtsCard.getByText(/RTS =|Points|คะแนน/).first()).catch(() => '-');
+          const raw = (0.9368 * c.coded[0] + 0.7326 * c.coded[1] + 0.2908 * c.coded[2]).toFixed(4);
           const rows: CompareRow[] = [
             { label: 'ค่าที่กรอก SBP / RR', values: [`${c.sbp} / ${c.rr}`, `${sbpValue} / ${rrValue}`], same: sbpValue === c.sbp && rrValue === c.rr },
-            { label: 'คะแนน GCS', values: [String(c.coded[0]), got('GCS')], same: got('GCS') === String(c.coded[0]) },
-            { label: 'คะแนน SBP', values: [String(c.coded[1]), got('SBP')], same: got('SBP') === String(c.coded[1]) },
-            { label: 'คะแนน RR', values: [String(c.coded[2]), got('RR')], same: got('RR') === String(c.coded[2]) },
-            { label: 'ผล RTS', values: [`Complete · ${c.points} Points (0.9368×${c.coded[0]} + 0.7326×${c.coded[1]} + 0.2908×${c.coded[2]} = ${c.raw})`, text.replace(/^Revised Trauma Score \(RTS\) ?/, '')], same: shown === c.points },
+            { label: 'ช่อง GCS / SBP / RR ในการ์ด', values: [`${c.total} / ${c.sbp} / ${c.rr}`, fv ? `${fv.gcs} / ${fv.sbp} / ${fv.rr}` : 'ไม่มีช่องแยก'], same: !!fv && fv.gcs === String(c.total) && fv.sbp === c.sbp && fv.rr === c.rr },
+            { label: 'ผล RTS', values: [`${c.points} (0.9368×${c.coded[0]} + 0.7326×${c.coded[1]} + 0.2908×${c.coded[2]} = ${raw} · ทศนิยม 2 ตำแหน่ง)`, result], same: shown === c.points && !/Incomplete/.test(result) },
             ...(c.n === 23 ? [{ label: 'สีแถบผล', values: ['เขียว', tone], same: tone.startsWith('เขียว') }] : []),
           ];
           await compare(c.n, rows);
-          await markEvidence(filled(f.gcsCard, `GCS ${c.total}`), filled(f.panel.getByRole('spinbutton', { name: 'Systolic' }).first(), `SBP ${c.sbp}`), filled(f.panel.getByRole('spinbutton', { name: 'RR' }).first(), `RR ${c.rr}`), expected(f.rtsCard, text.replace(/^Revised Trauma Score \(RTS\) ?/, '')));
+          await waitDraftBannerGone(page);
+          // ช่อง SBP / RR: กรอบไม่มีป้าย (ป้าย "กรอก: SBP …" หาที่ว่างไม่ได้ ไปทับหัว "BP (mmHg)" — รอบ 7 พ.ย.) · ค่าที่กรอกเห็นในช่อง
+          await markEvidence(filled(f.gcsCard, `GCS ${c.total}`), f.panel.getByRole('spinbutton', { name: 'Systolic' }).first(), f.panel.getByRole('spinbutton', { name: 'RR' }).first(), expected(f.rtsCard, `RTS ${c.points}`));
           note(`${TC(c.n)} RTS บนจอ`, text);
-          expect(bad(rows), `Expected: RTS Complete = ${c.points} Points ตามสูตรในการ์ด`).toEqual([]);
+          expect(bad(rows), `Expected: RTS = ${c.points} ตามสูตร (BA 4 พ.ย. · TC เดิม ${c.tc})`).toEqual([]);
         });
       }
 
       // TC-019 MEWS ครบ
+      if (want(19)) {
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(19));
       await soft(`${TC(19)} ขั้น 2–4 Vital signs SBP 120 · PR 80 · RR 16 · Temp 37.0 + GCS E4 V5 M6 → MEWS = 1`, async () => {
         await hideCompareTable(page);
@@ -729,7 +830,10 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await markEvidence(filled(f.panel.getByRole('spinbutton', { name: 'Systolic' }).first(), 'SBP 120'), filled(f.panel.getByRole('spinbutton', { name: 'PR' }).first(), 'PR 80'), filled(f.panel.getByRole('spinbutton', { name: 'RR' }).first(), 'RR 16'), filled(f.panel.getByRole('spinbutton', { name: 'Temp' }).first(), 'Temp 37'), expected(status, text));
         expect(bad(rows)).toEqual([]);
       });
+      }
 
+      // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
+      await startClip(page, 'after');
       run.finish();
     },
   );
@@ -748,6 +852,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       const bad = (rows: CompareRow[]) => rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`);
       const pressedZone = f.zones.and(page.locator('[aria-pressed="true"]'));
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(38));
       await soft(`${TC(38)} ขั้น 2 กรอกสัญญาณชีพ · Chief Complaint · GCS ครบ ไม่เลือกระดับความเร่งด่วน`, async () => {
         await fillVitals(f, VITALS_TC);
@@ -764,24 +869,38 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await snapEvidence(page, 'ก่อนกด — บันทึก ไม่เลือกระดับ');
         await f.save.hover({ force: true });
         const tip = page.locator('.ant-tooltip:visible').first();
-        await tip.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
-        const tipText = norm(await tip.innerText().catch(() => ''));
+        const hasTip = await tip.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true, () => false);
+        // ไม่มี tooltip (Prod) → อย่าเรียก innerText (รอ element 20 วิ คลิปนิ่งเปล่า)
+        const tipText = hasTip ? norm(await tip.innerText({ timeout: 2_000 }).catch(() => '')) : '';
         if (enabled) await f.save.click();
         await page.waitForTimeout(2_000);
+        // SBH Prod 7 พ.ย. 2026: ปุ่มบันทึกกดได้ — กดแล้วขึ้นข้อความแดงใต้ช่อง "กรุณาระบุ ระดับความเร่งด่วน" / "กรุณาระบุ โซน" และไม่บันทึก
+        // (dev-x 29 ต.ค.: ปุ่ม disabled + tooltip) → ยอมรับทั้ง 2 แบบเป็น "ระบบแจ้งให้เลือกระดับ"
+        const inline = f.panel.getByText(/กรุณาระบุ\s*ระดับความเร่งด่วน/).first();
+        const inlineZone = f.panel.getByText(/กรุณาระบุ\s*โซน/).first();
+        const inlineText = (await inline.isVisible().catch(() => false)) ? norm(await inline.innerText()) : '';
+        const inlineZoneText = (await inlineZone.isVisible().catch(() => false)) ? norm(await inlineZone.innerText()) : '';
+        const message = tipText ? `tooltip "${tipText}"` : inlineText ? `ข้อความใต้ช่อง "${inlineText}"${inlineZoneText ? ` + "${inlineZoneText}"` : ''}` : '';
         const res = await page.request.get(`/cortex-api/er/encounters/${visit.en}/triage-assessments`, { headers: { authorization: authorization() } });
         const assessments = res.ok() ? ((await res.json()) as unknown[]).length : -1;
         const rows: CompareRow[] = [
-          { label: 'ปุ่มบันทึก', values: ['บันทึกไม่ได้', enabled ? 'กดได้' : 'กดไม่ได้ (disabled)'], same: !enabled },
-          { label: 'ข้อความแจ้ง', values: ['ให้เลือกระดับความเร่งด่วน', tipText || '(ไม่มี)'], same: /ระดับ/.test(tipText) },
+          { label: 'บันทึก', values: ['บันทึกไม่สำเร็จ', enabled ? `ปุ่มกดได้ · กดแล้ว${assessments === 0 ? 'ไม่บันทึก' : 'บันทึก'}` : 'ปุ่มกดไม่ได้ (disabled)'], same: !enabled || assessments === 0 },
+          { label: 'ข้อความแจ้ง', values: ['ให้เลือกระดับความเร่งด่วน', message || '(ไม่มี)'], same: /ระดับ/.test(tipText) || !!inlineText },
           { label: 'โซนที่ถูกเลือก', values: ['-', zones ? `${zones} โซน` : 'ไม่มี'], same: true },
           { label: 'ผลคัดกรองใน API', values: ['ไม่มี (ยังไม่ถูกคัดกรอง)', assessments < 0 ? `อ่านไม่ได้ ${res.status()}` : `${assessments} รายการ`], same: assessments === 0 },
         ];
         note(`${TC(38)} ผล`, rows.map((r) => `${r.label}: ${r.values[1]}`).join(' · '));
         await showCompareTable(page, `${ISSUE[38]} ${tcId(38)}`, ['Expected', 'หน้าจอ / API'], rows, { side: 'left' });
-        await markEvidence(...(tipText ? [alerted(tip, 'tooltip ของปุ่มบันทึก')] : [expected(f.save, 'ไม่มี tooltip')]));
+        await markEvidence(
+          ...(tipText ? [alerted(tip, 'tooltip ของปุ่มบันทึก')] : []),
+          ...(inlineText ? [alerted(inline, 'ให้เลือกระดับความเร่งด่วน')] : []),
+          ...(inlineZoneText ? [alerted(inlineZone)] : []),
+          ...(!tipText && !inlineText ? [expected(f.levels, 'ให้เลือกระดับ · จริง: ไม่มีข้อความแจ้ง')] : []),
+        );
         expect(bad(rows)).toEqual([]);
       });
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(24));
       await soft(`${TC(24)} ขั้น 2 เลือกระดับ 3 → ตัวเลือกโซนเป็นชื่อใหม่ 5 โซน`, async () => {
         await hideCompareTable(page);
@@ -800,6 +919,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         expect(bad(rows)).toEqual([]);
       });
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(39));
       await soft(`${TC(39)} ขั้น 2 เลือกระดับแล้วเอาโซนที่ระบบเลือกให้ออก (ไม่มีโซน)`, async () => {
         await hideCompareTable(page);
@@ -818,14 +938,16 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         }
         note(`${TC(39)} ตรวจไม่ได้`, `กดโซน ${zone} ซ้ำแล้วยังถูกเลือก (${after ? afterName : 'หลุด'}) · ทุกระดับระบบเลือกโซนแนะนำให้เอง: ${levelsTried.join(' · ')} → สร้างสภาพ "มีระดับแต่ไม่มีโซน" บนหน้าจอไม่ได้`);
         await showCompareTable(page, `${ISSUE[39]} ${tcId(39)}`, ['Expected', 'หน้าจอ'], [
-          { label: 'เอาโซนออก', values: ['ไม่มีโซน', after ? `ยังเลือก ${afterName}` : 'ไม่มีโซน'], same: !after },
+          // ผู้ใช้ตัดสิน 29 ต.ค. 2026 (decisions R75): เอาโซนออกไม่ได้เพราะ UI เลือกโซนแนะนำให้เสมอ = ถือว่าผ่าน
+          { label: 'บันทึกโดยไม่มีโซน', values: ['ทำไม่ได้ (ถือว่าผ่านเมื่อเอาโซนออกไม่ได้)', after ? `เอาโซนออกไม่ได้ — กดซ้ำแล้วยังเลือก ${afterName}` : 'เอาโซนออกได้'], same: !!after },
           { label: 'ทุกระดับ', values: ['-', levelsTried.join(' · ')], same: true },
         ], { side: 'left' });
-        await markEvidence(expected(pressedZone, after ? `ยังเลือก ${afterName}` : 'ไม่มีโซน'));
+        await markEvidence(expected(pressedZone, after ? `มีโซนเสมอ — กดซ้ำแล้วยังเลือก ${afterName}` : 'ไม่มีโซน'));
         if (!after) throw new Error('เอาโซนออกได้ — ต้องเขียนขั้นกดบันทึกต่อ');
       });
 
       // TC-039 ตรวจไม่ได้ (ไม่ใช่ไม่ผ่าน) — ไม่นับใน finish
+      await startClip(page, 'after'); // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
       run.finish();
     },
   );
@@ -846,31 +968,89 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       page.on('request', (req) => {
         if (req.method() === 'PATCH' && req.url().includes('/registration-details')) patched.push(req.postData() ?? '');
       });
+      let escortShown = '';
+      const bad9 = (rows: CompareRow[]) => rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (Expected ${r.values[0]})`);
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(9));
       await soft(`${TC(9)} ขั้น 2–3 ER Arrival: EMS · ALS · ผู้นำส่ง (อัตโนมัติ) · ชื่อหน่วยงาน · ข้อมูลก่อนถึงโรงพยาบาล`, async () => {
         await f.arrival.getByText('EMS', { exact: true }).click();
         await expect(f.arrivalRadio('EMS')).toBeChecked();
         await f.arrival.getByText('ALS', { exact: true }).click();
         await expect(f.arrivalRadio('ALS')).toBeChecked();
-        await expect(f.escort).toContainText('EMS ขึ้นทะเบียน', { timeout: 15_000 });
+        // SBH Prod 7 พ.ย. 2026: master data ผู้นำส่งยังเป็นชุดเก่า (none / relative / caregiver / ems_personnel) ไม่เติม "EMS ขึ้นทะเบียน" เอง
+        // → ผู้ใช้ให้รันต่อ ลง Fail ตามจริง: ช่องว่างให้เลือกตัวเลือกที่มีคำ EMS เพื่อเล่นขั้นถัดไป แล้วขั้นนี้จบไม่ผ่าน
+        const auto = await expect(f.escort).toContainText('EMS ขึ้นทะเบียน', { timeout: 15_000 }).then(() => true, () => false);
+        const autoText = norm(await f.escort.innerText());
+        if (!auto && /เลือก|^$/.test(autoText)) {
+          await markEvidence(filled(f.arrival.getByText('EMS', { exact: true }), 'EMS'), expected(f.escort, 'EMS ขึ้นทะเบียน (อัตโนมัติ) · จริง: ว่าง'));
+          await snapEvidence(page, 'ผู้นำส่งไม่ถูกเติมหลังเลือก EMS');
+          await f.escort.click();
+          const opts = page.locator('.ant-select-dropdown:visible .ant-select-item-option');
+          await expect(opts.first()).toBeVisible({ timeout: 15_000 });
+          const texts = (await opts.allInnerTexts()).map(norm);
+          await opts.nth(Math.max(0, texts.findIndex((t) => /EMS/.test(t)))).click();
+          await page.waitForTimeout(800);
+        }
+        escortShown = norm(await f.escort.innerText());
+        note(`${TC(9)} ผู้นำส่งหลังเลือก EMS`, auto ? 'EMS ขึ้นทะเบียน (ระบบเติมให้)' : `ระบบไม่เติมให้ (ค่าเดิม "${autoText}") → เลือก "${escortShown}" เอง (Prod ไม่มีตัวเลือก EMS ขึ้นทะเบียน)`);
         await f.transporter.fill('หน่วยกู้ภัยทดสอบ');
         await f.transporter.press('Tab');
         await f.preHospital.fill('BP 110/70 ระหว่างนำส่ง');
         await f.preHospital.press('Tab');
         await page.waitForTimeout(3_000);
-        await markEvidence(filled(f.arrival.getByText('EMS', { exact: true }), 'EMS'), filled(f.arrival.getByText('ALS', { exact: true }), 'ALS'), expected(f.escort, 'EMS ขึ้นทะเบียน (อัตโนมัติ)'), filled(f.transporter, 'หน่วยกู้ภัยทดสอบ'), filled(f.preHospital, 'BP 110/70 ระหว่างนำส่ง'));
+        await markEvidence(
+          filled(f.arrival.getByText('EMS', { exact: true }), 'EMS'),
+          filled(f.arrival.getByText('ALS', { exact: true }), 'ALS'),
+          auto ? expected(f.escort, 'EMS ขึ้นทะเบียน (อัตโนมัติ)') : filled(f.escort, `ไม่เติมเอง → เลือก ${escortShown}`),
+          filled(f.transporter, 'หน่วยกู้ภัยทดสอบ'),
+          filled(f.preHospital, 'BP 110/70 ระหว่างนำส่ง'),
+        );
+        expect(auto, `ผู้นำส่งต้องเป็น EMS ขึ้นทะเบียน (ค่าอัตโนมัติ) · จริง: ${autoText || 'ว่าง'}`).toBe(true);
       });
       note(`${TC(9)} คำสั่งเก็บ ER Arrival (PATCH registration-details)`, patched.map((b) => b.slice(0, 200)).join(' | ') || '(ไม่มี)');
 
-      await soft(`${TC(9)} ขั้น 4 กรอกช่องบังคับ · เลือกระดับ 3 + โซน แล้วกดบันทึกคัดกรอง → สำเร็จ`, async () => {
+      await soft(`${TC(9)} ขั้น 4 กรอกช่องบังคับ (ประเภทฉุกเฉิน Trauma) · เลือกระดับ 3 + โซน แล้วกดบันทึกคัดกรอง → สำเร็จ`, async () => {
+        // ผู้ใช้เลือก 7 พ.ย. 2026: เลือก Trauma เพราะส่วน "การนำส่ง" ของ ER Summary แสดงเฉพาะผู้ป่วย Trauma (SBH-3182) — เขียนในผล
+        await f.emergency.getByText('Trauma', { exact: true }).click();
+        await expect(f.emergency.getByRole('radio', { name: 'Trauma', exact: true })).toBeChecked();
         await fillVitals(f, VITALS_TC);
         await f.panel.getByRole('group', { name: 'Common chief complaints' }).getByRole('button').first().click();
         await pickGcs(f, 4, 5, 6);
         await saveTriage(page, f, `คัดกรอง ${visit.en}`);
       });
 
-      await soft(`${TC(9)} ขั้น 5 เปิดดูผลคัดกรองที่บันทึก → ข้อมูล ER Arrival ตรงกับที่กรอก`, async () => {
+      await soft(`${TC(9)} ขั้น 5 เปิดหน้า ER Summary → ส่วนการนำส่งแสดง ER Arrival ตรงกับที่กรอก`, async () => {
+        await hideCompareTable(page);
+        await openErSummary(page, visit);
+        const transport = erSummarySection(page, 'transport');
+        await expect(transport, 'ER Summary ต้องมีส่วน "การนำส่งและการดูแลระหว่างนำส่ง"').toBeVisible({ timeout: 30_000 });
+        await transport.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await page.waitForTimeout(800);
+        const fields = await readFields(transport);
+        note(`${TC(9)} ER Summary ส่วนการนำส่ง`, Object.entries(fields).map(([k, v]) => `${k}: ${v}`).join(' · '));
+        const res = await page.request.get(`/cortex-api/er/encounters/${visit.en}`, { headers: { authorization: authorization() } });
+        const enc = (res.ok() ? await res.json() : {}) as Record<string, unknown>;
+        note(`${TC(9)} API /er/encounters/${visit.en}`, `arrivalMethod ${enc.arrivalMethod} · emsLevel ${enc.emsLevel} · accompanyingPersonOptionId ${enc.accompanyingPersonOptionId} · transporterName ${enc.transporterName} · preHospitalInfo ${enc.preHospitalInfo} · ผู้นำส่งที่เลือกบนฟอร์ม "${escortShown}"`);
+        const val = (label: string) => fields[label] ?? '(ไม่มีช่อง)';
+        const rows: CompareRow[] = [
+          { label: 'วิธีการมาถึง', values: ['EMS', val('วิธีการมาถึง')], same: /^EMS/.test(val('วิธีการมาถึง')) },
+          { label: 'ระดับความเร่งด่วน EMS', values: ['ALS', val('ระดับความเร่งด่วน EMS')], same: /ALS/.test(val('ระดับความเร่งด่วน EMS')) },
+          { label: 'ผู้นำส่ง', values: ['EMS ขึ้นทะเบียน', val('ผู้นำส่ง')], same: val('ผู้นำส่ง').includes('EMS ขึ้นทะเบียน') },
+          { label: 'ชื่อผู้นำส่ง / หน่วยงาน', values: ['หน่วยกู้ภัยทดสอบ', val('ชื่อผู้นำส่ง / หน่วยงาน')], same: val('ชื่อผู้นำส่ง / หน่วยงาน') === 'หน่วยกู้ภัยทดสอบ' },
+          { label: 'ข้อมูลก่อนถึงโรงพยาบาล', values: ['BP 110/70 ระหว่างนำส่ง', val('ข้อมูลก่อนถึงโรงพยาบาล')], same: val('ข้อมูลก่อนถึงโรงพยาบาล') === 'BP 110/70 ระหว่างนำส่ง' },
+        ];
+        await showCompareTable(page, `${ISSUE[9]} ${tcId(9)} ER Summary — การนำส่ง`, ['Expected', 'ER Summary'], rows, { side: 'right' });
+        const escortOk = val('ผู้นำส่ง').includes('EMS ขึ้นทะเบียน');
+        await markEvidence(
+          { target: transport },
+          expected(fieldOf(transport, 'ผู้นำส่ง'), escortOk ? 'EMS ขึ้นทะเบียน' : `EMS ขึ้นทะเบียน · จริง: ${val('ผู้นำส่ง')}`),
+        );
+        expect(bad9(rows), 'Expected: ER Summary ส่วนการนำส่งแสดง EMS · ALS · EMS ขึ้นทะเบียน · หน่วยกู้ภัยทดสอบ · BP 110/70 ระหว่างนำส่ง').toEqual([]);
+      });
+
+      // ข้อมูลประกอบ (ไม่ใช่ Expected ปัจจุบัน): หน้าดูผลคัดกรอง + ค่าใน API
+      if (process.env.SBH1678_TC009_VIEW) await soft(`${TC(9)} ประกอบ: เปิดดูผลคัดกรองที่บันทึก`, async () => {
         const area = await openSavedView(page);
         const inputs = await main.locator('input, textarea').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value).filter(Boolean));
         const screen = norm(await main.innerText());
@@ -897,6 +1077,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         expect(rows.filter((r) => !r.same).map((r) => `${r.label}: ${r.values[1]} (API ${r.values[2] ?? '-'})`), 'Expected: ข้อมูล ER Arrival ที่บันทึกแสดงตรงกับที่กรอก').toEqual([]);
       });
 
+      await startClip(page, 'after'); // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
       run.finish();
     },
   );
@@ -917,6 +1098,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       const pi = f.panel.locator('textarea[placeholder="ประวัติเจ็บป่วยปัจจุบัน"]').first();
       let ccName = '';
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(13));
       await soft(`${TC(13)} ขั้น 2–3 กรอก Vital signs · Body Metrics · Chief Complaint · Present Illness`, async () => {
         await fillVitals(f, VITALS_TC);
@@ -978,6 +1160,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await markEvidence(expected(box, 'Present Illness: ทดสอบ PI'));
       });
 
+      await startClip(page, 'after'); // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
       run.finish();
     },
   );
@@ -996,6 +1179,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       const ud = underlying(page);
       const disease = 'Essential (primary) hypertension';
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(14));
       await soft(`${TC(14)} ขั้น 2 ส่วนโรคประจำตัว: ค้น I10 ความดันโลหิตสูง แล้วกดบันทึกของส่วนนี้`, async () => {
         await ud.section.scrollIntoViewIfNeeded();
@@ -1009,8 +1193,24 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await expect(ud.save).toBeEnabled();
         await markEvidence(filled(ud.input, 'I10 Essential (primary) hypertension'), clicked(ud.save));
         await snapEvidence(page, 'ก่อนกด — บันทึกโรคประจำตัว');
+        // SBH Prod 6–7 พ.ย. 2026: บันทึก U/D ได้ 400 (clinicallyRecognisedAt) + ข้อความแดง "ไม่สามารถอัปเดตโรคประจำตัวได้" ใต้ตาราง
+        // แถวในตารางยังค้างบนจอ → ต้องดูทั้งข้อความแจ้งและ response ไม่ใช่แค่แถว
+        const udResponses: string[] = [];
+        const onResponse = (res: import('@playwright/test').Response) => {
+          if (['POST', 'PUT', 'PATCH'].includes(res.request().method()) && /graphql|underlying|condition/i.test(res.url())) udResponses.push(`${res.status()} ${res.request().method()} ${res.url().replace(/^.*\/cortex-api/, '')}`);
+        };
+        page.on('response', onResponse);
         await ud.save.click();
         await expect(ud.table.getByText(disease, { exact: true }), 'ตารางโรคประจำตัวต้องมีโรคที่เพิ่ม').toBeVisible({ timeout: 20_000 });
+        // ข้อความแดงอยู่ใต้ตาราง นอก ud.section (SBH Prod 8 พ.ย. 2026 หาไม่เจอ → ขั้นนี้ขึ้นผ่านผิด ต้องแก้ป้ายภาพด้วย relabel-ud.cjs)
+        const udError = erTriagePanel(page).getByText('ไม่สามารถอัปเดตโรคประจำตัวได้').first();
+        const failed = await udError.waitFor({ state: 'visible', timeout: 6_000 }).then(() => true, () => false);
+        page.off('response', onResponse);
+        note(`${TC(14)} คำขอบันทึกโรคประจำตัว`, udResponses.join(' | ') || '(ไม่พบ)');
+        if (failed) {
+          await markEvidence(alerted(udError, 'บันทึกโรคประจำตัวไม่สำเร็จ'), { target: ud.table.locator('tr').filter({ hasText: disease }).first() });
+          throw new Error(`บันทึกโรคประจำตัวไม่สำเร็จ — ระบบแจ้ง "ไม่สามารถอัปเดตโรคประจำตัวได้" (${udResponses.join(' | ') || 'ไม่พบ response'})`);
+        }
         await markEvidence(expected(ud.table.locator('tr').filter({ hasText: disease }).first(), disease));
       });
       await soft(`${TC(14)} ขั้น 3 กรอกช่องบังคับ · เลือกระดับ 3 + โซน แล้วกดบันทึกคัดกรอง → สำเร็จ`, async () => {
@@ -1031,11 +1231,19 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         ];
         await showCompareTable(page, `${ISSUE[14]} ${tcId(14)} โรคประจำตัว`, ['Expected', 'หน้าจอ'], rows, { side: 'left' });
         await row.scrollIntoViewIfNeeded().catch(() => undefined);
-        await markEvidence(expected(row, disease), expected(banner, 'U/D'));
+        // ตีกรอบเฉพาะสิ่งที่มีบนจอ (markEvidence กับ locator ที่ไม่มี = รอ 20 วิ แล้วพัง)
+        const udLabel = page.getByText(/^U\/D:?$/).first();
+        const emptyUd = main.getByText('ไม่พบข้อมูลโรคประจำตัว').first();
+        const marks = [
+          ...((await row.count()) ? [expected(row, disease)] : (await emptyUd.isVisible().catch(() => false)) ? [expected(emptyUd, `${disease} · จริง: ไม่พบข้อมูลโรคประจำตัว`)] : []),
+          ...((await banner.count()) ? [expected(banner, 'U/D')] : (await udLabel.isVisible().catch(() => false)) ? [expected(udLabel.locator('xpath=..'), `U/D ${disease} · จริง: -`)] : []),
+        ];
+        if (marks.length) await markEvidence(...marks);
         note(`${TC(14)} ข้อสังเกต`, 'หัวส่วนในฟอร์มคัดกรอง = "Underlying Disease" (ค้น ICD10 / SNOMED + ปุ่มบันทึกของส่วนนี้) · หลังบันทึกเป็น "Verified Underlying Disease" · ยังไม่ได้เปิดหน้า OPD เทียบว่าเหมือนกันทุกจุด');
         expect(rows.filter((r) => !r.same).map((r) => r.label)).toEqual([]);
       });
 
+      await startClip(page, 'after'); // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
       run.finish();
     },
   );
@@ -1052,6 +1260,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       const f = form(page);
       const main = page.getByRole('main');
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(25));
       await soft(`${TC(25)} ขั้น 2 กรอกช่องบังคับ · ระดับ 3 · โซน Isolation 2 แล้วกดบันทึกคัดกรอง`, async () => {
         await fillVitals(f, VITALS_TC);
@@ -1079,6 +1288,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         expect(inColumn, 'การ์ดผู้ป่วย Isolation 2 ต้องอยู่ในคอลัมน์ Zone Isolate').toBe(true);
       });
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(27));
       await soft(`${TC(27)} ขั้น 2–3 ผู้ป่วยโซน Isolation 2 (จาก TC-025): Patient banner แสดง Isolation เลข 2`, async () => {
         await gotoVisit(page, visit);
@@ -1087,6 +1297,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         await markEvidence(expected(chip, 'Isolation 2'), expected(main.getByText(`VN ${visit.vn}`, { exact: true }).first(), visit.vn));
       });
 
+      await startClip(page, 'after'); // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
       run.finish();
     },
   );
@@ -1103,6 +1314,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       const f = form(page);
       const main = page.getByRole('main');
 
+      await hideCompareTable(page).catch(() => undefined);
       await startClip(page, tcId(26));
       await soft(`${TC(26)} ขั้น 2 คัดกรองโซน Isolation 1 แล้วกดบันทึก`, async () => {
         await fillVitals(f, VITALS_TC);
@@ -1113,6 +1325,10 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
       await soft(`${TC(26)} ขั้น 3 Patient banner แสดง Isolation เลข 1`, async () => {
         const chip = main.getByText(/^Isolation\s*1$/).first();
         await expect(chip, 'แถบผู้ป่วยต้องแสดง Isolation 1').toBeVisible({ timeout: 60_000 });
+        // SBH Prod 7 พ.ย. 2026: แจ้งเตือนสำเร็จ 2 อันมุมขวาบนบังชิปโซนบน banner → ปิดทุกอันก่อนตีกรอบ
+        for (const close of await page.locator('.ant-notification-notice-close, .ant-message-notice').all()) await close.click({ timeout: 2_000 }).catch(() => undefined);
+        await expect(page.locator('.ant-notification-notice')).toHaveCount(0, { timeout: 10_000 }).catch(() => undefined);
+        await page.waitForTimeout(500);
         await markEvidence(expected(chip, 'Isolation 1'), expected(main.getByText(`VN ${visit.vn}`, { exact: true }).first(), visit.vn));
       });
       await soft(`${TC(26)} (ประกอบ) ER Dashboard: การ์ดในคอลัมน์ Zone Isolate มีป้ายเลข 1`, async () => {
@@ -1127,6 +1343,7 @@ test.describe('SBH-1678 ฟอร์มคัดกรอง ER แบบ Trauma
         expect(badgeText).toBe('1');
       });
 
+      await startClip(page, 'after'); // คลิปของ TC สุดท้ายไม่ยาวไปถึงขั้นปิด Visit ของ afterEach
       run.finish();
     },
   );
