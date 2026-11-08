@@ -33,7 +33,8 @@ Cortex Automate/
 │  ├─ created-patients.md          บันทึกผู้ป่วยที่สคริปต์สร้างทุกรอบ ทุกระบบ (HN / VN / EN / เลขบัตร / สถานะ)
 │  ├─ UAT-ER-play.spec.ts          เล่นตามชีต "Scenario- ER": UAT-ER-10 · 09 · 01 (+ "01-ต่อ") — ใช้ผู้ป่วย Mock รายล่าสุดจาก created-patients.md · ไม่เก็บภาพ ขั้นที่พังจดแล้วเล่นต่อ
 │  ├─ UAT-ER-play-b.spec.ts        เล่นต่อ: UAT-ER-02 – 08 · 11 – 13 (+ เทส "-ต่อ" เล่นซ้ำขั้นที่ค้างกับผู้ป่วยชุดเดิม) · ข้อ 14 ไม่เล่น
-│  ├─ uat-tor.ts + UAT-ER-tor-01-02 / 03-06 / 07-10 / 11-14.spec.ts   เล่นชีต "Scenario- ER ส่งมอบ" (SharePoint) บน SBH Prod แบบกรอกข้อมูลผู้ป่วยครบทุกส่วน — 16 เทส tag `@UAT-ER-xx` · `npm run uat:er-tor -- --grep …` · รายละเอียดในสกิล cortex-er-tor-uat
+│  ├─ uat-tor.ts + UAT-ER-tor-01-02 / 03-06 / 07-10 / 11-14.spec.ts   เล่นชีต "Scenario- ER ส่งมอบ" (SharePoint) บน SBH Prod แบบกรอกข้อมูลผู้ป่วยครบทุกส่วน — 16 เทส tag `@UAT-ER-xx` · `npm run uat:er-tor -- --grep …` (จับเฉพาะไฟล์ `UAT-ER-tor-[01]…`) · รายละเอียดในสกิล cortex-er-tor-uat
+│  ├─ UAT-ER-tor-mock.spec.ts   Mock Data ชุด TOR (8 พ.ย. 2026) — คนไข้ตั้งต้นต่อข้อตามชีต ER Scenario Map / Mock-Data ER 18 ราย tag `@TORM-xx` (รวมชุดเรียงคิว "UAT SORT-xx") + `@TORM-HX` คนไข้ประวัติครบ OPD + IPD + ER "UAT HX-xx" (9 พ.ย. — ยังไม่รัน · ทำต่อ `TORM_RESUME=1` สถานะ `.cache/torm-hx-<ระบบ>.json`) · `npm run mock:tor -- --grep …`
 │  └─ uat-play.ts                  ตัวเล่น `Play` (step / note / dump / finish → ผลลง .cache/uat-play-<ระบบ>/<ข้อ>.json) · ผู้ป่วยข้ามข้อ (patients.json) · careMenu / recordMenu ·
 │                                  fillTriage / saveTriageForm · draftDischarge / signDischarge · requestConsult / replyConsult · addMedicineToCart · createMedicalCertificate · saveProgressNote · nextMutation / watchMutations
 ├─ mock-data-refer/                Mock Data "Refer เข้า" (ราย E / UAT-ER-14) — ผู้ใช้วางไฟล์เอง 5 ต.ค. 2026

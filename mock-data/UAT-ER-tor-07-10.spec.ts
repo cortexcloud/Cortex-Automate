@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { confirmOpenErVisit, expectOk, expectVisitHeader, fetchBoard, fetchZones, gotoErDashboard, openErMenu, openVisitDialog, waitForApi, type ErVisit } from '../helpers/functions/er';
 import { hideBadge, NO_PRINT_AGENT_TEXT, printBedsideBadge, readBadge, showBadge } from '../helpers/functions/er-badge';
+import { erTriageLevel, erTriagePanel } from '../helpers/functions/er-triage';
 import { erListRow, erListTab, gotoErPatientList, hnSearchBox, openErListTab } from '../helpers/functions/er-list';
 import { esiButton, fetchIncident, fillMemberTriage, memberRow, openCreateIncident, pressReady, readyButton, selectMember, submitAllButton, submitCreateIncident, type MciIncident } from '../helpers/functions/er-mass-casualty';
 import { fetchWaitTimeSettings, restoreWaitTimeSettings, type WaitTimeSetting } from '../helpers/functions/er-quality';
@@ -9,7 +10,7 @@ import type { NewPatient } from '../helpers/functions/test-data';
 import { expect, test } from './fixtures';
 import { COVERAGE_UC, SYSTEM, fetchNurseTasks, nextUatPatient, openErVisitForHn, recordMockPatient, submitOrders, type NurseTask } from './uat-er';
 import { boardEncounter, gotoVisit, guard, nextMutation, options, pick, type Played } from './uat-play';
-import { GCS_FULL, TOR_ORDER_CODES, TOR_VITALS_HIGH_MEWS, TOR_VITALS_NORMAL, TorPlay, fillTriageFull, noteFilled, registerFull, saveTriageFull, savePhysicianNoteFull, snap } from './uat-tor';
+import { GCS_FULL, TOR_ORDER_CODES, TOR_VITALS_HIGH_MEWS, TOR_VITALS_NORMAL, TorPlay, fillTriageFull, noteFilled, registerFull, saveTriageFull, savePhysicianNoteFull, selectTriageZone, snap } from './uat-tor';
 
 // เล่น Scenario UAT ER "ชีตส่งมอบ" (SharePoint "New file Test case OPD #2.xlsx" ชีต Scenario- ER ส่งมอบ — สกิล cortex-er-tor-uat) ข้อ 07–10
 //   @UAT-ER-07  อุบัติเหตุหมู่ ผู้ป่วยมาพร้อมกันหลายราย (แถว 184–207): ลงทะเบียนครบ 2 ราย → สร้างเหตุการณ์ (ชื่อ / สถานที่ / อาการสำคัญร่วม / การมาถึง EMS) →
@@ -528,23 +529,38 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
       const before = original.find((s) => s.level === level)?.limitSeconds ?? null;
       const target = before !== null && before / 60 === ER08_TARGET_MIN ? ER08_TARGET_MIN + 1 : ER08_TARGET_MIN;
 
-      // ลงทะเบียนก่อนแก้ค่า (ใช้เวลานาน) → ช่วงที่ค่าถูกแก้สั้นที่สุด
-      const fresh = await nextUatPatient(page, authorization(), 8);
-      const reg = await play.step('[เตรียม] ลงทะเบียนผู้ป่วยใหม่ครบทุกช่อง + เปิด Visit ER สิทธิ UC', async () => {
-        const r = await registerFull(page, fresh).catch(async (error: Error) => {
-          await noteVisitSlot(play, page);
-          throw error;
+      // TOR08_RESUME=<HN>,<VN>,<EN>[,<นามสกุล เช่น ER08-01>] = เล่นต่อกับผู้ป่วยเดิมที่คัดกรองไม่สำเร็จ
+      //   (ผู้ใช้สั่ง 8 พ.ย. 2026 หลังฟอร์มล็อก "ร่างถูกแก้ไขจากที่อื่น" — ไม่สร้างผู้ป่วยใหม่)
+      const resume = process.env.TOR08_RESUME?.split(',').map((s) => s.trim());
+      let visit: ErVisit | undefined;
+      let familyName = resume?.[3] ?? '';
+      if (resume && resume.length >= 3) {
+        visit = { hn: resume[0], vn: resume[1], en: resume[2] };
+        play.patient('เล่นต่อ (TOR08_RESUME — คัดกรองยังไม่ได้บันทึก)', { ...visit, name: `HN ${visit.hn}` });
+      } else {
+        // ลงทะเบียนก่อนแก้ค่า (ใช้เวลานาน) → ช่วงที่ค่าถูกแก้สั้นที่สุด
+        const fresh = await nextUatPatient(page, authorization(), 8);
+        const reg = await play.step('[เตรียม] ลงทะเบียนผู้ป่วยใหม่ครบทุกช่อง + เปิด Visit ER สิทธิ UC', async () => {
+          const r = await registerFull(page, fresh).catch(async (error: Error) => {
+            await noteVisitSlot(play, page);
+            throw error;
+          });
+          noteFilled(play, `ลงทะเบียน ${fullName(fresh)} HN ${r.hn}`, r.filled, r.skipped);
+          return r;
         });
-        noteFilled(play, `ลงทะเบียน ${fullName(fresh)} HN ${r.hn}`, r.filled, r.skipped);
-        return r;
-      });
-      const visit = reg?.visit;
-      if (!visit) throw new Error(`UAT-ER-08: เปิด Visit ER ไม่สำเร็จ (${fullName(fresh)}) — หยุด`);
-      play.patient('เปิดใหม่', played(fresh, visit));
-      recordMockPatient('เล่น 08', fresh, visit, `UAT-ER-08 รอเกินเป้าหมาย ESI ${level}`);
+        visit = reg?.visit;
+        if (!visit) throw new Error(`UAT-ER-08: เปิด Visit ER ไม่สำเร็จ (${fullName(fresh)}) — หยุด`);
+        familyName = fresh.familyName;
+        play.patient('เปิดใหม่', played(fresh, visit));
+        recordMockPatient('เล่น 08', fresh, visit, `UAT-ER-08 รอเกินเป้าหมาย ESI ${level}`);
+      }
 
       let zone = '';
       let cc: string | undefined;
+      // TOR08_ONLY_ZONE=1 (คู่กับ TOR08_RESUME) = รันเฉพาะ [224–225] กรองโซน — ไม่แตะค่าตั้งค่าเวลารอตรวจ (ผู้ใช้สั่ง 8 พ.ย. 2026 หลังขั้นอื่นผ่านแล้ว)
+      const onlyZone = !!resume && process.env.TOR08_ONLY_ZONE === '1';
+      if (onlyZone) play.note('TOR08_ONLY_ZONE=1 — ข้ามขั้น 216–222 (ผ่านแล้วรอบ 21:46) · รันเฉพาะกรองโซน');
+      if (!onlyZone) {
       try {
         pendingRestore = { items: original, authorization };
         await play.step(`[216–217] ตั้งค่าเวลารอตรวจ: ESI ${level} ${before === null ? 'ไม่จำกัด' : `${before / 60} นาที`} → ${target} นาที → บันทึก — บันทึกได้ เปิดดูซ้ำค่าถูก`, async () => {
@@ -572,11 +588,26 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
 
         await play.step(`[เตรียม] คัดกรองครบทุก Section ที่ ESI ${level} — ผู้ป่วยรอตรวจในโซน`, async () => {
           await gotoVisit(page, visit);
-          const t = await fillTriageFull(page, { level: level as 1 | 2 | 3 | 4 | 5, vitals: TOR_VITALS_NORMAL, illness: 'เจ็บคอ ไอ มีไข้ต่ำ 2 วัน (UAT)' });
-          noteFilled(play, 'คัดกรอง', t.filled, t.skipped);
+          const systolic = erTriagePanel(page).getByRole('spinbutton', { name: 'Systolic' }).first();
+          const kept = resume ? await systolic.waitFor({ timeout: 120_000 }).then(() => systolic.inputValue(), () => '') : '';
+          if (resume && kept) {
+            // ร่างเดิมเก็บ V/S · GCS · ER Arrival ไว้ แต่ระดับความเร่งด่วน + โซนอาจหาย (เจอ 8 พ.ย. 18:46) → เลือกใหม่
+            const locked = await shown(page.getByText(/ร่างถูกแก้ไขจากที่อื่น/), 3_000);
+            const levels = erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' });
+            await levels.scrollIntoViewIfNeeded();
+            if (!(await erTriageLevel(page, level).isChecked().catch(() => false))) await levels.getByText(String(level), { exact: true }).click();
+            await expect(erTriageLevel(page, level), `ระดับความเร่งด่วนต้องเป็น ${level}`).toBeChecked();
+            zone = await selectTriageZone(page, 'suggested');
+            const chosen = erTriagePanel(page).getByRole('group', { name: 'Common chief complaints' }).locator('button[aria-pressed="true"]');
+            cc = (await chosen.count()) ? norm(await chosen.first().innerText()) : undefined;
+            play.note(`เปิดใหม่: ร่างเก็บ Systolic "${kept}" · แถบ "ร่างถูกแก้ไขจากที่อื่น" ${locked ? 'ยังขึ้นอยู่' : 'ไม่ขึ้นแล้ว'} · เลือก ESI ${level} · โซน ${zone} · CC ${cc ?? '-'}`);
+          } else {
+            const t = await fillTriageFull(page, { level: level as 1 | 2 | 3 | 4 | 5, vitals: TOR_VITALS_NORMAL, illness: 'เจ็บคอ ไอ มีไข้ต่ำ 2 วัน (UAT)' });
+            noteFilled(play, resume ? 'คัดกรอง (กรอกใหม่ — ร่างหาย)' : 'คัดกรอง', t.filled, t.skipped);
+            zone = zoneName(t.zone);
+            cc = t.chiefComplaint;
+          }
           await saveTriageFull(page, visit, `คัดกรอง ESI ${level}`);
-          zone = zoneName(t.zone);
-          cc = t.chiefComplaint;
         });
 
         await play.step('[219–220] ดูข้อมูลบนการ์ดผู้ป่วยบน ER Dashboard — ตัวตน · สัญญาณชีพ · อาการ · ความรุนแรง · LOS', async () => {
@@ -589,7 +620,7 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
           const enc = (await fetchBoard(page, authorization)).find((e) => e.en === visit.en);
           play.note(`API บอร์ด: ESI ${enc?.triageLevel} · triagedAt ${enc?.triagedAt} · waitTimeLimitSeconds ${enc?.waitTimeLimitSeconds} · MEWS ${enc?.clinicalDetails?.mews?.score ?? '-'}`);
           const checks: [string, RegExp][] = [
-            ['ตัวตน: ชื่อ', new RegExp(esc(fresh.familyName))],
+            ['ตัวตน: ชื่อ', familyName ? new RegExp(esc(familyName)) : new RegExp(visit.hn)],
             ['ตัวตน: HN', new RegExp(`HN: ${visit.hn}`)],
             ['สัญญาณชีพ: BP', new RegExp(`${TOR_VITALS_NORMAL.systolic}\\s*/\\s*${TOR_VITALS_NORMAL.diastolic}`)],
             ['อาการ (CC)', cc ? new RegExp(esc(cc.slice(0, 12))) : /CC/],
@@ -645,6 +676,7 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
         await expect(page).toHaveURL(/er-triage-wait-time-targets/, { timeout: 30_000 });
         if (before !== null) await expect(await waitTimeInput(page, level, original), `หน้าตั้งค่า ESI ${level} ต้องเป็น ${before / 60} นาที`).toHaveValue(String(before / 60), { timeout: 30_000 });
       });
+      } // จบ if (!onlyZone)
 
       await play.step(`[224–225] มุมมอง "รายการ" → ตัวกรองโซน "${zone || '(โซนของผู้ป่วย)'}" — เห็นเฉพาะโซนนั้น · ป้าย "โซน: ${zone}" · ตัวนับ ESI ตามโซน`, async () => {
         const zones = await fetchZones(page, authorization);
@@ -652,7 +684,9 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
         if (loc && zones.has(loc)) zone = zones.get(loc)!;
         expect(zone, 'ต้องรู้โซนของผู้ป่วย').toBeTruthy();
         await gotoErPatientList(page);
-        const zoneSelect = main.locator('.ant-select').nth(0);
+        // ช่อง "โซน" ในแถบกรอง (placeholder "โซน") — .ant-select ตัวแรกของหน้าเป็นตัวที่ซ่อนอยู่ คลิกไม่ได้ (รอบ 21:49)
+        const byPlaceholder = main.locator('.ant-select').filter({ has: page.locator('.ant-select-selection-placeholder', { hasText: /^\s*โซน\s*$/ }) });
+        const zoneSelect = (await byPlaceholder.count()) ? byPlaceholder.first() : main.locator('.ant-select').filter({ visible: true }).first();
         await zoneSelect.click();
         const option = page.locator('.ant-select-dropdown:visible .ant-select-item-option').filter({ hasText: new RegExp(`^\\s*${esc(zone)}\\s*(\\(|$)`) }).first();
         await expect(option, `ตัวกรองโซนต้องมี "${zone}"`).toBeVisible();
@@ -696,23 +730,57 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
     console.log(`▶ UAT-ER-09 งานพยาบาล (${SYSTEM}) — ผู้ป่วยใหม่ + คัดกรอง + Physician Note + Order ${TOR_ORDER_CODES.img.join(' / ')} → รายการงานพยาบาล`);
     try {
       await gotoErDashboard(page);
-      const fresh = await nextUatPatient(page, authorization(), 9);
-      const reg = await play.step('[เตรียม] ลงทะเบียนผู้ป่วยใหม่ครบทุกช่อง + เปิด Visit ER สิทธิ UC', async () => {
-        const r = await registerFull(page, fresh).catch(async (error: Error) => {
-          await noteVisitSlot(play, page);
-          throw error;
+      // TOR09_RESUME=<HN>,<VN>,<EN> = เล่นต่อกับผู้ป่วยเดิมที่คัดกรองไม่สำเร็จ (ผู้ใช้สั่ง 8 พ.ย. 2026 หลังฟอร์มล็อก "ร่างถูกแก้ไขจากที่อื่น" ครั้งที่ 4)
+      const resume = process.env.TOR09_RESUME?.split(',').map((s) => s.trim());
+      let visit: ErVisit | undefined;
+      if (resume && resume.length >= 3) {
+        visit = { hn: resume[0], vn: resume[1], en: resume[2] };
+        play.patient('เล่นต่อ (TOR09_RESUME — คัดกรองยังไม่ได้บันทึก)', { ...visit, name: `HN ${visit.hn}` });
+      } else {
+        const fresh = await nextUatPatient(page, authorization(), 9);
+        const reg = await play.step('[เตรียม] ลงทะเบียนผู้ป่วยใหม่ครบทุกช่อง + เปิด Visit ER สิทธิ UC', async () => {
+          const r = await registerFull(page, fresh).catch(async (error: Error) => {
+            await noteVisitSlot(play, page);
+            throw error;
+          });
+          noteFilled(play, `ลงทะเบียน ${fullName(fresh)} HN ${r.hn}`, r.filled, r.skipped);
+          return r;
         });
-        noteFilled(play, `ลงทะเบียน ${fullName(fresh)} HN ${r.hn}`, r.filled, r.skipped);
-        return r;
-      });
-      const visit = reg?.visit;
-      if (!visit) throw new Error(`UAT-ER-09: เปิด Visit ER ไม่สำเร็จ (${fullName(fresh)}) — หยุด`);
-      play.patient('เปิดใหม่', played(fresh, visit));
-      recordMockPatient('เล่น 09', fresh, visit, `UAT-ER-09 งานพยาบาล (Order ${TOR_ORDER_CODES.img.join(' + ')})`);
+        visit = reg?.visit;
+        if (!visit) throw new Error(`UAT-ER-09: เปิด Visit ER ไม่สำเร็จ (${fullName(fresh)}) — หยุด`);
+        play.patient('เปิดใหม่', played(fresh, visit));
+        recordMockPatient('เล่น 09', fresh, visit, `UAT-ER-09 งานพยาบาล (Order ${TOR_ORDER_CODES.img.join(' + ')})`);
+      }
 
+      // TOR09_FROM=assign (คู่กับ TOR09_RESUME) = ข้ามขั้นเตรียม (คัดกรอง · Physician Note · Order ทำแล้ว) → เริ่มที่ Assign พยาบาล
+      //   (8 พ.ย. 22:20 Prod หน้าขาว / โหลดค้างตั้งแต่ขั้น Assign — ห้ามคัดกรอง / สั่ง Order ซ้ำ)
+      const skipPrep = !!resume && process.env.TOR09_FROM === 'assign';
+      let tasks: NurseTask[] = [];
+      if (skipPrep) {
+        tasks = await fetchNurseTasks(page, authorization(), visit.en);
+        play.note(`TOR09_FROM=assign — ข้ามขั้นเตรียม · งานพยาบาลเดิม: ${tasks.map((t) => `${t.name} (${t.source}) = ${t.status}`).join(' · ') || '(ไม่มี)'}`);
+        if (tasks.length < 2) throw new Error(`UAT-ER-09: งานพยาบาลเดิมมี ${tasks.length} งาน (ต้อง ≥ 2) — หยุด`);
+      } else {
       await play.step('[เตรียม] คัดกรองครบทุก Section (ESI 3) + บันทึก', async () => {
+        if (resume) {
+          await gotoVisit(page, visit);
+          const systolic = erTriagePanel(page).getByRole('spinbutton', { name: 'Systolic' }).first();
+          const kept = await systolic.waitFor({ timeout: 120_000 }).then(() => systolic.inputValue(), () => '');
+          if (kept) {
+            // ร่างเดิมเก็บ V/S ไว้ แต่ระดับความเร่งด่วน + โซนอาจหาย → เลือกใหม่ (แบบ UAT-ER-08)
+            const locked = await shown(page.getByText(/ร่างถูกแก้ไขจากที่อื่น/), 3_000);
+            const levels = erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' });
+            await levels.scrollIntoViewIfNeeded();
+            if (!(await erTriageLevel(page, 3).isChecked().catch(() => false))) await levels.getByText('3', { exact: true }).click();
+            await expect(erTriageLevel(page, 3), 'ระดับความเร่งด่วนต้องเป็น 3').toBeChecked();
+            const zone = await selectTriageZone(page, 'suggested');
+            play.note(`เปิดใหม่: ร่างเก็บ Systolic "${kept}" · แถบ "ร่างถูกแก้ไขจากที่อื่น" ${locked ? 'ยังขึ้นอยู่' : 'ไม่ขึ้นแล้ว'} · เลือก ESI 3 · โซน ${zone}`);
+            await saveTriageFull(page, visit, 'คัดกรอง ESI 3 (เล่นต่อ)');
+            return;
+          }
+        }
         const t = await fillTriageFull(page, { level: 3, vitals: TOR_VITALS_NORMAL });
-        noteFilled(play, 'คัดกรอง', t.filled, t.skipped);
+        noteFilled(play, resume ? 'คัดกรอง (กรอกใหม่ — ร่างหาย)' : 'คัดกรอง', t.filled, t.skipped);
         await saveTriageFull(page, visit, 'คัดกรอง ESI 3');
       });
       await play.step('[เตรียม] แพทย์บันทึก ER Physician Note ครบ (Diagnosis K30)', async () => {
@@ -720,7 +788,6 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
         const n = await savePhysicianNoteFull(page);
         noteFilled(play, `Physician Note (${n.dx})`, n.filled, n.skipped);
       });
-      let tasks: NurseTask[] = [];
       await play.step(`[เตรียม] สั่ง Order Imaging ${TOR_ORDER_CODES.img.join(' + ')} → ส่งคำสั่ง — เกิดงานพยาบาล ≥ 2 งาน "รอรับงาน"`, async () => {
         await submitOrders(page, TOR_ORDER_CODES.img).catch(async (error: Error) => {
           // Prod: ส่งคำสั่งหมุนนานแต่สำเร็จทีหลังได้ → ดูงานพยาบาลก่อนสรุป
@@ -731,16 +798,23 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
           .toBeGreaterThanOrEqual(2);
         play.note(`งานพยาบาล: ${tasks.map((t) => `${t.name} (${t.source}) = ${t.status}`).join(' · ')}`);
       });
+      } // จบ if (!skipPrep)
 
       await play.step('[236–237] Assign พยาบาล: หน้า Overview ระบุช่อง "พยาบาล" — ชื่อพยาบาลแสดงในช่อง', async () => {
         await gotoVisit(page, visit);
         const box = main.getByRole('combobox', { name: 'พยาบาล' }).first();
         await expect(box).toBeVisible({ timeout: 60_000 });
-        await box.click();
-        await expect(options(page).first()).toBeVisible();
-        const nurse = norm(await options(page).first().innerText());
-        const saved = nextMutation(page, /care-team|assignment/i, 30_000);
-        await options(page).first().click();
+        // dropdown รายชื่อเปิดแล้วปิดเองเร็วมาก (Prod 22:39) → พิมพ์ค้นแล้วกด Enter เลือกรายแรกแทนการคลิกรายชื่อ
+        const openList = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option');
+        let nurse = '';
+        const saved = nextMutation(page, /care-team|assignment|nurse/i, 60_000);
+        await expect(async () => {
+          await box.click();
+          await box.fill('พยาบาล');
+          await expect(openList.first()).toBeVisible({ timeout: 5_000 });
+          nurse = norm(await openList.first().innerText());
+          await page.keyboard.press('Enter');
+        }).toPass({ timeout: 60_000 });
         const res = await saved;
         log(`assign "${nurse}": ${res.request().method()} ${new URL(res.url()).pathname} → ${res.status()}`);
         await expectOk(res, 'บันทึกพยาบาลผู้ดูแล');
@@ -759,16 +833,16 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
       /** แถวของงานในตาราง (ชื่องานจาก API) — ไม่เจอ = undefined */
       const taskRow = async (task: NurseTask): Promise<Locator | undefined> => {
         if (!task.name) return undefined;
-        const row = main.getByRole('row').filter({ hasText: task.name }).first();
+        // แถวงานเป็นกล่อง div._data-row_ ไม่ใช่ <tr> / role=row (สำรวจ 22:39)
+        const row = main.locator('div[class*="_data-row_"]').filter({ hasText: task.name }).first();
         return (await shown(row, 10_000)) ? row : undefined;
       };
       const statusOf = async (id: string) => (await fetchNurseTasks(page, authorization(), visit.en)).find((t) => t.id === id)?.status ?? '(ไม่พบ)';
       const accept = async (task: NurseTask) => {
         const row = (await taskRow(task)) ?? main;
-        const accepted = nextMutation(page, new RegExp(`nurse-tasks/${task.id}/accept`), 30_000);
-        await row.getByRole('button', { name: 'รับงาน', exact: true }).first().click({ timeout: 15_000 });
-        await expectOk(await accepted, `รับงาน ${task.name}`);
-        await expect.poll(() => statusOf(task.id), { timeout: 30_000 }).toBe('RUNNING');
+        // ปุ่มบนจอ Prod = "รับ Order" (ชีตเขียน "รอรับงาน") — ตรวจผลจากสถานะ API แทนการรอ request ที่อาจคนละ path
+        await row.getByRole('button', { name: /^รับ\s*(Order|งาน)$/ }).first().click({ timeout: 15_000 });
+        await expect.poll(() => statusOf(task.id), { timeout: 60_000, message: `${task.name} ต้องเป็น RUNNING หลังกดรับ` }).toBe('RUNNING');
       };
       /** งานที่จบแล้วต้องไม่มีปุ่มเปลี่ยนสถานะในแถว */
       const expectLocked = async (task: NurseTask, what: string) => {
@@ -780,7 +854,7 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
         }
         await row.scrollIntoViewIfNeeded();
         play.note(`แถวงาน "${task.name}" หลัง${what}: ${norm(await row.innerText()).slice(0, 200)}`);
-        const buttons = (await row.getByRole('button').allInnerTexts()).map(norm).filter((t) => /รับงาน|เสร็จ|ยกเลิก|แก้ไข/.test(t));
+        const buttons = (await row.getByRole('button').allInnerTexts()).map(norm).filter((t) => /รับงาน|รับ Order|เสร็จ|ยกเลิก|แก้ไข/.test(t));
         expect(buttons, `งานที่${what}แล้วต้องแก้ไขสถานะไม่ได้ (ไม่มีปุ่ม รับงาน / เสร็จ / ยกเลิก)`).toEqual([]);
       };
 
@@ -820,7 +894,7 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
         await openTaskList();
         if ((await statusOf(second.id)) === 'PENDING') await accept(second);
         const row = (await taskRow(second)) ?? main;
-        const cancelled = nextMutation(page, new RegExp(`nurse-tasks/${second.id}/cancel`), 30_000);
+        const cancelled = nextMutation(page, new RegExp(`nurse-tasks/${second.id}/cancel`), 30_000).catch(() => undefined);
         await row.getByRole('button', { name: /^ยกเลิก/ }).first().click({ timeout: 15_000 });
         const confirm = page.locator('.ant-modal-content:visible, .ant-popover:visible, .ant-popconfirm:visible').last();
         if (await shown(confirm, 3_000)) {
@@ -828,7 +902,8 @@ test.describe(`เล่น Scenario UAT ER ชีตส่งมอบ ข้�
           if (await reason.isVisible().catch(() => false)) await reason.fill('ยกเลิกงาน (UAT-ER-09)');
           await confirm.getByRole('button', { name: /ยืนยัน|บันทึก|ตกลง|ยกเลิกงาน/ }).last().click();
         }
-        await expectOk(await cancelled, `ยกเลิกงาน ${second.name}`);
+        const cancelRes = await cancelled;
+        if (cancelRes) await expectOk(cancelRes, `ยกเลิกงาน ${second.name}`);
         await expect.poll(() => statusOf(second.id), { timeout: 30_000, message: 'งานที่ 2 ต้องเป็น CANCELLED' }).toMatch(/CANCEL/i);
         await expectLocked(second, 'ยกเลิก');
       });

@@ -3,7 +3,7 @@ import { confirmOpenErVisit, dismissToast, expectOk, expectVisitHeader, fetchBoa
 import { erListCell, erListRow, erListTab, filterErListByHn, gotoErPatientList, hnSearchBox } from '../helpers/functions/er-list';
 import { chooseGranularity, qualityTable, searchButton, type Granularity, type QualityReport } from '../helpers/functions/er-quality';
 import { trackAuthorization } from '../helpers/functions/er-report';
-import { ESI_BUTTON, erTriagePanel } from '../helpers/functions/er-triage';
+import { ESI_BUTTON, erTriageLevel, erTriagePanel } from '../helpers/functions/er-triage';
 import { colorName, fetchTvBoard, openTvWindow, readAllTvPatientPages, readTvActiveCard, tvActiveNumber, tvHistoryCards, tvPatientsSection, type TvBoard } from '../helpers/functions/er-tv-queue';
 import { finishVideo } from '../helpers/functions/fixtures';
 import { readPdfLayout } from '../helpers/functions/pdf-barcode';
@@ -24,7 +24,7 @@ import {
 import type { NewPatient } from '../helpers/functions/test-data';
 import { expect, test } from './fixtures';
 import { COVERAGE_UC, SYSTEM, checkInOpdVisit, gotoPatient, nextUatPatient, openOpdVisit, recordMockPatient, scheduleWalkInRequest } from './uat-er';
-import { options, pick, recordMenu, watchMutations } from './uat-play';
+import { gotoVisit, options, pick, recordMenu, watchMutations } from './uat-play';
 import {
   TOR_VITALS_NORMAL,
   TorPlay,
@@ -599,9 +599,11 @@ test.describe(`UAT ER ชีตส่งมอบ ข้อ 11–14 (${SYSTEM})`
       void authorization; // ข้อนี้อ่านค่าจาก response ที่หน้ารายงานยิงเอง (ไม่เรียก API ตรง)
       console.log('    UAT-ER-12: อ่านรายงานอย่างเดียว — ไม่เขียนข้อมูล');
 
+      // TOR12_ONLY=quality = รันเฉพาะ [275–276] รายงานคุณภาพ (ผู้ใช้สั่ง 9 พ.ย. 2026 หลัง 273 / 277 ผ่านแล้ว)
+      const onlyQuality = process.env.TOR12_ONLY === 'quality';
       // ───── [273–274] สถิติ ─────
       const STAT_TABLES = ['จำนวนรวมและระดับ ESI', 'วิธีการมาห้องฉุกเฉิน', 'การจำหน่าย'];
-      for (const { menu, api } of [
+      if (!onlyQuality) for (const { menu, api } of [
         { menu: 'รายงานรายเวร', api: 'shift' },
         { menu: 'รายงานรายวัน', api: 'daily' },
         { menu: 'รายงานรายเดือน', api: 'monthly' },
@@ -618,20 +620,27 @@ test.describe(`UAT ER ชีตส่งมอบ ข้อ 11–14 (${SYSTEM})`
 
       // ───── [275–276] คุณภาพ ─────
       await play.step('[275–276] รายงานคุณภาพ — Door-to-doc · Door-to-disposition · รอเกินกำหนด (Over Target) · กลับมาซ้ำ 72 ชม. (รายเวร / รายวัน / รายเดือน)', async () => {
-        await openReport(page, 'คุณภาพห้องฉุกเฉิน', 'quality');
+        const opened = await openReport(page, 'คุณภาพห้องฉุกเฉิน', 'quality');
         const text = clean(await main.innerText());
         for (const word of [/Door[- ]to[- ]doc/i, /Door[- ]to[- ]disposition/i, /Over Target/i, /72h Revisit/i]) expect(text, `หน้ารายงานคุณภาพต้องมี ${word.source}`).toMatch(word);
+        const openedGranularity = new URLSearchParams(opened.query).get('granularity') ?? 'shift';
         for (const g of ['shift', 'day', 'month'] as Granularity[]) {
-          await chooseGranularity(page, g);
-          const loaded = page.waitForResponse((res) => {
-            const url = new URL(res.url());
-            return res.request().method() === 'GET' && url.pathname === '/cortex-api/er/reports/quality' && (url.searchParams.get('granularity') ?? 'shift') === g;
-          }, { timeout: 60_000 });
-          await searchButton(page).click();
-          const res = await loaded;
-          await expectOk(res, `รายงานคุณภาพ (${g})`);
-          const report = (await res.json()) as QualityReport;
-          await test.info().attach(`GET /cortex-api/er/reports/quality${new URL(res.url()).search}`, { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
+          let report: QualityReport;
+          if (g === openedGranularity) {
+            // ระดับที่เปิดหน้ามาแล้ว — กด ค้นหา ค่าเดิมระบบไม่ยิง API ใหม่ (รอบ 00:34 รอจนหมดเวลา) → ใช้ response ตอนเปิดหน้า
+            report = opened.body as unknown as QualityReport;
+          } else {
+            await chooseGranularity(page, g);
+            const loaded = page.waitForResponse((res) => {
+              const url = new URL(res.url());
+              return res.request().method() === 'GET' && url.pathname === '/cortex-api/er/reports/quality' && (url.searchParams.get('granularity') ?? 'shift') === g;
+            }, { timeout: 60_000 });
+            await searchButton(page).click();
+            const res = await loaded;
+            await expectOk(res, `รายงานคุณภาพ (${g})`);
+            report = (await res.json()) as QualityReport;
+            await test.info().attach(`GET /cortex-api/er/reports/quality${new URL(res.url()).search}`, { body: JSON.stringify(report, null, 2), contentType: 'application/json' });
+          }
           const t = report.total;
           const tables: string[] = [];
           for (const name of ['สรุปตัวชี้วัดคุณภาพ', 'Over Target ต่อ ESI (ราย)', 'Over Target ต่อ ESI (%)', '72h Revisit Detail']) if (await qualityTable(page, name).isVisible().catch(() => false)) tables.push(name);
@@ -643,7 +652,7 @@ test.describe(`UAT ER ชีตส่งมอบ ข้อ 11–14 (${SYSTEM})`
       });
 
       // ───── [277–278] Trauma / Non-trauma / Bed Block ─────
-      await play.step('[277–278] รายงาน Trauma / Non-trauma / Bed Block', async () => {
+      if (!onlyQuality) await play.step('[277–278] รายงาน Trauma / Non-trauma / Bed Block', async () => {
         const { body, query } = await openReport(page, 'Trauma / Bed Block', 'trauma-bed-block');
         const regions: string[] = [];
         for (const name of ['Trauma Visits', 'Non-trauma Visits', 'Mean Bed Block (MIN)', '>4h Bed Block']) {
@@ -671,6 +680,15 @@ test.describe(`UAT ER ชีตส่งมอบ ข้อ 11–14 (${SYSTEM})`
     const LEVEL = 3 as const;
     try {
       await gotoErDashboard(page);
+      // TOR13_RESUME=<HN>,<VN>,<EN ของ ER> = เล่นต่อที่ขั้นคัดกรองกับผู้ป่วยเดิม (ผู้ใช้สั่ง 9 พ.ย. 2026 หลังฟอร์มล็อก "ร่างถูกแก้ไขจากที่อื่น" ครั้งที่ 6)
+      //   ข้ามขั้น 279–286 (ทำแล้ว — ห้ามเปิด Visit OPD / ส่งตัวซ้ำ)
+      const resume13 = process.env.TOR13_RESUME?.split(',').map((s) => s.trim());
+      if (resume13 && resume13.length >= 3) {
+        ctx.hn = resume13[0];
+        ctx.er = { hn: resume13[0], vn: resume13[1], en: resume13[2] };
+        play.patient('เล่นต่อ (TOR13_RESUME — คัดกรองยังไม่ได้บันทึก)', { ...ctx.er, name: `HN ${ctx.hn}` });
+        play.note('TOR13_RESUME — ข้ามขั้น 279–286 (ผ่านแล้วรอบ 00:42) · เล่นต่อที่คัดกรอง');
+      } else {
       await play.step('[279–280] เตรียม: ลงทะเบียนผู้ป่วยใหม่แบบกรอกครบที่หน้าคัดกรอง ER (ยังไม่เปิด Visit ER)', async () => {
         const fresh = await nextUatPatient(page, authorization(), 13);
         ctx.fresh = fresh;
@@ -758,15 +776,37 @@ test.describe(`UAT ER ชีตส่งมอบ ข้อ 11–14 (${SYSTEM})`
         await card.scrollIntoViewIfNeeded();
       });
       if (!ctx.er) return;
-      const er = ctx.er;
-      play.patient('เปิดใหม่ (Encounter ER จาก OPD)', { ...er, name, citizenId: ctx.fresh!.citizenId });
+      play.patient('เปิดใหม่ (Encounter ER จาก OPD)', { ...ctx.er, name, citizenId: ctx.fresh!.citizenId });
+      } // จบ else (ไม่ใช่ TOR13_RESUME)
+      const hn = ctx.hn!;
+      const er = ctx.er!;
 
       await play.step(`[288–289] คัดกรองและเลือกโซน — V/S · GCS · อาการสำคัญ · ESI ${LEVEL} + โซน (กรอกครบทุก Section) >> บันทึก`, async () => {
+        if (resume13) {
+          await gotoVisit(page, er);
+          const systolic = erTriagePanel(page).getByRole('spinbutton', { name: 'Systolic' }).first();
+          const kept = await systolic.waitFor({ timeout: 120_000 }).then(() => systolic.inputValue(), () => '');
+          if (kept) {
+            // ร่างเดิมเก็บ V/S ไว้ แต่ระดับความเร่งด่วน + โซนอาจหาย → เลือกใหม่ แล้วบันทึก (แบบ UAT-ER-08 / 09)
+            const locked = await page.getByText(/ร่างถูกแก้ไขจากที่อื่น/).first().waitFor({ timeout: 3_000 }).then(() => true, () => false);
+            const levels = erTriagePanel(page).getByRole('radiogroup', { name: 'ระดับความเร่งด่วน' });
+            await levels.scrollIntoViewIfNeeded();
+            if (!(await erTriageLevel(page, LEVEL).isChecked().catch(() => false))) await levels.getByText(String(LEVEL), { exact: true }).click();
+            await expect(erTriageLevel(page, LEVEL), `ระดับความเร่งด่วนต้องเป็น ${LEVEL}`).toBeChecked();
+            ctx.zone = await selectTriageZone(page, 'suggested');
+            play.note(`เปิดใหม่: ร่างเก็บ Systolic "${kept}" · แถบ "ร่างถูกแก้ไขจากที่อื่น" ${locked ? 'ยังขึ้นอยู่' : 'ไม่ขึ้นแล้ว'} · เลือก ESI ${LEVEL} · โซน ${ctx.zone}`);
+            await saveTriageFull(page, er, `คัดกรอง ESI ${LEVEL} (เล่นต่อ)`);
+          } else {
+            const r = await triageAndSave(play, page, er, { level: LEVEL, vitals: TOR_VITALS_NORMAL, illness: 'ส่งตัวจาก OPD อายุรกรรม: ปวดท้องรุนแรงขึ้น 1 ชั่วโมง เหงื่อออก (UAT-ER-13)' }, ' (ผู้ป่วยจาก OPD · กรอกใหม่ — ร่างหาย)');
+            ctx.zone = r.zone;
+          }
+        } else {
         const card = page.getByText(`HN: ${hn}`, { exact: true });
         await card.click();
         await expectVisitHeader(page, er);
         const r = await triageAndSave(play, page, er, { level: LEVEL, vitals: TOR_VITALS_NORMAL, illness: 'ส่งตัวจาก OPD อายุรกรรม: ปวดท้องรุนแรงขึ้น 1 ชั่วโมง เหงื่อออก (UAT-ER-13)' }, ' (ผู้ป่วยจาก OPD)');
         ctx.zone = r.zone;
+        }
         const header = main.getByText(new RegExp(`ESI\\s*${LEVEL}\\b`)).filter({ visible: true }).first();
         const shown = await header.isVisible().catch(() => false);
         play.note(`หัวจอหลังบันทึก: ${shown ? `"${clean(await header.innerText())}"` : `(ไม่เห็นข้อความ ESI ${LEVEL})`}`);
@@ -849,8 +889,8 @@ test.describe(`UAT ER ชีตส่งมอบ ข้อ 11–14 (${SYSTEM})`
           .map(([k, v]) => `${k}=${v}`)
           .join(' · ');
         const checks: [string, string, string, boolean][] = [
-          ['ชื่อ', refer.patientName, cell(/ผู้ป่วย/), cell(/ผู้ป่วย/).includes(clean(refer.patientName))],
-          ['เลขบัตร', refer.cid, cell(/ผู้ป่วย/), cell(/ผู้ป่วย/).includes(refer.cid)],
+          ['ชื่อ', refer.patientName, cell(/^ผู้ป่วย$/), cell(/^ผู้ป่วย$/).includes(clean(refer.patientName))],
+          ['เลขบัตร', refer.cid, cell(/^ผู้ป่วย$/), cell(/^ผู้ป่วย$/).includes(refer.cid)],
           ['HN ต้นทาง', refer.originHn, cell(/HN ต้นทาง/), cell(/HN ต้นทาง/) === refer.originHn],
           ['รพ. ต้นทาง', `${refer.originHospitalName} (${refer.originHcode})`, cell(/รพ\.?\s*ต้นทาง|โรงพยาบาลต้นทาง/), cell(/รพ\.?\s*ต้นทาง|โรงพยาบาลต้นทาง/).includes(clean(refer.originHospitalName))],
           ['วันที่ส่งตัว', refer.referDate, cell(/วันที่ส่ง/), cell(/วันที่ส่ง/) === refer.referDate],
@@ -861,6 +901,8 @@ test.describe(`UAT ER ชีตส่งมอบ ข้อ 11–14 (${SYSTEM})`
         expect(checks.filter((c) => !c[3]).map((c) => `${c[0]}: จอ "${c[2]}" (API "${c[1]}")`), 'แถวในหน้า รับ Refer เข้า ต้องตรงกับข้อมูลต้นทาง').toEqual([]);
         expect(cell(/สิทธิ/), 'คอลัมน์สิทธิต้องมีค่า').not.toBe('');
       });
+      // TOR14_ONLY=list = รันเฉพาะ [292–293] ดูรายการ (อ่านอย่างเดียว — ไม่เปิดรายละเอียด / ไม่รับ Refer) · ผู้ใช้สั่ง 9 พ.ย. 2026 หลังแก้คอลัมน์ "ผู้ป่วย"
+      if (process.env.TOR14_ONLY === 'list') return;
 
       await play.step('[294–295] ดูรายละเอียดการส่งต่อ — หน้าต่าง "รายละเอียดการส่งต่อ": ผู้ป่วย · การส่งต่อ · ข้อมูลคลินิก · V/S ต้นทาง · แพ้ยาต้นทาง · "เปิดเอกสารใบส่งตัว" ได้', async () => {
         await row.getByRole('button', { name: 'ดูรายละเอียด' }).click();

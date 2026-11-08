@@ -15,7 +15,7 @@ import { registerAndOpenErVisit } from '../../../mock-data/uat-er';
 import { gotoVisit } from '../../../mock-data/uat-play';
 import { authFile } from '../../../utils/env';
 
-// SBH-3896 [Bug][ER] ER Form + ชื่อ Zone — AC 1 เอากรอบ Diagnosis ชั้นนอกออกจาก ER Physician Note · AC 2 ชื่อโซนคัดกรอง ER / Mass Casualty เหมือน Dev-X
+// SBH-3896 [Bug][ER] ER Form + ชื่อ Zone — AC 1 เอากรอบนอก "Diagnosis general" ออก คงกล่อง "Diagnosis" ด้านใน (ผู้ใช้ยืนยัน 8 พ.ย. — Prod รอบนี้ทำกลับด้าน = TC-001 Fail) · AC 2 ชื่อโซนคัดกรอง ER / Mass Casualty เหมือน Dev-X
 // EXE SBH-3952 → HPY SBH-3953 (TC-001–006 = SBH-3954–3959) · SBH Prod (ผู้ใช้สั่ง 8 พ.ย. 2026 "ทดสอบบน Prod … สร้างคนไข้ตามที่ต้องใช้งานได้เลย" + ลงผล + ปรับสถานะ)
 // 1 เทส = 1 flow (R9) · คลิป 1 ไฟล์ต่อ 1 TC (R61) · TC ที่ไม่ผ่านไม่หยุดเทส (soft)
 //   A  @SBH-3896-A  ผู้ป่วย AUTO ใหม่ 1 ราย + Visit ER (Super_User แทนพยาบาล): TC-002 ปุ่มโซนฟอร์มคัดกรอง → TC-003 ESI 4 โซนแนะนำ (ยังไม่บันทึก)
@@ -277,11 +277,14 @@ test.describe('SBH-3896 ER Form + ชื่อ Zone (SBH Prod)', () => {
         const has = (re: RegExp) => labels.some((l) => re.test(l));
         const del = dxRow.getByRole('button', { name: /remove diagnosis/ });
         const add = section.getByText(/เพิ่มรายการ/).filter({ visible: true }).first();
-        const extraFrames = frames.filter((f) => !f.includes('[มีหัว Diagnosis general]'));
-        // Expected ฉบับแก้ 8 พ.ย. 2026 (ผู้ใช้เลือก "ผ่าน + แก้ Expected ใน TC"): ช่องในแถวรุ่นปัจจุบัน = ค้นหา ICD-10 / Diagnosis / Principal (ประเภท) / Confirm (Status) / Severity / Onset — ไม่มี Category
+        // Expected ฉบับแก้ 8 พ.ย. 2026 (ผู้ใช้ยืนยัน): ต้องเอา "กรอบนอก Diagnosis general" ออก (ant-collapse-item ของ occurrence ฟอร์ม: หัว + ⋮ / ยุบ-ขยาย)
+        // และคงกล่อง "Diagnosis" ด้านใน (หัว "Diagnosis" เหนือแถวรายการ) · ช่องในแถวรุ่นปัจจุบัน = ค้นหา ICD-10 / Diagnosis / Principal / Confirm / Severity / Onset — ไม่มี Category
+        // Prod 8 พ.ย. (index-BVfsMIKN.js) ทำกลับด้าน → TC-001 Fail + การ์ดบั๊ก Sub-Issue ใต้ SBH-3896 (decisions R176)
+        const outerFrame = await pn.locator('.ant-collapse-item').filter({ has: doc.getByText('Diagnosis general', { exact: true }) }).count();
+        d.note(`${TC(1)} กรอบซ้อนระหว่างหัวกับแถว`, frames.filter((f) => !f.includes('[มีหัว Diagnosis general]')).join(' › ') || '(ไม่มี)');
         const rows: CompareRow[] = [
-          { label: 'กล่อง "Diagnosis" ครอบรายการอีกชั้น', values: ['ไม่มี', innerCount ? `มี (${innerCount})` : 'ไม่มี'], same: innerCount === 0 },
-          { label: 'กรอบซ้อนระหว่างหัวกับแถว', values: ['ไม่มี', extraFrames.length ? `มี ${extraFrames.length} ชั้น` : 'ไม่มี'], same: extraFrames.length === 0 },
+          { label: 'กรอบนอก "Diagnosis general" (หัว + ⋮ / ยุบ-ขยาย)', values: ['ไม่มี', outerFrame ? 'มี' : 'ไม่มี'], same: outerFrame === 0 },
+          { label: 'กล่อง "Diagnosis" ด้านใน (หัว Diagnosis)', values: ['มี', innerCount ? 'มี' : 'ไม่มี'], same: innerCount > 0 },
           { label: 'ค้นหา ICD-10', values: ['แสดง', has(/^ค้นหา ICD-10/) ? 'แสดง' : 'ไม่แสดง'], same: false },
           { label: 'Diagnosis', values: ['แสดง', has(/^Diagnosis$/) ? 'แสดง' : 'ไม่แสดง'], same: false },
           { label: 'Principal (ประเภท)', values: ['แสดง', has(/^Principal$/) && has(/^ประเภท$/) ? 'แสดง' : 'ไม่แสดง'], same: false },
@@ -294,8 +297,13 @@ test.describe('SBH-3896 ER Form + ชื่อ Zone (SBH Prod)', () => {
         d.note(`${TC(1)} กรอบรอบแถว Diagnosis (จากแถวขึ้นไปถึงส่วน)`, frames.join(' › ') || '(ไม่มี)');
         d.note(`${TC(1)} ข้อความ / placeholder ในส่วน`, labels.slice(0, 60).join(' | '));
         await showCompareTable(doc, `${ISSUE(1)} ${tcId(1)} ส่วน Diagnosis general`, ['Expected', 'หน้าจอ'], rows, { side: 'left', width: '560px' });
-        await markEvidence(expected(dxTitle, 'Diagnosis general'), expected(dxRow, 'แถวอยู่ใต้หัวโดยตรง'), ...((await add.count()) ? [expected(add)] : []));
-        expect(bad(rows), 'Expected: ไม่มีกล่อง Diagnosis ซ้อน · ช่อง / ปุ่มครบ').toEqual([]);
+        // ป้ายแบบ <ที่ต้องการ> · จริง: <ที่เห็น> (expected() เติม "Expected:" ให้เอง)
+        await markEvidence(
+          expected(dxTitle, `ไม่มีกรอบนอก Diagnosis general · จริง: ${outerFrame ? 'ยังมี' : 'ไม่มี'}`),
+          expected(dxRow, `คงกล่อง Diagnosis · จริง: ${innerCount ? 'มีหัว Diagnosis' : 'ไม่มีหัว Diagnosis'}`),
+          ...((await add.count()) ? [expected(add)] : []),
+        );
+        expect(bad(rows), 'Expected: ไม่มีกรอบนอก Diagnosis general · คงกล่อง Diagnosis ด้านใน · ช่อง / ปุ่มครบ').toEqual([]);
       });
       await hideCompareTable(doc);
       await startClip(doc, 'after');
