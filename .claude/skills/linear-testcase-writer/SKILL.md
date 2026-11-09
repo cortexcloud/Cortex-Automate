@@ -9,7 +9,7 @@ description: Generate a QA execution test structure (EXE → Scenario → Test C
 
 สร้างเฉพาะลำดับชั้นนี้: Requirement → EXE → Scenario → Test Case (EXE อยู่ใต้ Requirement, Scenario อยู่ใต้ EXE, Test Case อยู่ใต้ Scenario) ห้ามสร้าง item นอกลำดับชั้นนี้
 
-> **สไตล์ภาษา**: ตาม skill `plain-writing-th` (`~/.agents/skills/plain-writing-th/SKILL.md`) — skill นี้กำหนดเฉพาะ **โครง EXE/Scenario/Test Case** (ชื่อ, template, label) ถ้าเรื่องภาษาขัดกัน ให้ยึด `plain-writing-th`
+> **สไตล์ภาษา**: ตาม skill `plain-writing-th` (`.claude/skills/plain-writing-th/SKILL.md`) — skill นี้กำหนดเฉพาะ **โครง EXE/Scenario/Test Case** (ชื่อ, template, label) ถ้าเรื่องภาษาขัดกัน ให้ยึด `plain-writing-th`
 
 > **หมายเหตุ**: สกิลนี้เคยมีเวอร์ชันขัดกันอยู่ 2 ชุด (ชุดนี้ กับสกิล `linear-execution-test`) ตั้งแต่ 30 ก.ย. 2026 ได้รวมเป็น ruleset เดียวแล้วตามที่เขียนในไฟล์นี้ — ห้ามใช้กฎเก่าของเวอร์ชันก่อนหน้า และห้ามอ้างอิง `linear-execution-test` แทนไฟล์นี้
 
@@ -309,6 +309,8 @@ Use plain text only for TC ID and Scenario ID.
 ## Skill update log
 
 หลังแก้สกิลนี้สำเร็จทุกครั้ง เพิ่ม entry ใหม่ไว้บนสุดของ log นี้ รูปแบบ `YYYY-MM-DD` — สรุปสั้นๆ ว่าแก้กฎ/ขั้นตอนไหน แล้วแจ้งผู้ใช้ด้วยวันที่ + สรุปที่แก้ ห้ามบอกว่าอัปเดตแล้วถ้ายังไม่ได้ save จริง
+
+`2026-11-09` — skill ทุกตัวเหลือต้นฉบับชุดเดียวที่ `.claude/skills/` ของ repo Cortex-Automate · ชุด global (`~/.claude/skills`, `~/.agents/skills`, `~/.cursor/skills`) เป็น symlink ชี้มาที่ repo (สร้างด้วย `scripts/link-skills.sh`) จึงไม่ต้อง sync หลายสำเนาแล้ว — ข้อความใน entry `2026-09-30` เรื่อง "ต้องเหมือนกันทุกตัวอักษรกับชุด global" ไม่ต้องทำแล้ว · path ของ plain-writing-th เปลี่ยนเป็น `.claude/skills/...`
 
 `2026-10-22` — Creation behavior ข้อ 4: ถามชื่อ assignee ก่อนสร้างการ์ดทุกครั้ง + เช็คบัญชี connector ด้วย `get_user("me")` (เหตุ: SBH-2885 ถูกสร้างเป็นชื่อบัญชีอื่นโดยไม่ได้ถาม)
 
