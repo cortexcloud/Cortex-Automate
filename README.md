@@ -10,6 +10,13 @@ QA Automation สำหรับ Cortex Cloud HIS (dev-x) ด้วย Playwrigh
    ถ้าวันหลังเทส fail ว่า `Executable doesn't exist ... ffmpeg` ให้รันคำสั่งนี้ใหม่ (เคยหายหลังใช้ Playwright MCP)
 4. คัดลอก `.env.example` เป็น `.env` แล้วกรอก user ทดสอบแยกตาม role (`CORTEX_USERNAME_<Role>` / `CORTEX_PASSWORD_<Role>` เช่น Super_User, Doctor, Nurse)
 
+## Skill และกฎของทีม QA (Claude Code)
+
+- `.claude/skills/` คือต้นฉบับชุดเดียวของ skill ทีม QA (มาตรฐาน Severity, การ์ด bug, test case, pentest, data-testid, ภาษา ฯลฯ) — เปิดโปรเจกต์นี้ใน Claude Code แล้วใช้ได้ทันที ไม่ต้องติดตั้ง
+- `CLAUDE.md` และ hook ใน `.claude/settings.json` โหลดเองทุก session · hook (`.claude/hooks/skill-keyword-router.py`) ดู keyword ในคำสั่งแล้วเตือนให้โหลด skill ที่ตรงงาน · รายการ keyword อยู่ที่ `.claude/hooks/skill-keywords.json` · Claude Code จะถามยืนยันครั้งแรกที่เจอ hook ของโปรเจกต์ · ต้องมี `python3`
+- อยากใช้ skill ชุดนี้ในโปรเจกต์อื่นด้วย (ไม่บังคับ): `bash scripts/link-skills.sh` → สร้าง symlink ใน `~/.claude/skills` (และ `~/.agents/skills`, `~/.cursor/skills` ถ้ามี skill ชื่อเดียวกันอยู่แล้ว) · ของเดิมถูกย้ายไป `~/.claude/skills-backup-<วันที่>/` ไม่ลบ · ดูก่อนได้ด้วย `--dry-run`
+- แก้ skill ที่ `.claude/skills/` ใน repo นี้เท่านั้น แล้ว commit ให้ทีม
+
 ## รัน
 
 | คำสั่ง | ทำอะไร |
