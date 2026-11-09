@@ -1771,3 +1771,8 @@ session เดิมจบเพราะ Playwright MCP ค้าง (error "No
 - [x] P3 `scripts/link-skills.sh` (มี `--dry-run` · ย้ายของเดิมไป backup ไม่ลบ) + หัวข้อ "Skill และกฎของทีม QA" ใน README → `22efdff`
 - [x] P3 แก้ path plain-writing-th ใน linear-testcase-writer + update log → `fcdcc13` · CLAUDE.md ของโปรเจกต์ใช้ `.claude/skills/...` อยู่แล้ว ไม่ต้องแก้ 
 - [x] P3 ผู้ใช้สั่ง push 9 พ.ย. → push `ff13480..5335ca5` (6 commit) ขึ้น `origin/neran` · ยังไม่ได้ merge เข้า `main`
+
+## README ของไฟล์ Regression ให้ตรงกับมาตรฐาน Severity — 9 พ.ย. 2569
+
+- [x] P1 README B15 นิยาม Severity: ใส่ "QA เป็นผู้ตั้ง" + นิยาม Critical ข้อความเดียวกับ Regression Plan B52 / Lists Guide C21 (รวมข้อมูลที่ส่งออกนอกระบบผิด) + ชี้ไปชีต Lists Guide · README B16 ต่อท้าย "Priority ของ Bug ใน Linear PO เป็นผู้จัด · กฎ TOR ยก Priority ไม่ยก Severity" · แก้ XML ตรง (inline string คง style เดิม) · ตรวจ: zip part ที่เปลี่ยนมีแค่ `xl/worksheets/sheet1.xml` · จำนวนสูตร / CF / DV / protection / named range เท่าเดิมทุกชีต · สำรองไฟล์ก่อนแก้ที่ scratchpad `TMH_Regression_v2.9.0_Final.backup6.xlsx` · ยังไม่ได้เปิดใน Excel จริง
+- หมายเหตุ: สูตร Bug Priority + กฎ TOR อยู่ที่ E2E core flow R15:R81 (ที่เคยรายงานว่า N15 ผิด สคริปต์เทียบอ่านตำแหน่งช่องเพี้ยน)
