@@ -1,0 +1,38 @@
+{
+  "_comment": "keyword -> skill สำหรับ hook skill-keyword-router.py · keywords = substring ไม่สนตัวพิมพ์ · patterns = regex · inline_max_bytes = skill ที่เล็กกว่านี้แทรกเนื้อหาทั้งไฟล์ ใหญ่กว่าแทรกข้อความเตือน · always = เตือนทุกคำสั่ง (แทรกข้อความเตือนเท่านั้น)",
+  "inline_max_bytes": 20480,
+  "always": ["plain-writing-th"],
+  "skills": {
+    "pentest-workflow": {
+      "keywords": ["pentest", "pen test", "penetration", "retest", "permission", "สิทธิ์", "role", "bola", "bfla", "idor", "exposure", "inet"],
+      "patterns": ["\\bpt_[a-z_]+"]
+    },
+    "linear-testcase-writer": {
+      "keywords": ["test case", "testcase", "เทสเคส", "scenario", "exe "],
+      "patterns": ["\\bTC-\\d+", "\\bSC-\\d+", "\\bEXE\\b"]
+    },
+    "qa-bug-writer": {
+      "keywords": ["bug", "บั๊ก", "เปิดการ์ด", "การ์ด bug", "report bug"]
+    },
+    "cortex-card-test": {
+      "keywords": ["ทดสอบการ์ด", "เทสการ์ด", "ขั้นตอนเทส", "แนบผล", "ลงผล", "sub issue", "sub-issue"],
+      "patterns": ["\\b(SBH|COR|CTXN|TMH|NUH)-\\d+"]
+    },
+    "cortex-automate": {
+      "keywords": ["ทดสอบการ์ด", "เทสการ์ด", "ขั้นตอนเทส", "แนบผล", "ลงผล", "sub issue", "automate", "playwright", "spec", "locator", "codegen", "flaky", "รัน test", "mock data"],
+      "patterns": ["\\b(SBH|COR|CTXN|TMH|NUH)-\\d+"]
+    },
+    "qa-automate-readiness": {
+      "keywords": ["ทำ automate", "แปลงเป็น automate", "แปลง test case เป็น automate", "support ส่ง", "excel เคส"]
+    },
+    "agent-app-testing": {
+      "keywords": ["ให้ agent เทส", "ให้ agent เล่น", "ให้ agent ไปเทส", "สำรวจแอป", "agent เล่นระบบ"]
+    },
+    "datatest-id-standard": {
+      "keywords": ["data-testid", "testid", "สร้าง ui", "แก้ ui", "component"]
+    },
+    "design-system-standard": {
+      "keywords": ["design system", "theme", "stylesheet", "สีปุ่ม", "ปุ่ม", "การ์ด ui"]
+    }
+  }
+}
