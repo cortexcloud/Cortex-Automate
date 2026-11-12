@@ -205,7 +205,7 @@ export PATH="/c/Program Files/nodejs:$PATH"; cd "/c/Users/jame4/OneDrive/Desktop
 - ความรู้หน้าจอใหม่ → `references/screens/<โมดูล>.md` เป็น `###` ใหม่ท้ายไฟล์ (ระบุระบบ + วันที่ + ไฟล์แอป) · โมดูลใหม่ → สร้างไฟล์ใหม่แล้วเพิ่มแถวในตาราง §9
 - ไฟล์ / สเปกใหม่ → เพิ่มบรรทัดใน `references/project-map.md` (บรรยายสั้น รายละเอียดอยู่หัวไฟล์สเปก) · คำสั่งใหม่ → §3 หรือ `references/commands-mock-data.md`
 - แก้ทุกครั้ง → เพิ่ม 1 บรรทัดท้าย `references/changelog.md` (ไม่ลงในไฟล์นี้)
-- **คุมขนาด**: SKILL.md นี้ไม่ควรเกิน ~60 KB · ไฟล์ screens แต่ละไฟล์เกิน ~100 KB ให้แยกตามหน้าจอย่อย
+- **คุมขนาด**: แก้ SKILL.md ของสกิลใดแล้วรัน `node .claude/skills/cortex-automate/scripts/skill-size.mjs` (งบต่อไฟล์เป็นตัวอักษร อยู่ในสคริปต์ — ห้ามเพิ่มงบเพื่อให้ผ่าน) · เกินงบ → ย้ายประวัติ / ตัวอย่างรายการ์ด / รายละเอียดไป `references/` ของสกิลนั้น ไฟล์หลักเก็บกฎ 1 บรรทัด + ตัวชี้ · ประวัติของ `cortex-er-tor-uat` / `cortex-regression` และรายการการ์ดบั๊กของ `cortex-card-test` ลงที่ `references/` ของสกิลนั้น (ไม่ลงใน SKILL.md) · ไฟล์ screens แต่ละไฟล์เกิน ~100 KB ให้แยกตามหน้าจอย่อย
 
 ---
 
