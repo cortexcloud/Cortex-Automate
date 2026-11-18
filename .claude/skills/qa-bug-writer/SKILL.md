@@ -47,6 +47,34 @@ description: เขียนการ์ด bug (Linear) จากผลทด�
 - ประเมินจากกรณีแย่ที่สุดที่เกิดได้จริง แล้วเขียนเหตุผลสั้น ๆ เป็นภาษาผู้ใช้ไว้ใต้บรรทัด Severity (`* Remark:`) · ถ้ายังไม่ได้ตรวจสิ่งที่จะเปลี่ยนระดับ (เช่น ไฟล์ Export) ให้เขียนว่ายังไม่ได้ตรวจ และระดับจะเปลี่ยนเป็นอะไรถ้าผลออกมาอีกแบบ
 - **ใครตั้ง:** QA ตั้ง Severity ในเนื้อการ์ด และตั้งช่อง Priority ของ Linear ตอน Log Bug → PO / PM ยืนยันหรือปรับ Priority ตอน Triage · Remark ท้ายใส่ "รอ PO / PM ยืนยัน Priority"
 
+## Priority (มาตรฐานทีม QA · 10 พ.ย. 2569)
+
+- **QA ตั้งช่อง Priority ทุกการ์ด bug** (CT / RG / Master data) ตอน Log Bug · PO / PM ยืนยันตอน Triage
+- **มี Impact** (งาน RG ที่กรอก Impact ในชีต E2E core flow) → Priority = Severity × Impact ตาม Matrix ในชีต Lists (README B17)
+
+  | Severity \ Impact | Extensive | Significant | Moderate | Minor |
+  | -- | -- | -- | -- | -- |
+  | Critical | Urgent | Urgent | High | High |
+  | High | Urgent | High | High | Medium |
+  | Medium | High | High | Medium | Medium |
+  | Low | Medium | Medium | Low | Low |
+
+- **ไม่มี Impact** → ใช้ Severity ตรงตัว: Critical → Urgent · High → High · Medium → Medium · Low → Low
+- **กฎ TOR:** bug ในงานที่ TOR = Yes **ขวาง Release** → ได้ Medium / Low ให้ตั้ง Priority อย่างน้อย High · **ไม่เปลี่ยน Severity** · เขียนใน Remark ว่าอยู่ใน TOR · ในไฟล์ Regression สูตรยกให้เองและ Release Gate = Blocking
+- **ปล่อย bug ที่ขวาง Release:** ถ้า PO / PM จะให้ Go ต้อง comment อนุมัติในการ์ด Summary Regression (QA Lead เตรียมตอน Day 0) → บันทึก Risk Log (Approval Level = CAB) → Release Gate = Accepted (CF) · ไม่ตอบภายในเส้นตาย = ไม่อนุมัติ · เส้นตาย [ยังไม่กำหนด]
+- **ขั้นตอนสรุป Regression:** Day 5 หรือวันจันทร์ถัดไป QA สรุปผลให้จบ → วันอังคารส่ง summary + bug logs ให้ PO / PM ตัดสินใจแก้ bug และ Release ผ่าน comment ในการ์ด Summary Regression → QA Lead รับทราบแล้วเปลี่ยน status ในไฟล์ Regression → Dev Lead ทำการ Release
+- ย้ายการ์ดเข้า Triage แล้ว**อ่านกลับ** เพราะระบบอาจเปลี่ยน Priority เอง ถ้าเปลี่ยนให้ตั้งกลับเป็นค่าที่ QA ตั้ง
+
+แยกตามประเภทงาน (แต่ละงานมีเงื่อนไขของตัวเอง ห้ามใช้แบบเดียวกันทั้งหมดโดยไม่ดูประเภทงาน):
+
+| | Test in cycle (CT) | Regression (RG) | Master data |
+| -- | -- | -- | -- |
+| Severity ในการ์ด | ✅ | ✅ | ✅ |
+| Impact | — | ✅ กรอกในชีต E2E core flow: Extensive (ทั้งโรงพยาบาล / หลายแผนก) · Significant (ผู้ใช้จำนวนมากใน Module) · Moderate (บางกลุ่ม / บางเคส) · Minor (น้อยมาก) | — |
+| Priority (ช่องใน Linear) | QA ตั้งจาก Severity → PO / PM ยืนยัน | QA ตั้งตาม Bug Priority ในไฟล์ (Excel คำนวณ Severity × Impact + กฎ TOR) · ยังไม่มี Impact ใช้ Severity → PO / PM ยืนยัน | QA ตั้งจาก Severity → PO / PM ยืนยัน |
+| กฎ TOR | QA ตั้ง Priority ≥ High + เขียนใน Remark | สูตร Excel ทำให้ + เขียนใน Remark | QA ตั้ง Priority ≥ High + เขียนใน Remark |
+| รูปแบบการ์ด | skill นี้ | ตามการ์ดตัวอย่าง COR-4722 + ใส่ Defect ID ในไฟล์ Regression | ตามการ์ดตัวอย่าง COR-4715 |
+
 ## สูตรชื่อการ์ด
 
 ```
@@ -141,6 +169,8 @@ n. ขั้นที่เห็นปัญหา (เช่น Reload แล�
 - อาการที่เขียนต้องทำจริงจนเห็น (เห็นแค่ tag ยังไม่พอ ต้องกดแล้วดูค่า)
 - เลข TC ในเนื้อความครอบด้วย backtick (`TC-SBH-1198-012`) — ไม่งั้น Linear แปลงส่วน SBH-1198 เป็นลิงก์
 - วางการ์ดตาม scope ของ AC แล้ว (sub-issue หรือ Triage)
+- Severity ตรงตามนิยามในหัวข้อ Severity ของประเภทงานนั้น · มี Remark บอกเหตุผล · ระบุ TOR ถ้างานอยู่ใน TOR
+- ตั้งช่อง Priority ตามหัวข้อ Priority แล้ว (Severity × Impact หรือ Severity ตรงตัว · TOR ≥ High) · อ่านกลับหลังย้ายเข้า Triage
 - ชื่อการ์ดบอกครบ ทำอะไร + ที่ไหน + อาการ และไม่มี status code / endpoint
 - Actual Result มี ปัญหา / เกิดที่ / อาการ / เกิดซ้ำ ครบ
 - คนที่ไม่ใช่ dev อ่าน 3 บรรทัดแรกของ Actual Result แล้วเข้าใจว่าเกิดอะไร
@@ -151,7 +181,9 @@ n. ขั้นที่เห็นปัญหา (เช่น Reload แล�
 
 ## Skill update log
 
-`2026-11-09` — เพิ่มหัวข้อ "Severity": นิยาม 4 ระดับ · นิยามฟังก์ชันหลัก · ประเมินจากผล ไม่ใช่ต้นเหตุ
+`2026-11-10` — เพิ่มหัวข้อ "Priority": QA ตั้งช่อง Priority ทุกการ์ด bug (CT / RG / Master data) ตอน Log Bug → PO / PM ยืนยันตอน Triage · Severity × Impact ถ้ามี ไม่มีใช้ Severity ตรงตัว · กฎ TOR = ขวาง Release (Priority ≥ High) · ปล่อยได้เมื่อ PO / PM comment อนุมัติในการ์ด Summary Regression + Risk Log (CAB) · ขั้นตอนสรุป Day 5 / จันทร์ → ส่งวันอังคาร · การ์ด Master Data ใส่ Priority แล้ว (เดิมไม่ใส่) · แก้ตาราง CT / RG / Master data + checklist
+
+`2026-11-09` — เพิ่มหัวข้อ "Severity": นิยาม 4 ระดับ (ตรงกับไฟล์ Regression) · นิยามฟังก์ชันหลัก · ประเมินจากผลไม่ใช่ต้นเหตุ · กฎ TOR ยก Priority ไม่ยก Severity · QA ตั้ง Severity → PO จัด Priority · ตารางแยก CT / RG / Master data (Pentest ไม่ใช้ ใช้ CVSS จาก report) + checklist 1 ข้อ
 
 `2026-10-29` — เพิ่มหัวข้อ "วางการ์ดไว้ที่ไหน" (ใน AC = sub-issue · นอก AC = Triage + related) และ checklist 4 ข้อ (ข้อเท็จจริงจาก record ที่ทดสอบจริง · ทำจริงจนเห็นอาการ · ครอบเลข TC ด้วย backtick · วางตาม scope) — บทเรียน SBH-1198
 
