@@ -18,6 +18,7 @@ description: สมุดกฎและคู่มือของโปรเ�
 3. เทสการ์ด (`tests/`) รันกับ dev-x (`https://dev-x.cortexcloud.co`) เท่านั้น · **SBH Prod** (`https://cortex.srbrhospital.com` รพ.สระบุรี) ใช้ได้เฉพาะงานที่ผู้ใช้สั่งให้ทำบน Prod (ตอนนี้: Mock Data UAT ER — R31) ผ่าน `playwright.sbh-prod.config.ts` + `mock-data/` เท่านั้น ·
    ยกเว้นเทสการ์ดที่ผู้ใช้อนุญาตให้รันบน Prod เป็นรายการ์ด (R40) — รันผ่าน `playwright.sbh-prod.cards.config.ts` ซึ่งระบุไฟล์ไว้เป็นรายการ (ตอนนี้: SBH-2394 อ่านอย่างเดียว · SBH-2471 สร้างผู้ป่วย AUTO 4 ราย แล้วปิด Visit — R42 · SBH-2462 สร้างผู้ป่วย AUTO 2 ราย + Disposition แล้วปิด Visit — R43 · SBH-2373 สร้างผู้ป่วย AUTO 1 ราย + Triage + Physician Note แล้วปิด Visit — R45)
    `loadEnv()` กันไว้ทั้ง 2 ทาง (config ปกติ + BASE_URL ของ Prod = error) · งานอื่นจะทำบน Prod ต้องถามก่อนทุกครั้ง
+   ยกเว้นการ์ดที่ผู้ใช้สั่ง หรือการ์ด / EXE ระบุว่ารันบน **stg TMH** (`https://cortex-stg.tmhospital.com`) — รันผ่าน Playwright MCP ตามหัวข้อ "เงื่อนไข: การ์ดที่รันบน stg TMH" ใน `cortex-card-test` (ผู้ใช้กำหนด 18 พ.ย. 2569)
 4. ความลับ (user/pass, session) ทำตาม §6 ทุกกรณี
 5. อ่านโค้ด/ไฟล์ของผู้ใช้ก่อนออกแบบ — เช่น `.env` ที่ผู้ใช้ตั้ง user แยก role เอง: **ปรับโค้ดให้ตามรูปแบบของผู้ใช้** ไม่ใช่ให้ผู้ใช้แก้ตามโค้ด
 6. ได้การ์ดใหม่/requirement ใหม่ → ต้องผ่าน skill **`qa-automate-readiness`** ก่อนเขียนโค้ด automate ทุกครั้ง (เดิมคือ R16 —
