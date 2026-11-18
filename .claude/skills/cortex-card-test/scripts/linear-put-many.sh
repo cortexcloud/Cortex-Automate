@@ -6,6 +6,6 @@ put="$(dirname "$0")/linear-put.sh"
 while [ $# -ge 2 ]; do
   file="$1"; url="$2"; shift 2
   case "$file" in *.webm) type="video/webm" ;; *.pdf) type="application/pdf" ;; *) type="image/png" ;; esac
-  "$put" "$file" "$url" "$type" &
+  bash "$put" "$file" "$url" "$type" &
 done
 wait
